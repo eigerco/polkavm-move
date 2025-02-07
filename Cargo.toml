@@ -58,6 +58,7 @@ members = [
     "language/move-vm/test-utils",
     "language/move-vm/transactional-tests",
     "language/move-vm/types",
+    "language/polkavm/move-to-polka",
     "language/solana/llvm-extra-sys",
     "language/solana/move-to-solana",
     "language/testing-infra/module-generation",
