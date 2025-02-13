@@ -199,10 +199,10 @@ impl Context {
 
     pub fn const_string(&self, v: &str) -> ArrayValue {
         unsafe {
-            ArrayValue(LLVMConstStringInContext(
+            ArrayValue(LLVMConstStringInContext2(
                 self.0,
                 v.cstr(),
-                v.len() as u32,
+                v.len() as usize,
                 true as i32, /* !null_terminated */
             ))
         }
@@ -1665,7 +1665,7 @@ unsafe fn add_polkavm_metadata(
     let struct_ty = LLVMStructType(struct_field_types.as_mut_ptr(), 1, 0);
     let text = CString::new(fn_name).unwrap();
     let const_array =
-        LLVMConstStringInContext(context, text.as_ptr(), text.as_bytes().len() as u32, 1);
+        LLVMConstStringInContext2(context, text.as_ptr(), text.as_bytes().len() as usize, 1);
     let mut struct_values = [const_array];
     let const_struct = LLVMConstStruct(struct_values.as_mut_ptr(), 1, 0);
     let hashed = hash_string(fn_name);

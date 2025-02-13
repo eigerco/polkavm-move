@@ -10,16 +10,17 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.52"
 atty = "0.2.14"
-blake3 = "0.1.5"
+blake3 = "1.5"
 bs58 = "0.5.0"
 chrono = "0.4"
-clap = { version = "3.1.8", features = ["derive"] }
+clap = { version = "3.2", features = ["derive"] }
 codespan = "0.11.1"
 codespan-reporting = "0.11.1"
-colored = "2.0.0"
-env_logger = "0.8.3"
+colored = "3.0.0"
+anstyle = "1.0"
+env_logger = {version="0.11", features=["color"]}
 extension-trait = "1.0.1"
-itertools = "0.10"
+itertools = "0.14"
 libc = "0.2"
 llvm-sys = "191.0"
 log = "0.4.14"
