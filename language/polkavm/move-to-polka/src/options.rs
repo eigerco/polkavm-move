@@ -8,21 +8,11 @@ use clap::Parser;
 #[clap(author, version, about)]
 pub struct Options {
     /// Directories where to lookup dependencies.
-    #[clap(
-        short,
-        takes_value(true),
-        multiple_values(true),
-        multiple_occurrences(true)
-    )]
+    #[clap(short)]
     pub dependencies: Vec<String>,
 
     /// Named address mapping.
-    #[clap(
-        short,
-        takes_value(true),
-        multiple_values(true),
-        multiple_occurrences(true)
-    )]
+    #[clap(short)]
     pub named_address_mapping: Vec<String>,
 
     /// Path to output file or if option `-c` is set to output directory.
@@ -97,13 +87,7 @@ pub struct Options {
     pub dot_file_path: String,
 
     /// Unit test function name, when compiling for testing
-    #[clap(
-        long,
-        required(false),
-        takes_value(true),
-        multiple_values(false),
-        multiple_occurrences(false)
-    )]
+    #[clap(long, required(false))]
     pub unit_test_function: Option<String>,
 }
 
