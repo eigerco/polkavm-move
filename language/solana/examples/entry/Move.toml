@@ -1,9 +1,0 @@
-[package]
-name = "entry"
-version = "1.0.0"
-
-[addresses]
-entry = "0xeeee"
-
-[dependencies]
-MoveStdlib = { local = "../../../move-stdlib", addr_subst = { "std" = "0x1" } }

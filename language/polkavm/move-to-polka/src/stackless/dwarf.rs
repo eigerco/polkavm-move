@@ -179,7 +179,8 @@ impl<'up> Instruction<'up> {
     fn new(bc: &'up Bytecode, func_ctx: &'up FunctionContext<'_, '_>) -> Instruction<'up> {
         let loc = func_ctx
             .env
-            .get_bytecode_loc(bc.get_attr_id().as_usize() as u16);
+            .get_bytecode_loc(bc.get_attr_id().as_usize() as u16)
+            .unwrap();
         Instruction { bc, func_ctx, loc }
     }
     fn debug(&self) {
@@ -1075,7 +1076,7 @@ impl<'up> DIBuilder<'up> {
                 m_ctx.llvm_di_builder.compiled_unit().unwrap();
 
             let m_env: &move_model::model::ModuleEnv<'_> = &m_ctx.env;
-            let m_name: String = m_env.get_name().display(m_env.symbol_pool()).to_string();
+            let m_name: String = m_env.get_name().display(m_env.env).to_string();
             let name_cstr = to_cstring!(m_name.clone());
             let (fn_nm_ptr, _fn_nm_len) = (name_cstr.as_ptr(), name_cstr.as_bytes().len());
 

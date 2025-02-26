@@ -24,16 +24,16 @@ itertools = "0.14"
 libc = "0.2"
 llvm-sys = "191.0"
 log = "0.4.14"
-move-binary-format = { path = "../../move-binary-format" }
-move-bytecode-source-map = { path = "../../move-ir-compiler/move-bytecode-source-map" }
-move-command-line-common = { path = "../../move-command-line-common" }
-move-compiler = { path = "../../move-compiler" }
-move-core-types = { path = "../../move-core/types" }
-move-ir-types = { path = "../../move-ir/types" }
-move-model = { path = "../../move-model" }
+move-binary-format = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-binary-format" }
+move-bytecode-source-map = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-bytecode-source-map" }
+move-command-line-common = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-command-line-common" }
+move-compiler = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-compiler" }
+move-core-types = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-core-types" }
+move-ir-types = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-ir-types" }
+move-model = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-model" }
 move-native = { path = "../../move-native" }
-move-stackless-bytecode = { path = "../../move-prover/bytecode" }
-move-symbol-pool = { path = "../../move-symbol-pool" }
+move-stackless-bytecode = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-stackless-bytecode" }
+move-symbol-pool = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-symbol-pool" }
 num = "0.4.0"
 num-traits = "0.2"
 once_cell = "1.10"

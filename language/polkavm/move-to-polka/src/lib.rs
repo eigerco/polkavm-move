@@ -20,13 +20,13 @@ use move_command_line_common::files::{
     MOVE_COMPILED_EXTENSION, MOVE_EXTENSION, SOURCE_MAP_EXTENSION,
 };
 use move_compiler::{shared::PackagePaths, Flags};
-use move_core_types::{identifier::IdentStr, language_storage::ModuleId, value::MoveValue};
 use move_ir_types::location::Spanned;
 use move_model::{
     model::GlobalEnv, options::ModelBuilderOptions, parse_addresses_from_options,
     run_model_builder_with_options_and_compilation_flags,
 };
 use std::{
+    collections::BTreeSet,
     fs,
     io::Write,
     path::{Path, PathBuf},
@@ -261,6 +261,7 @@ fn get_env_from_source<W: WriteColor>(
             paths: options.sources.clone(),
             named_address_map: addrs.clone(),
         }],
+        vec![],
         vec![PackagePaths {
             name: None,
             paths: options.dependencies.clone(),
@@ -268,6 +269,7 @@ fn get_env_from_source<W: WriteColor>(
         }],
         ModelBuilderOptions::default(),
         Flags::empty().set_flavor("async"),
+        &BTreeSet::new(),
     )?;
 
     env.report_diag(error_writer, Severity::Warning);
@@ -278,86 +280,86 @@ fn get_env_from_source<W: WriteColor>(
     }
 }
 
-fn get_env_from_bytecode(options: &Options) -> anyhow::Result<GlobalEnv> {
-    let move_extension = MOVE_EXTENSION;
-    let mv_bytecode_extension = MOVE_COMPILED_EXTENSION;
-    let source_map_extension = SOURCE_MAP_EXTENSION;
-
-    let bytecode_file_path = (options.bytecode_file_path.as_ref()).unwrap();
-    let source_path = Path::new(&bytecode_file_path);
-    let extension = source_path
-        .extension()
-        .context("Missing file extension for bytecode file")?;
-    if extension != mv_bytecode_extension {
-        anyhow::bail!(
-            "Bad source file extension {:?}; expected {}",
-            extension,
-            mv_bytecode_extension
-        );
-    }
-
-    let bytecode_bytes = fs::read(bytecode_file_path).context("Unable to read bytecode file")?;
-
-    let mut dep_bytecode_bytes = vec![];
-    for dep in &options.dependencies {
-        let bytes = fs::read(dep).context("Unable to read dependency bytecode file {dep}")?;
-        dep_bytecode_bytes.push(bytes);
-    }
-
-    let source_path = Path::new(&bytecode_file_path).with_extension(move_extension);
-    let source = fs::read_to_string(&source_path).ok();
-    let source_map =
-        source_map_from_file(&Path::new(&bytecode_file_path).with_extension(source_map_extension));
-
-    let no_loc = Spanned::unsafe_no_loc(()).loc;
-    let module: CompiledModule;
-    let script: CompiledScript;
-    let bytecode = if options.is_script {
-        script = CompiledScript::deserialize(&bytecode_bytes)
-            .context("Script blob can't be deserialized")?;
-        BinaryIndexedView::Script(&script)
-    } else {
-        module = CompiledModule::deserialize(&bytecode_bytes)
-            .context("Module blob can't be deserialized")?;
-        BinaryIndexedView::Module(&module)
-    };
-
-    let mut source_mapping = {
-        if let Ok(s) = source_map {
-            SourceMapping::new(s, bytecode)
-        } else {
-            SourceMapping::new_from_view(bytecode, no_loc)
-                .context("Unable to build dummy source mapping")?
-        }
-    };
-
-    if let Some(source_code) = source {
-        source_mapping.with_source_code((source_path.to_str().unwrap().to_string(), source_code));
-    }
-
-    let main_move_module = if options.is_script {
-        let script = CompiledScript::deserialize(&bytecode_bytes)
-            .context("Script blob can't be deserialized")?;
-        move_model::script_into_module(script)
-    } else {
-        CompiledModule::deserialize(&bytecode_bytes).context("Module blob can't be deserialized")?
-    };
-
-    let mut dep_move_modules = vec![];
-
-    for bytes in &dep_bytecode_bytes {
-        let dep_module = CompiledModule::deserialize(bytes)
-            .context("Dependency module blob can't be deserialized")?;
-        dep_move_modules.push(dep_module);
-    }
-
-    let modules = dep_move_modules
-        .into_iter()
-        .chain(Some(main_move_module))
-        .collect::<Vec<_>>();
-
-    move_model::run_bytecode_model_builder(&modules)
-}
+// fn get_env_from_bytecode(options: &Options) -> anyhow::Result<GlobalEnv> {
+//     let move_extension = MOVE_EXTENSION;
+//     let mv_bytecode_extension = MOVE_COMPILED_EXTENSION;
+//     let source_map_extension = SOURCE_MAP_EXTENSION;
+//
+//     let bytecode_file_path = (options.bytecode_file_path.as_ref()).unwrap();
+//     let source_path = Path::new(&bytecode_file_path);
+//     let extension = source_path
+//         .extension()
+//         .context("Missing file extension for bytecode file")?;
+//     if extension != mv_bytecode_extension {
+//         anyhow::bail!(
+//             "Bad source file extension {:?}; expected {}",
+//             extension,
+//             mv_bytecode_extension
+//         );
+//     }
+//
+//     let bytecode_bytes = fs::read(bytecode_file_path).context("Unable to read bytecode file")?;
+//
+//     let mut dep_bytecode_bytes = vec![];
+//     for dep in &options.dependencies {
+//         let bytes = fs::read(dep).context("Unable to read dependency bytecode file {dep}")?;
+//         dep_bytecode_bytes.push(bytes);
+//     }
+//
+//     let source_path = Path::new(&bytecode_file_path).with_extension(move_extension);
+//     let source = fs::read_to_string(&source_path).ok();
+//     let source_map =
+//         source_map_from_file(&Path::new(&bytecode_file_path).with_extension(source_map_extension));
+//
+//     let no_loc = Spanned::unsafe_no_loc(()).loc;
+//     let module: CompiledModule;
+//     let script: CompiledScript;
+//     let bytecode = if options.is_script {
+//         script = CompiledScript::deserialize(&bytecode_bytes)
+//             .context("Script blob can't be deserialized")?;
+//         BinaryIndexedView::Script(&script)
+//     } else {
+//         module = CompiledModule::deserialize(&bytecode_bytes)
+//             .context("Module blob can't be deserialized")?;
+//         BinaryIndexedView::Module(&module)
+//     };
+//
+//     let mut source_mapping = {
+//         if let Ok(s) = source_map {
+//             SourceMapping::new(s, bytecode)
+//         } else {
+//             SourceMapping::new_from_view(bytecode, no_loc)
+//                 .context("Unable to build dummy source mapping")?
+//         }
+//     };
+//
+//     if let Some(source_code) = source {
+//         source_mapping.with_source_code((source_path.to_str().unwrap().to_string(), source_code));
+//     }
+//
+//     let main_move_module = if options.is_script {
+//         let script = CompiledScript::deserialize(&bytecode_bytes)
+//             .context("Script blob can't be deserialized")?;
+//         move_model::script_into_module(script, "main")
+//     } else {
+//         CompiledModule::deserialize(&bytecode_bytes).context("Module blob can't be deserialized")?
+//     };
+//
+//     let mut dep_move_modules = vec![];
+//
+//     for bytes in &dep_bytecode_bytes {
+//         let dep_module = CompiledModule::deserialize(bytes)
+//             .context("Dependency module blob can't be deserialized")?;
+//         dep_move_modules.push(dep_module);
+//     }
+//
+//     let modules = dep_move_modules
+//         .into_iter()
+//         .chain(Some(main_move_module))
+//         .collect::<Vec<_>>();
+//
+//     move_model::run_bytecode_model_builder(&modules)
+// }
 
 fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> {
     use crate::stackless::{extensions::ModuleEnvExt, *};
@@ -506,11 +508,11 @@ pub fn run_to_polka<W: WriteColor>(error_writer: &mut W, options: Options) -> an
         }
     };
 
-    let global_env: GlobalEnv = if options.bytecode_file_path.is_some() {
-        get_env_from_bytecode(&options)?
-    } else {
-        get_env_from_source(error_writer, &options)?
-    };
+    // let global_env: GlobalEnv = if options.bytecode_file_path.is_some() {
+    //     get_env_from_bytecode(&options)?
+    // } else {
+    let global_env = get_env_from_source(error_writer, &options)?;
+    // };
 
     compile(&global_env, &options)?;
 

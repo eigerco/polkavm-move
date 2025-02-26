@@ -19,22 +19,24 @@ parking_lot = "0.11"
 toml = "0.5.8"
 regex = "1.1.9"
 rand = "0.8"
-move-bytecode-verifier = { path = "../../move-bytecode-verifier" }
-move-bytecode-source-map = { path = "../../move-ir-compiler/move-bytecode-source-map" }
-move-command-line-common = { path = "../../move-command-line-common" }
-move-core-types = { path = "../../move-core/types" }
-move-ir-types = { path = "../../move-ir/types" }
-move-binary-format = { path = "../../move-binary-format" }
 move-coverage = { path = "../move-coverage" }
-move-compiler = { path = "../../move-compiler" }
-move-model = { path = "../../move-model" }
+move-cli = { path = "../move-cli" }
+move-package = { path = "../move-package" }
 move-native = { path = "../../move-native" }
-move-stackless-bytecode = { path = "../../move-prover/bytecode" }
-move-stdlib = { path = "../../move-stdlib" }
-move-symbol-pool = { path = "../../move-symbol-pool" }
-move-cli = { path = "../../tools/move-cli" }
-move-package = { path = "../../tools/move-package" }
-move-to-solana = { path = "../../solana/move-to-solana" }
+
+move-binary-format = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-binary-format", branch = "main" }
+move-bytecode-verifier = { git = "https://github.com/move-language/move-on-aptos.git",package = "move-bytecode-verifier" }
+move-bytecode-source-map = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-bytecode-source-map" }
+move-command-line-common = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-command-line-common" }
+move-compiler = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-compiler" }
+move-core-types = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-core-types" }
+move-ir-types = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-ir-types" }
+move-model = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-model" }
+move-stackless-bytecode = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-stackless-bytecode" }
+move-stdlib = { git = "https://github.com/move-language/move-on-aptos.git",package = "move-stdlib" }
+move-symbol-pool = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-symbol-pool" }
+
+
 clap = { version = "3.1.8", features = ["derive"] }
 #inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }
 semver = "1.0.13"

@@ -40,9 +40,13 @@ use crate::{
 use codespan::Location;
 use llvm_sys::core::LLVMGetModuleContext;
 use log::debug;
-use move_core_types::{account_address, u256::U256, vm_status::StatusCode::ARITHMETIC_ERROR};
+use move_core_types::{
+    account_address::{self, AccountAddress},
+    u256::U256,
+    vm_status::StatusCode::ARITHMETIC_ERROR,
+};
 use move_model::{
-    ast as mast,
+    ast::{self as mast, Address},
     model::{self as mm},
     ty as mty,
 };
@@ -52,6 +56,7 @@ use move_stackless_bytecode::{
     stackless_control_flow_graph::generate_cfg_in_dot_format,
 };
 use num::BigUint;
+use num_traits::ToBytes;
 use std::collections::BTreeMap;
 
 #[derive(Copy, Clone)]
@@ -122,9 +127,6 @@ impl<'up> GlobalContext<'up> {
         // move-native. Since we need one simple constant, I've avoided that rat's nest and simply
         // test for feature "solana" here. Needless to say, the compiler-build of move-native has
         // been getting non-Solana target_defs all along.
-        #[cfg(feature = "solana")]
-        assert!(account_address::AccountAddress::ZERO.len() == 32);
-
         debug!(target: "globalenv", "{:#?}", env);
 
         GlobalContext {
@@ -234,7 +236,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         let action = (*options.gen_dot_cfg).to_owned();
         if action == "write" || action == "view" {
             let fname = &self.env.llvm_symbol_name(self.type_params);
-            let dot_graph = generate_cfg_in_dot_format(&func_target);
+            let dot_graph = generate_cfg_in_dot_format(&func_target, true);
             let graph_label = format!("digraph {{ label=\"Function: {}\"\n", fname);
             let dgraph2 = dot_graph.replacen("digraph {", &graph_label, 1);
             let output_path = (*options.dot_file_path).to_owned();
@@ -333,7 +335,9 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                         .strip_prefix("0x");
                     curr_signer += 1;
                     let addr_val = BigUint::parse_bytes(signer.unwrap().as_bytes(), 16);
-                    let c = self.constant(&sbc::Constant::Address(addr_val.unwrap()), None);
+                    let account_addr = AccountAddress::from_bytes(addr_val.unwrap().to_be_bytes());
+                    let addr = Address::Numerical(account_addr.unwrap());
+                    let c = self.constant(&sbc::Constant::Address(addr), None);
                     self.module_cx
                         .llvm_builder
                         .build_store(c.as_any_value(), local.llval);
@@ -709,7 +713,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
 
     fn emit_postcond_for_add(
         &self,
-        args: &[Option<(mast::TempIndex, llvm::AnyValue)>], // src0, src1, dst.
+        _args: &[Option<(mast::TempIndex, llvm::AnyValue)>], // src0, src1, dst.
     ) {
         // Generate the following LLVM IR to check that unsigned addition did not overflow.
         // This is indicated when the unsigned sum is less than the first input.
@@ -1290,7 +1294,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let lsrc = (self.locals[src_idx].llty, self.locals[src_idx].llval);
                 builder.load_and_extract_fields(lsrc, &fdstvals, stype);
             }
-            Operation::Destroy => {
+            Operation::Release => {
                 assert!(dst.is_empty());
                 assert_eq!(src.len(), 1);
                 let idx = src[0];
@@ -1329,7 +1333,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let dst_llval = self.locals[dst_idx].llval;
                 builder.load_store_ref(src_llty, src_llval, dst_llval);
             }
-            Operation::FreezeRef => {
+            Operation::FreezeRef(_) => {
                 assert_eq!(dst.len(), 1);
                 assert_eq!(src.len(), 1);
                 let src_idx = src[0];
@@ -1561,14 +1565,8 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             let fn_id = fun_id.qualified(mod_id);
             let fn_env = global_env.get_function(fn_id);
             let arg_types = fn_env.get_parameter_types();
-            let ret_types = fn_env.get_return_types();
-            let return_val_is_generic = match ret_types.len() {
-                0 => false,
-                1 => matches!(ret_types[0], mty::Type::TypeParameter(_)),
-                _ => {
-                    todo!()
-                }
-            };
+            let ret_types = fn_env.get_result_type();
+            let return_val_is_generic = matches!(ret_types, mty::Type::TypeParameter(_));
             (arg_types, return_val_is_generic)
         };
 
@@ -1708,7 +1706,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 //
                 // The address is a BigUint which only stores as many bits as needed, so pad it out
                 // to the full address length if needed.
-                let mut bytes = val.to_bytes_le();
+                let mut bytes = val.expect_numerical().to_big_uint().to_bytes_le();
                 bytes.extend(vec![0; addr_len - bytes.len()]);
                 let aval = llcx.const_int_array::<u8>(&bytes).as_const();
                 let gval = self
@@ -1730,7 +1728,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let vals: Vec<llvm::Constant> = val_vec
                     .iter()
                     .map(|v| {
-                        let mut bytes = v.to_bytes_le();
+                        let mut bytes: Vec<u8> = v.expect_numerical().to_big_uint().to_bytes_le();
                         bytes.extend(vec![0; addr_len - bytes.len()]);
                         llcx.const_int_array::<u8>(&bytes).as_const()
                     })
