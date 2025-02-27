@@ -9,16 +9,16 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.52"
-colored = "2.0.0"
-env_logger = "0.8.3"
+colored = "3.0.0"
+env_logger = {version="0.11", features=["color"]}
 libc = "0.2"
 log = "0.4.14"
 chrono = "0.4"
 once_cell = "1.10"
-parking_lot = "0.11"
-toml = "0.7"
+parking_lot = "0.12"
+toml = "0.7" # this must remain on 0.7 until aptos-move updates
 regex = "1.1.9"
-rand = "0.8"
+rand = "0.9"
 move-coverage = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-coverage" }
 move-cli = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-cli" }
 move-package = { git = "https://github.com/move-language/move-on-aptos.git",package = "move-package" }
@@ -35,7 +35,7 @@ move-stackless-bytecode = { git = "https://github.com/move-language/move-on-apto
 move-stdlib = { git = "https://github.com/move-language/move-on-aptos.git",package = "move-stdlib" }
 move-symbol-pool = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-symbol-pool" }
 move-to-polka = { path = "../../polkavm/move-to-polka" }
-clap = { version = "3.1.8", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 #inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }
 semver = "1.0.13"
 llvm-sys = "191.0.0"
@@ -54,7 +54,7 @@ similar = "2.1.0"
 # solana-program-runtime = { git = "https://github.com/solana-labs/solana", rev = "5d1538013206c1afe6f9d3c8a1a870cb0bfa9dcd" }
 # solana-sdk = { git = "https://github.com/solana-labs/solana", rev = "5d1538013206c1afe6f9d3c8a1a870cb0bfa9dcd" }
 # solana_rbpf = "=0.7.1"
-thiserror = "1.0.37"
+thiserror = "1.0.69"
 
 [features]
 # solana = []

@@ -8,7 +8,10 @@ mod cli;
 mod package;
 
 use anyhow::Context;
-use clap::Parser;
+use clap::{
+    builder::styling::{AnsiColor, Color},
+    Parser,
+};
 use cli::{absolute_existing_file, absolute_new_file, Args};
 use codespan_reporting::{diagnostic::Severity, term::termcolor::Buffer};
 use llvm_sys::prelude::LLVMModuleRef;
@@ -322,22 +325,21 @@ fn main() -> anyhow::Result<()> {
 fn initialize_logger() {
     static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
     LOGGER_INIT.call_once(|| {
-        use env_logger::fmt::Color;
         env_logger::Builder::from_default_env()
             .format(|formatter, record| {
                 let level = record.level();
-                let mut style = formatter.style();
+                let style = formatter.default_level_style(level);
                 match record.level() {
-                    Level::Error => style.set_color(Color::Red),
-                    Level::Warn => style.set_color(Color::Yellow),
-                    Level::Info => style.set_color(Color::Green),
-                    Level::Debug => style.set_color(Color::Blue),
-                    Level::Trace => style.set_color(Color::Cyan),
+                    Level::Error => style.fg_color(Some(Color::Ansi(AnsiColor::Red))),
+                    Level::Warn => style.fg_color(Some(Color::Ansi(AnsiColor::Yellow))),
+                    Level::Info => style.fg_color(Some(Color::Ansi(AnsiColor::Green))),
+                    Level::Debug => style.fg_color(Some(Color::Ansi(AnsiColor::Blue))),
+                    Level::Trace => style.fg_color(Some(Color::Ansi(AnsiColor::Cyan))),
                 };
                 writeln!(
                     formatter,
                     "[{} {}:{}] {}",
-                    style.value(level),
+                    level,
                     record.file().unwrap_or("unknown"),
                     record.line().unwrap_or(0),
                     record.args()
