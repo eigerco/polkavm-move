@@ -1,2 +1,0 @@
-build -v --arch solana
--d -v build --arch solana

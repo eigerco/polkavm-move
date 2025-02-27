@@ -4,6 +4,7 @@ resolver = "2"
 members = [
     "language/move-native",
     "language/polkavm/move-to-polka",
+    "language/tools/move-mv-llvm-compiler",
 ]
 
 # NOTE: default-members is the complete list of binaries that form the "production Move codebase". These members should

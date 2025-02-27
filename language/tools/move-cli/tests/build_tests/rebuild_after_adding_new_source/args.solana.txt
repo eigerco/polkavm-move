@@ -1,3 +1,0 @@
-build -v --arch solana
-> touch sources/Bar.move
-build -v --arch solana
