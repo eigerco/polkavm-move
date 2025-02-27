@@ -16,13 +16,13 @@ log = "0.4.14"
 chrono = "0.4"
 once_cell = "1.10"
 parking_lot = "0.11"
-toml = "0.5.8"
+toml = "0.7"
 regex = "1.1.9"
 rand = "0.8"
 move-coverage = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-coverage" }
 move-cli = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-cli" }
 move-package = { git = "https://github.com/move-language/move-on-aptos.git",package = "move-package" }
-move-native = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-native" }
+move-native = { path = "../../move-native" }
 move-binary-format = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-binary-format" }
 move-bytecode-verifier = { git = "https://github.com/move-language/move-on-aptos.git",package = "move-bytecode-verifier" }
 move-bytecode-source-map = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-bytecode-source-map" }
@@ -34,6 +34,7 @@ move-model = { git = "https://github.com/move-language/move-on-aptos.git", packa
 move-stackless-bytecode = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-stackless-bytecode" }
 move-stdlib = { git = "https://github.com/move-language/move-on-aptos.git",package = "move-stdlib" }
 move-symbol-pool = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-symbol-pool" }
+move-to-polka = { path = "../../polkavm/move-to-polka" }
 clap = { version = "3.1.8", features = ["derive"] }
 #inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }
 semver = "1.0.13"

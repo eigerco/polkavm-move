@@ -29,7 +29,7 @@ use move_model::{
 };
 use move_symbol_pool::Symbol as SymbolPool;
 use package::build_dependency;
-use std::{fs, io::Write, path::Path};
+use std::{collections::BTreeSet, fs, io::Write, path::Path};
 
 fn main() -> anyhow::Result<()> {
     initialize_logger();
@@ -62,136 +62,142 @@ fn main() -> anyhow::Result<()> {
     };
 
     let global_env: GlobalEnv;
-    if compilation {
-        let target_path = absolute_existing_file(args.compile, "compile")?;
-        let move_package_path: Result<std::path::PathBuf, anyhow::Error> =
-            absolute_existing_file(args.move_package_path, "move_package_path");
-        let mut deps = vec![];
-        let mut named_address_map = std::collections::BTreeMap::<String, _>::new();
-        let target_path_string: String = target_path.to_string_lossy().to_string();
+    // if compilation {
+    let target_path = absolute_existing_file(args.compile, "compile")?;
+    let move_package_path: Result<std::path::PathBuf, anyhow::Error> =
+        absolute_existing_file(args.move_package_path, "move_package_path");
+    let mut deps = vec![];
+    let mut named_address_map = std::collections::BTreeMap::<String, _>::new();
+    let target_path_string: String = target_path.to_string_lossy().to_string();
 
-        if stdlib || move_package_path.is_ok() {
-            deps = build_dependency(
-                move_package_path.ok(),
-                &target_path_string,
-                &mut named_address_map,
-                stdlib,
-                args.dev,
-                args.test,
-                args.diagnostics,
-            )?;
-        }
+    if stdlib || move_package_path.is_ok() {
+        deps = build_dependency(
+            move_package_path.ok(),
+            &target_path_string,
+            &mut named_address_map,
+            stdlib,
+            args.dev,
+            args.test,
+            args.diagnostics,
+        )?;
+    }
 
-        let sources = vec![PackagePaths {
-            name: Some(SymbolPool::from(target_path_string.clone())), // TODO: is it better than `None`?
-            paths: vec![target_path_string],
-            named_address_map: named_address_map.clone(),
-        }];
+    let sources = vec![PackagePaths {
+        name: Some(SymbolPool::from(target_path_string.clone())), // TODO: is it better than `None`?
+        paths: vec![target_path_string],
+        named_address_map: named_address_map.clone(),
+    }];
 
-        let options = ModelBuilderOptions::default();
-        let flags = if !args.test {
-            Flags::verification()
-        } else {
-            Flags::testing()
-        };
-
-        global_env =
-            run_model_builder_with_options_and_compilation_flags(sources, deps, options, flags)?;
-
-        if global_env.diag_count(Severity::Warning) > 0 {
-            let mut writer = Buffer::no_color();
-            global_env.report_diag(&mut writer, Severity::Warning);
-            println!("{}", String::from_utf8_lossy(&writer.into_inner()));
-        }
-        if global_env.diag_count(Severity::Error) > 0 {
-            anyhow::bail!("Compilation failed");
-        }
+    let options = ModelBuilderOptions::default();
+    let flags = if !args.test {
+        Flags::verification()
     } else {
-        let move_extension = MOVE_EXTENSION;
-        let mv_bytecode_extension = MOVE_COMPILED_EXTENSION;
-        let source_map_extension = SOURCE_MAP_EXTENSION;
-
-        let bytecode_file_path = (args.bytecode_file_path.as_ref()).unwrap();
-        let source_path = Path::new(&bytecode_file_path);
-        let extension = source_path
-            .extension()
-            .context("Missing file extension for bytecode file")?;
-        if extension != mv_bytecode_extension {
-            anyhow::bail!(
-                "Bad source file extension {:?}; expected {}",
-                extension,
-                mv_bytecode_extension
-            );
-        }
-
-        let bytecode_bytes =
-            fs::read(bytecode_file_path).context("Unable to read bytecode file")?;
-
-        let mut dep_bytecode_bytes = vec![];
-        for dep in &args.bytecode_dependency_paths {
-            let bytes = fs::read(dep).context("Unable to read dependency bytecode file {dep}")?;
-            dep_bytecode_bytes.push(bytes);
-        }
-
-        let source_path = Path::new(&bytecode_file_path).with_extension(move_extension);
-        let source = fs::read_to_string(&source_path).ok();
-        let source_map = source_map_from_file(
-            &Path::new(&bytecode_file_path).with_extension(source_map_extension),
-        );
-
-        let no_loc = Spanned::unsafe_no_loc(()).loc;
-        let module: CompiledModule;
-        let script: CompiledScript;
-        let bytecode = if args.is_script {
-            script = CompiledScript::deserialize(&bytecode_bytes)
-                .context("Script blob can't be deserialized")?;
-            BinaryIndexedView::Script(&script)
-        } else {
-            module = CompiledModule::deserialize(&bytecode_bytes)
-                .context("Module blob can't be deserialized")?;
-            BinaryIndexedView::Module(&module)
-        };
-
-        let mut source_mapping = {
-            if let Ok(s) = source_map {
-                SourceMapping::new(s, bytecode)
-            } else {
-                SourceMapping::new_from_view(bytecode, no_loc)
-                    .context("Unable to build dummy source mapping")?
-            }
-        };
-
-        if let Some(source_code) = source {
-            source_mapping
-                .with_source_code((source_path.to_str().unwrap().to_string(), source_code));
-        }
-
-        global_env = {
-            let main_move_module = if args.is_script {
-                let script = CompiledScript::deserialize(&bytecode_bytes)
-                    .context("Script blob can't be deserialized")?;
-                move_model::script_into_module(script)
-            } else {
-                CompiledModule::deserialize(&bytecode_bytes)
-                    .context("Module blob can't be deserialized")?
-            };
-
-            let mut dep_move_modules = vec![];
-
-            for bytes in &dep_bytecode_bytes {
-                let dep_module = CompiledModule::deserialize(bytes)
-                    .context("Dependency module blob can't be deserialized")?;
-                dep_move_modules.push(dep_module);
-            }
-
-            let modules = dep_move_modules
-                .into_iter()
-                .chain(Some(main_move_module))
-                .collect::<Vec<_>>();
-
-            move_model::run_bytecode_model_builder(&modules)?
-        }
+        Flags::testing()
     };
+
+    global_env = run_model_builder_with_options_and_compilation_flags(
+        sources,
+        vec![],
+        deps,
+        options,
+        flags,
+        &BTreeSet::new(),
+    )?;
+
+    if global_env.diag_count(Severity::Warning) > 0 {
+        let mut writer = Buffer::no_color();
+        global_env.report_diag(&mut writer, Severity::Warning);
+        println!("{}", String::from_utf8_lossy(&writer.into_inner()));
+    }
+    if global_env.diag_count(Severity::Error) > 0 {
+        anyhow::bail!("Compilation failed");
+    }
+    // } else {
+    //     let move_extension = MOVE_EXTENSION;
+    //     let mv_bytecode_extension = MOVE_COMPILED_EXTENSION;
+    //     let source_map_extension = SOURCE_MAP_EXTENSION;
+    //
+    //     let bytecode_file_path = (args.bytecode_file_path.as_ref()).unwrap();
+    //     let source_path = Path::new(&bytecode_file_path);
+    //     let extension = source_path
+    //         .extension()
+    //         .context("Missing file extension for bytecode file")?;
+    //     if extension != mv_bytecode_extension {
+    //         anyhow::bail!(
+    //             "Bad source file extension {:?}; expected {}",
+    //             extension,
+    //             mv_bytecode_extension
+    //         );
+    //     }
+    //
+    //     let bytecode_bytes =
+    //         fs::read(bytecode_file_path).context("Unable to read bytecode file")?;
+    //
+    //     let mut dep_bytecode_bytes = vec![];
+    //     for dep in &args.bytecode_dependency_paths {
+    //         let bytes = fs::read(dep).context("Unable to read dependency bytecode file {dep}")?;
+    //         dep_bytecode_bytes.push(bytes);
+    //     }
+    //
+    //     let source_path = Path::new(&bytecode_file_path).with_extension(move_extension);
+    //     let source = fs::read_to_string(&source_path).ok();
+    //     let source_map = source_map_from_file(
+    //         &Path::new(&bytecode_file_path).with_extension(source_map_extension),
+    //     );
+    //
+    //     let no_loc = Spanned::unsafe_no_loc(()).loc;
+    //     let module: CompiledModule;
+    //     let script: CompiledScript;
+    //     let bytecode = if args.is_script {
+    //         script = CompiledScript::deserialize(&bytecode_bytes)
+    //             .context("Script blob can't be deserialized")?;
+    //         BinaryIndexedView::Script(&script)
+    //     } else {
+    //         module = CompiledModule::deserialize(&bytecode_bytes)
+    //             .context("Module blob can't be deserialized")?;
+    //         BinaryIndexedView::Module(&module)
+    //     };
+    //
+    //     let mut source_mapping = {
+    //         if let Ok(s) = source_map {
+    //             SourceMapping::new(s, bytecode)
+    //         } else {
+    //             SourceMapping::new_from_view(bytecode, no_loc)
+    //                 .context("Unable to build dummy source mapping")?
+    //         }
+    //     };
+    //
+    //     if let Some(source_code) = source {
+    //         source_mapping
+    //             .with_source_code((source_path.to_str().unwrap().to_string(), source_code));
+    //     }
+    //
+    //     global_env = {
+    //         let main_move_module = if args.is_script {
+    //             let script = CompiledScript::deserialize(&bytecode_bytes)
+    //                 .context("Script blob can't be deserialized")?;
+    //             move_model::script_into_module(script, "main")
+    //         } else {
+    //             CompiledModule::deserialize(&bytecode_bytes)
+    //                 .context("Module blob can't be deserialized")?
+    //         };
+    //
+    //         let mut dep_move_modules = vec![];
+    //
+    //         for bytes in &dep_bytecode_bytes {
+    //             let dep_module = CompiledModule::deserialize(bytes)
+    //                 .context("Dependency module blob can't be deserialized")?;
+    //             dep_move_modules.push(dep_module);
+    //         }
+    //
+    //         let modules = dep_move_modules
+    //             .into_iter()
+    //             .chain(Some(main_move_module))
+    //             .collect::<Vec<_>>();
+    //
+    //         move_model::run_bytecode_model_builder(&modules)?
+    //     }
+    // };
 
     match &*args.gen_dot_cfg {
         "write" | "view" | "" => {}
@@ -204,28 +210,25 @@ fn main() -> anyhow::Result<()> {
     };
 
     {
-        use move_to_solana::{
-            options::Options as MoveToSolanaOptions,
-            stackless::{extensions::ModuleEnvExt, *},
-        };
+        use move_to_polka::options::Options as MoveToPolkaOptions;
+        use move_to_polka::stackless::{extensions::ModuleEnvExt, *};
 
-        let options = MoveToSolanaOptions {
+        let options = MoveToPolkaOptions {
             gen_dot_cfg: args.gen_dot_cfg.clone(),
             dot_file_path: args.dot_file_path.clone(),
             test_signers: args.test_signers.clone(),
             debug: args.debug,
             opt_level: args.opt_level.clone(),
-            ..MoveToSolanaOptions::default()
+            ..MoveToPolkaOptions::default()
         };
-
-        let tgt_platform = TargetPlatform::Solana;
+        let tgt_platform = TargetPlatform::PVM;
         tgt_platform.initialize_llvm();
         let lltarget = Target::from_triple(tgt_platform.triple())?;
         let llmachine = lltarget.create_target_machine(
             tgt_platform.triple(),
             tgt_platform.llvm_cpu(),
             tgt_platform.llvm_features(),
-            &options.opt_level,
+            &args.opt_level,
         );
         let global_cx = GlobalContext::new(&global_env, tgt_platform, &llmachine);
 
@@ -259,7 +262,7 @@ fn main() -> anyhow::Result<()> {
             let modname = module.llvm_module_name();
             let mut llmod = global_cx.llvm_cx.create_module(&modname);
             if args.diagnostics {
-                let disasm = module.disassemble();
+                let disasm = module.disassemble().unwrap();
                 println!("Module {} bytecode {}", modname, disasm);
             }
             let mod_src = module.get_source_path().to_str().expect("utf-8");
@@ -353,7 +356,7 @@ fn llvm_write_to_file(
         bit_writer::LLVMWriteBitcodeToFD,
         core::{LLVMDisposeMessage, LLVMPrintModuleToFile, LLVMPrintModuleToString},
     };
-    use move_to_solana::cstr::SafeCStr;
+    use move_to_polka::cstr::SafeCStr;
     use std::{ffi::CStr, fs::File, os::unix::io::AsRawFd, ptr};
 
     unsafe {
