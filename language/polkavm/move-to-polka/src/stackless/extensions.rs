@@ -247,8 +247,9 @@ fn test_symbol_name() {
         identifier::{IdentStr, Identifier},
         language_storage::ModuleId,
     };
-    use move_model::run_model_builder;
-    use std::{collections::BTreeMap, path::PathBuf};
+    use move_model::options::ModelBuilderOptions;
+    use move_model::run_model_builder_with_options;
+    use std::{collections::BTreeMap, collections::BTreeSet, path::PathBuf};
 
     let model = {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -264,7 +265,15 @@ fn test_symbol_name() {
             named_address_map,
         }];
 
-        run_model_builder(sources, vec![]).unwrap()
+        run_model_builder_with_options(
+            sources,
+            vec![],
+            vec![],
+            ModelBuilderOptions::default(),
+            false,
+            &BTreeSet::new(),
+        )
+        .unwrap()
     };
 
     let fun = model

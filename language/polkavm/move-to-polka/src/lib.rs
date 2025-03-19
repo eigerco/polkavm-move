@@ -11,16 +11,7 @@ use crate::options::Options;
 use anyhow::Context;
 use codespan_reporting::{diagnostic::Severity, term::termcolor::WriteColor};
 use log::{debug, Level};
-use move_binary_format::{
-    binary_views::BinaryIndexedView,
-    file_format::{CompiledModule, CompiledScript},
-};
-use move_bytecode_source_map::{mapping::SourceMapping, utils::source_map_from_file};
-use move_command_line_common::files::{
-    MOVE_COMPILED_EXTENSION, MOVE_EXTENSION, SOURCE_MAP_EXTENSION,
-};
 use move_compiler::{shared::PackagePaths, Flags};
-use move_ir_types::location::Spanned;
 use move_model::{
     model::GlobalEnv, options::ModelBuilderOptions, parse_addresses_from_options,
     run_model_builder_with_options_and_compilation_flags,
@@ -177,6 +168,7 @@ fn link_object_files(
     output_dylib: PathBuf,
     move_native: &Option<String>,
 ) -> anyhow::Result<PathBuf> {
+    log::trace!("link_object_files");
     let script = r"
 PHDRS
 {
@@ -508,11 +500,11 @@ pub fn run_to_polka<W: WriteColor>(error_writer: &mut W, options: Options) -> an
         }
     };
 
-    // let global_env: GlobalEnv = if options.bytecode_file_path.is_some() {
-    //     get_env_from_bytecode(&options)?
-    // } else {
-    let global_env = get_env_from_source(error_writer, &options)?;
-    // };
+    let global_env: GlobalEnv = if options.bytecode_file_path.is_some() {
+        get_env_from_bytecode(&options)?
+    } else {
+        get_env_from_source(error_writer, &options)?
+    };
 
     compile(&global_env, &options)?;
 
