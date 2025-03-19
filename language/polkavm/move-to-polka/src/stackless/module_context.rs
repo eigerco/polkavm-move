@@ -99,7 +99,6 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         let mut visited = BTreeSet::new();
         worklist.push_back(m_env.get_id());
         while let Some(mid) = worklist.pop_front() {
-            let module_data = &g_env.module_data[mid.to_usize()];
             let compiled_module = m_env.get_verified_module().unwrap();
             for shandle in compiled_module.struct_handles() {
                 let struct_view = StructHandleView::new(compiled_module, shandle);
@@ -176,7 +175,6 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
         // Now that all the concrete structs are available, pull in the generic ones. Each such
         // StructDefInstantiation will induce a concrete expansion once fields are visited later.
-        let this_module_data = &g_env.module_data[m_env.get_id().to_usize()];
         let cm = m_env.get_verified_module().unwrap();
         for s_def_inst in cm.struct_instantiations() {
             let tys = m_env
