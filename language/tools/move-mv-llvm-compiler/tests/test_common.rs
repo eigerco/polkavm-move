@@ -864,8 +864,8 @@ where
 }
 
 fn generate_random_number() -> u32 {
-    let mut rng = rand::thread_rng();
-    rng.gen::<u32>()
+    let mut rng = rand::rng();
+    rng.random::<u32>()
 }
 
 fn generate_random_string() -> String {
@@ -874,10 +874,10 @@ fn generate_random_string() -> String {
     let charset_length = charset.len();
     let length = rand as usize % charset_length;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let random_string: String = (0..length)
         .map(|_| {
-            let index = rng.gen_range(0..charset_length);
+            let index = rng.random_range(0..charset_length);
             charset.chars().nth(index).unwrap()
         })
         .collect();
