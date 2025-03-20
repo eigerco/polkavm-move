@@ -63,11 +63,11 @@ mod impls {
 
         const PANIC_ABORT_CODE: u64 = 101;
 
-        #[panic_handler]
-        fn panic(info: &core::panic::PanicInfo) -> ! {
-            super::print_string(&format!("{}", info));
-            super::abort(PANIC_ABORT_CODE);
-        }
+        // #[panic_handler]
+        // fn panic(info: &core::panic::PanicInfo) -> ! {
+        //     super::print_string(&format!("{}", info));
+        //     super::abort(PANIC_ABORT_CODE);
+        // }
 
         #[global_allocator]
         static A: BumpAllocator = BumpAllocator {

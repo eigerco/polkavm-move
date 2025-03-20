@@ -11,10 +11,21 @@ use crate::options::Options;
 use anyhow::Context;
 use codespan_reporting::{diagnostic::Severity, term::termcolor::WriteColor};
 use log::{debug, Level};
+use move_binary_format::{
+    binary_views::BinaryIndexedView, file_format::CompiledScript, CompiledModule,
+};
+use move_bytecode_source_map::{
+    mapping::SourceMapping, source_map::SourceMap, utils::source_map_from_file,
+};
+use move_command_line_common::files::{
+    FileHash, MOVE_COMPILED_EXTENSION, MOVE_EXTENSION, SOURCE_MAP_EXTENSION,
+};
 use move_compiler::{shared::PackagePaths, Flags};
+use move_ir_types::location::Spanned;
 use move_model::{
-    model::GlobalEnv, options::ModelBuilderOptions, parse_addresses_from_options,
-    run_model_builder_with_options_and_compilation_flags,
+    model::{GlobalEnv, ModuleId, MoveIrLoc},
+    options::ModelBuilderOptions,
+    parse_addresses_from_options, run_model_builder_with_options_and_compilation_flags,
 };
 use std::{
     collections::BTreeSet,
@@ -23,6 +34,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+use which::which_in;
 
 struct PlatformTools {
     clang: PathBuf,
@@ -81,44 +93,25 @@ fn initialize_logger() {
     });
 }
 
-fn get_sbf_tools() -> anyhow::Result<PlatformTools> {
-    let sbf_tools_root =
-        std::env::var("PLATFORM_TOOLS_ROOT").context("env var PLATFORM_TOOLS_ROOT not set")?;
-    let sbf_tools_root = PathBuf::from(sbf_tools_root);
+fn get_platform_tools() -> anyhow::Result<PlatformTools> {
+    use which::which;
 
-    let sbf_tools = PlatformTools {
-        clang: sbf_tools_root
-            .join("llvm/bin/clang")
-            .with_extension(std::env::consts::EXE_EXTENSION),
-        rustc: sbf_tools_root
-            .join("rust/bin/rustc")
-            .with_extension(std::env::consts::EXE_EXTENSION),
-        cargo: sbf_tools_root
-            .join("rust/bin/cargo")
-            .with_extension(std::env::consts::EXE_EXTENSION),
-        lld: sbf_tools_root.join("llvm/bin/ld.lld"),
+    let tools = PlatformTools {
+        clang: which("clang").context("no clang in PATH")?,
+        rustc: which("rustc").context("no rustc in PATH")?,
+        cargo: which("cargo").context("no cargo in PATH")?,
+        lld: which("ld.ldd")
+            .or(which_in("ld.lld", Some("/opt/homebrew/bin"), "/"))
+            .context("no ld.lld in PATH")?,
     };
 
-    if !sbf_tools.clang.exists() {
-        anyhow::bail!("no clang bin at {}", sbf_tools.clang.display());
-    }
-    if !sbf_tools.rustc.exists() {
-        anyhow::bail!("no rustc bin at {}", sbf_tools.rustc.display());
-    }
-    if !sbf_tools.cargo.exists() {
-        anyhow::bail!("no cargo bin at {}", sbf_tools.cargo.display());
-    }
-    if !sbf_tools.lld.exists() {
-        anyhow::bail!("no lld bin at {}", sbf_tools.lld.display());
-    }
-
-    Ok(sbf_tools)
+    Ok(tools)
 }
 
-fn get_runtime(out_path: &PathBuf, sbf_tools: &PlatformTools) -> anyhow::Result<PathBuf> {
-    debug!("building move-native runtime for sbf in {out_path:?}");
+fn get_runtime(out_path: &PathBuf, tools: &PlatformTools) -> anyhow::Result<PathBuf> {
+    debug!("building move-native runtime for polkavm in {out_path:?}");
     let archive_file = out_path
-        .join("sbf-solana-solana")
+        .join("polkavm")
         .join("release")
         .join("libmove_native.a");
 
@@ -133,7 +126,7 @@ fn get_runtime(out_path: &PathBuf, sbf_tools: &PlatformTools) -> anyhow::Result<
     // Using `cargo rustc` to compile move-native as a staticlib.
     // See move-native documentation on `no-std` compatibilty for explanation.
     // Release mode is required to eliminate large stack frames.
-    let res = sbf_tools.run_cargo(
+    let res = tools.run_cargo(
         out_path,
         &[
             "rustc",
@@ -141,13 +134,13 @@ fn get_runtime(out_path: &PathBuf, sbf_tools: &PlatformTools) -> anyhow::Result<
             "-p",
             "move-native",
             "--target",
-            "sbf-solana-solana",
+            "riscv32imac-unknown-none-elf",
             "--manifest-path",
             &move_native,
             "--release",
             "--features",
             "solana",
-            "-q",
+            // "-q",
         ],
     );
 
@@ -169,49 +162,49 @@ fn link_object_files(
     move_native: &Option<String>,
 ) -> anyhow::Result<PathBuf> {
     log::trace!("link_object_files");
-    let script = r"
-PHDRS
-{
-  text PT_LOAD ;
-  rodata PT_LOAD ;
-  data PT_LOAD ;
-  dynamic PT_DYNAMIC ;
-}
-
-SECTIONS
-{
-  . = SIZEOF_HEADERS;
-  .text : { *(.text*) } :text
-  .rodata : { *(.rodata*) } :rodata
-  .data.rel.ro : { *(.data.rel.ro*) } :rodata
-  .dynamic : { *(.dynamic) } :dynamic
-  .dynsym : { *(.dynsym) } :data
-  .dynstr : { *(.dynstr) } :data
-  .rel.dyn : { *(.rel.dyn) } :data
-  /DISCARD/ : {
-      *(.eh_frame*)
-      *(.gnu.hash*)
-      *(.hash*)
-    }
-}
-";
-
-    let tmpdir = tempfile::Builder::new()
-        .prefix("move")
-        .tempdir()
-        .unwrap()
-        .into_path();
-    let file_name = "move-to-solana-linkfile.ld";
-    let link_script_path = tmpdir.join(file_name);
-    if let Err(error) = fs::write(&link_script_path, script) {
-        anyhow::bail!("can't output linker script: {}", error);
-    }
-    let sbf_tools = get_sbf_tools()?;
-    let mut cmd = Command::new(&sbf_tools.lld);
+    //     let script = r"
+    // PHDRS
+    // {
+    //   text PT_LOAD ;
+    //   rodata PT_LOAD ;
+    //   data PT_LOAD ;
+    //   dynamic PT_DYNAMIC ;
+    // }
+    //
+    // SECTIONS
+    // {
+    //   . = SIZEOF_HEADERS;
+    //   .text : { *(.text*) } :text
+    //   .rodata : { *(.rodata*) } :rodata
+    //   .data.rel.ro : { *(.data.rel.ro*) } :rodata
+    //   .dynamic : { *(.dynamic) } :dynamic
+    //   .dynsym : { *(.dynsym) } :data
+    //   .dynstr : { *(.dynstr) } :data
+    //   .rel.dyn : { *(.rel.dyn) } :data
+    //   /DISCARD/ : {
+    //       *(.eh_frame*)
+    //       *(.gnu.hash*)
+    //       *(.hash*)
+    //     }
+    // }
+    // ";
+    //
+    //     let tmpdir = tempfile::Builder::new()
+    //         .prefix("move")
+    //         .tempdir()
+    //         .unwrap()
+    //         .into_path();
+    //     let file_name = "move-to-solana-linkfile.ld";
+    //     let link_script_path = tmpdir.join(file_name);
+    //     if let Err(error) = fs::write(&link_script_path, script) {
+    //         anyhow::bail!("can't output linker script: {}", error);
+    //     }
+    let tools = get_platform_tools()?;
+    let mut cmd = Command::new(&tools.lld);
     cmd.arg("--threads=1");
     cmd.arg("-znotext");
     cmd.arg("-znoexecstack");
-    cmd.args(["--script", &link_script_path.to_string_lossy()]);
+    // cmd.args(["--script", &link_script_path.to_string_lossy()]);
     cmd.arg("--gc-sections");
     cmd.arg("--shared");
     cmd.arg("--Bstatic");
@@ -227,7 +220,7 @@ SECTIONS
     let move_native = move_native.as_ref().unwrap_or(&empty_path);
     let path = Path::new(move_native).to_path_buf();
     let move_native_path = if move_native_known { &path } else { &out_path };
-    let runtime = get_runtime(move_native_path, &sbf_tools)?;
+    let runtime = get_runtime(move_native_path, &tools)?;
     cmd.arg(&runtime);
     debug!("Running {cmd:?}");
     let output = cmd.output()?;
@@ -272,86 +265,86 @@ fn get_env_from_source<W: WriteColor>(
     }
 }
 
-// fn get_env_from_bytecode(options: &Options) -> anyhow::Result<GlobalEnv> {
-//     let move_extension = MOVE_EXTENSION;
-//     let mv_bytecode_extension = MOVE_COMPILED_EXTENSION;
-//     let source_map_extension = SOURCE_MAP_EXTENSION;
-//
-//     let bytecode_file_path = (options.bytecode_file_path.as_ref()).unwrap();
-//     let source_path = Path::new(&bytecode_file_path);
-//     let extension = source_path
-//         .extension()
-//         .context("Missing file extension for bytecode file")?;
-//     if extension != mv_bytecode_extension {
-//         anyhow::bail!(
-//             "Bad source file extension {:?}; expected {}",
-//             extension,
-//             mv_bytecode_extension
-//         );
-//     }
-//
-//     let bytecode_bytes = fs::read(bytecode_file_path).context("Unable to read bytecode file")?;
-//
-//     let mut dep_bytecode_bytes = vec![];
-//     for dep in &options.dependencies {
-//         let bytes = fs::read(dep).context("Unable to read dependency bytecode file {dep}")?;
-//         dep_bytecode_bytes.push(bytes);
-//     }
-//
-//     let source_path = Path::new(&bytecode_file_path).with_extension(move_extension);
-//     let source = fs::read_to_string(&source_path).ok();
-//     let source_map =
-//         source_map_from_file(&Path::new(&bytecode_file_path).with_extension(source_map_extension));
-//
-//     let no_loc = Spanned::unsafe_no_loc(()).loc;
-//     let module: CompiledModule;
-//     let script: CompiledScript;
-//     let bytecode = if options.is_script {
-//         script = CompiledScript::deserialize(&bytecode_bytes)
-//             .context("Script blob can't be deserialized")?;
-//         BinaryIndexedView::Script(&script)
-//     } else {
-//         module = CompiledModule::deserialize(&bytecode_bytes)
-//             .context("Module blob can't be deserialized")?;
-//         BinaryIndexedView::Module(&module)
-//     };
-//
-//     let mut source_mapping = {
-//         if let Ok(s) = source_map {
-//             SourceMapping::new(s, bytecode)
-//         } else {
-//             SourceMapping::new_from_view(bytecode, no_loc)
-//                 .context("Unable to build dummy source mapping")?
-//         }
-//     };
-//
-//     if let Some(source_code) = source {
-//         source_mapping.with_source_code((source_path.to_str().unwrap().to_string(), source_code));
-//     }
-//
-//     let main_move_module = if options.is_script {
-//         let script = CompiledScript::deserialize(&bytecode_bytes)
-//             .context("Script blob can't be deserialized")?;
-//         move_model::script_into_module(script, "main")
-//     } else {
-//         CompiledModule::deserialize(&bytecode_bytes).context("Module blob can't be deserialized")?
-//     };
-//
-//     let mut dep_move_modules = vec![];
-//
-//     for bytes in &dep_bytecode_bytes {
-//         let dep_module = CompiledModule::deserialize(bytes)
-//             .context("Dependency module blob can't be deserialized")?;
-//         dep_move_modules.push(dep_module);
-//     }
-//
-//     let modules = dep_move_modules
-//         .into_iter()
-//         .chain(Some(main_move_module))
-//         .collect::<Vec<_>>();
-//
-//     move_model::run_bytecode_model_builder(&modules)
-// }
+fn get_env_from_bytecode(options: &Options) -> anyhow::Result<GlobalEnv> {
+    let move_extension = MOVE_EXTENSION;
+    let mv_bytecode_extension = MOVE_COMPILED_EXTENSION;
+    let source_map_extension = SOURCE_MAP_EXTENSION;
+
+    let bytecode_file_path = (options.bytecode_file_path.as_ref()).unwrap();
+    let source_path = Path::new(&bytecode_file_path);
+    let extension = source_path
+        .extension()
+        .context("Missing file extension for bytecode file")?;
+    if extension != mv_bytecode_extension {
+        anyhow::bail!(
+            "Bad source file extension {:?}; expected {}",
+            extension,
+            mv_bytecode_extension
+        );
+    }
+
+    let bytecode_bytes = fs::read(bytecode_file_path).context("Unable to read bytecode file")?;
+
+    let mut dep_bytecode_bytes = vec![];
+    for dep in &options.dependencies {
+        let bytes = fs::read(dep).context("Unable to read dependency bytecode file {dep}")?;
+        dep_bytecode_bytes.push(bytes);
+    }
+
+    let source_path = Path::new(&bytecode_file_path).with_extension(move_extension);
+    let source = fs::read_to_string(&source_path).ok();
+    let source_map =
+        source_map_from_file(&Path::new(&bytecode_file_path).with_extension(source_map_extension));
+
+    let no_loc = Spanned::unsafe_no_loc(()).loc;
+    let module: CompiledModule;
+    let script: CompiledScript;
+    let bytecode = if options.is_script {
+        script = CompiledScript::deserialize(&bytecode_bytes)
+            .context("Script blob can't be deserialized")?;
+        BinaryIndexedView::Script(&script)
+    } else {
+        module = CompiledModule::deserialize(&bytecode_bytes)
+            .context("Module blob can't be deserialized")?;
+        BinaryIndexedView::Module(&module)
+    };
+
+    let mut source_mapping = {
+        if let Ok(s) = source_map {
+            SourceMapping::new(s, bytecode)
+        } else {
+            SourceMapping::new_from_view(bytecode, no_loc)
+                .context("Unable to build dummy source mapping")?
+        }
+    };
+
+    if let Some(source_code) = source {
+        source_mapping.with_source_code((source_path.to_str().unwrap().to_string(), source_code));
+    }
+
+    let main_move_module = if options.is_script {
+        let script = CompiledScript::deserialize(&bytecode_bytes)
+            .context("Script blob can't be deserialized")?;
+        move_model::script_into_module(script, "main")
+    } else {
+        CompiledModule::deserialize(&bytecode_bytes).context("Module blob can't be deserialized")?
+    };
+
+    let mut dep_move_modules = vec![];
+
+    for bytes in &dep_bytecode_bytes {
+        let dep_module = CompiledModule::deserialize(bytes)
+            .context("Dependency module blob can't be deserialized")?;
+        dep_move_modules.push(dep_module);
+    }
+
+    let modules = dep_move_modules
+        .into_iter()
+        .chain(Some(main_move_module))
+        .collect::<Vec<_>>();
+
+    run_bytecode_model_builder(&modules)
+}
 
 fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> {
     use crate::stackless::{extensions::ModuleEnvExt, *};
@@ -447,12 +440,12 @@ fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> {
             let output_file = entrypoint_generator.write_object_file(&out_path).unwrap();
             objects.push(Path::new(&output_file).to_path_buf());
         }
-        // link_object_files(
-        //     out_path,
-        //     objects.as_slice(),
-        //     Path::new(&output_file_path).to_path_buf(),
-        //     &options.move_native_archive,
-        // )?;
+        link_object_files(
+            out_path,
+            objects.as_slice(),
+            Path::new(&output_file_path).to_path_buf(),
+            &options.move_native_archive,
+        )?;
     }
     // FIXME: this should be handled with lifetimes.
     // Context (global_cx) must outlive llvm module (entry_llmod).
@@ -509,4 +502,22 @@ pub fn run_to_polka<W: WriteColor>(error_writer: &mut W, options: Options) -> an
     compile(&global_env, &options)?;
 
     Ok(())
+}
+
+/// Build a `GlobalEnv` from a collection of `CompiledModule`'s. The `modules` list must be
+/// topologically sorted by the dependency relation (i.e., a child node in the dependency graph
+/// should appear earlier in the vector than its parents).
+pub fn run_bytecode_model_builder<'a>(
+    modules: impl IntoIterator<Item = &'a CompiledModule>,
+) -> anyhow::Result<GlobalEnv> {
+    let mut env = GlobalEnv::new();
+    for (i, m) in modules.into_iter().enumerate() {
+        let module_id = ModuleId::new(i);
+        env.attach_compiled_module(
+            module_id,
+            m.clone(),
+            SourceMap::new(MoveIrLoc::new(FileHash::empty(), 0, 0), None),
+        );
+    }
+    Ok(env)
 }

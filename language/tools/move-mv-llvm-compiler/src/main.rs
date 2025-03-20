@@ -325,24 +325,6 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Build a `GlobalEnv` from a collection of `CompiledModule`'s. The `modules` list must be
-/// topologically sorted by the dependency relation (i.e., a child node in the dependency graph
-/// should appear earlier in the vector than its parents).
-fn run_bytecode_model_builder<'a>(
-    modules: impl IntoIterator<Item = &'a CompiledModule>,
-) -> anyhow::Result<GlobalEnv> {
-    let mut env = GlobalEnv::new();
-    for (i, m) in modules.into_iter().enumerate() {
-        let module_id = ModuleId::new(i);
-        env.attach_compiled_module(
-            module_id,
-            m.clone(),
-            SourceMap::new(MoveIrLoc::new(FileHash::empty(), 0, 0), None),
-        );
-    }
-    Ok(env)
-}
-
 fn initialize_logger() {
     static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
     LOGGER_INIT.call_once(|| {
