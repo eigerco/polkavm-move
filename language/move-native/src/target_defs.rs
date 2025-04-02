@@ -4,7 +4,7 @@
 
 pub use impls::*;
 
-#[cfg(not(feature = "solana"))]
+#[cfg(not(feature = "polkavm"))]
 mod impls {
     // Move addresses are 16 bytes by default, but can be made 20 or 32 at compile time.
     pub const ACCOUNT_ADDRESS_LENGTH: usize = 16;
@@ -22,7 +22,7 @@ mod impls {
     }
 }
 
-#[cfg(feature = "solana")]
+#[cfg(feature = "polkavm")]
 mod impls {
     // Solana pubkeys are 32 bytes.
     // Move addresses are 16 bytes by default, but can be made 20 or 32 at compile time.
@@ -55,55 +55,19 @@ mod impls {
     }
 
     mod globals {
-        use alloc::{
-            alloc::{GlobalAlloc, Layout},
-            format,
-        };
-        use core::{mem::size_of, ptr::null_mut};
-
+        use alloc::format;
+        use emballoc::Allocator;
         const PANIC_ABORT_CODE: u64 = 101;
 
-        // #[panic_handler]
-        // fn panic(info: &core::panic::PanicInfo) -> ! {
-        //     super::print_string(&format!("{}", info));
-        //     super::abort(PANIC_ABORT_CODE);
-        // }
+        #[panic_handler]
+        fn panic(info: &core::panic::PanicInfo) -> ! {
+            super::print_string(&format!("{}", info));
+            super::abort(PANIC_ABORT_CODE);
+        }
+
+        const HEAP_SIZE: usize = 60 * 1024 * 1024;
 
         #[global_allocator]
-        static A: BumpAllocator = BumpAllocator {
-            start: HEAP_START_ADDRESS as usize,
-            len: HEAP_LENGTH,
-        };
-
-        pub struct BumpAllocator {
-            pub start: usize,
-            pub len: usize,
-        }
-
-        unsafe impl GlobalAlloc for BumpAllocator {
-            #[inline]
-            unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-                let pos_ptr = self.start as *mut usize;
-
-                let mut pos = *pos_ptr;
-                if pos == 0 {
-                    // First time, set starting position
-                    pos = self.start + self.len;
-                }
-                pos = pos.saturating_sub(layout.size());
-                pos &= !(layout.align().wrapping_sub(1));
-                if pos < self.start + size_of::<*mut u8>() {
-                    return null_mut();
-                }
-                *pos_ptr = pos;
-                pos as *mut u8
-            }
-            #[inline]
-            unsafe fn dealloc(&self, _: *mut u8, _: Layout) {
-                // I'm a bump allocator, I don't free
-            }
-        }
-        pub const HEAP_START_ADDRESS: u64 = 0x300000000;
-        pub const HEAP_LENGTH: usize = 32 * 1024;
+        static ALLOCATOR: Allocator<HEAP_SIZE> = Allocator::new();
     }
 }

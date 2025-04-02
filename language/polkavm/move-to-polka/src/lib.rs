@@ -45,6 +45,7 @@ struct PlatformTools {
 
 impl PlatformTools {
     fn run_cargo(&self, target_dir: &PathBuf, args: &[&str]) -> anyhow::Result<()> {
+        println!("running cargo in {:?} with args: {:?}", target_dir, args);
         let mut cmd = Command::new(&self.cargo);
         cmd.env_remove("RUSTUP_TOOLCHAIN");
         cmd.env_remove("RUSTC_WRAPPER");
@@ -110,8 +111,9 @@ fn get_platform_tools() -> anyhow::Result<PlatformTools> {
 
 fn get_runtime(out_path: &PathBuf, tools: &PlatformTools) -> anyhow::Result<PathBuf> {
     debug!("building move-native runtime for polkavm in {out_path:?}");
+    println!("building move-native runtime for polkavm in {out_path:?}");
     let archive_file = out_path
-        .join("polkavm")
+        .join("riscv32imac-unknown-none-elf")
         .join("release")
         .join("libmove_native.a");
 
@@ -139,7 +141,7 @@ fn get_runtime(out_path: &PathBuf, tools: &PlatformTools) -> anyhow::Result<Path
             &move_native,
             "--release",
             "--features",
-            "solana",
+            "polkavm",
             // "-q",
         ],
     );
