@@ -45,3 +45,6 @@ serde_json = "1.0.64"
 tempfile = "3.2"
 hex = "0.4"
 which = "7.0"
+
+[dev-dependencies]
+polkavm = "0.22.0"

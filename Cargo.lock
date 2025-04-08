@@ -2179,6 +2179,7 @@ dependencies = [
  "num-traits",
  "once_cell",
  "parking_lot",
+ "polkavm",
  "regex",
  "semver",
  "serde",
@@ -2634,6 +2635,44 @@ name = "pin-utils"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
+name = "polkavm"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3cf2f23f95c001ca921f4d83bd3046d1a8b1f806a4956e00dd7673fb33d2ccf"
+dependencies = [
+ "libc",
+ "log",
+ "polkavm-assembler",
+ "polkavm-common",
+ "polkavm-linux-raw",
+]
+
+[[package]]
+name = "polkavm-assembler"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e530d54b22d621152cbb67fa9049c5855e4786cb60d6b8b2eaa4e2c40f0620a1"
+dependencies = [
+ "log",
+]
+
+[[package]]
+name = "polkavm-common"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "538810ffdaa629113b9f436f43ba487a6cceacc04a769ac3cdcd32fcf87351cd"
+dependencies = [
+ "log",
+ "polkavm-assembler",
+]
+
+[[package]]
+name = "polkavm-linux-raw"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ac57506bd8659941c878934b5b5ec541d054347ad0cf40156b5cca630d7bdf0"
 
 [[package]]
 name = "ppv-lite86"
