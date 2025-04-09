@@ -20,10 +20,11 @@ pub fn test_program_execution() -> anyhow::Result<()> {
     llvm_translate_options.llvm_ir = false;
     compile(&move_env, &llvm_translate_options)?;
 
-    // TODO (polkatool liking phase)
+    //TODO it would be so nice if compile won't access FS directly so we can work purely in-memory
+    let data = std::fs::read("output/morebasic.o")?;
 
-    //TODO(tadas): this should be replaced with full compilation process from move sources, polka linker etc.
-    let program_bytes = include_bytes!("../../../../output/morebasic.polkavm");
+    // polka tool linking phase
+    let program_bytes = load_from_elf_with_polka_linker(&data)?;
 
     let blob =
         ProgramBlob::parse(program_bytes[..].into()).map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -57,4 +58,14 @@ fn create_colored_stdout() -> StandardStream {
         ColorChoice::Never
     };
     StandardStream::stderr(color)
+}
+
+fn load_from_elf_with_polka_linker(data: &[u8]) -> anyhow::Result<Vec<u8>> {
+    // config is taken from polkatool with default values
+    let mut config = polkavm_linker::Config::default();
+    config.set_strip(false);
+    config.set_optimize(true);
+
+    let res = polkavm_linker::program_from_elf(config, data)?;
+    Ok(res)
 }

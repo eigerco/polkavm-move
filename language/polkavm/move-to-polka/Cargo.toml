@@ -48,3 +48,4 @@ which = "7.0"
 
 [dev-dependencies]
 polkavm = "0.22.0"
+polkavm-linker = "0.22.0"

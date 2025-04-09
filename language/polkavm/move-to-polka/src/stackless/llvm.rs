@@ -308,10 +308,12 @@ impl Module {
             let ir_str_ptr = LLVMPrintModuleToString(self.0);
             let ir_str = CStr::from_ptr(ir_str_ptr);
             println!("Generated LLVM IR:\n{}", ir_str.to_string_lossy());
+            /*
             File::create(format!("{}.ll", self.2))
                 .unwrap()
                 .write_all(ir_str.to_bytes())
                 .unwrap();
+            */
             LLVMDisposeMessage(ir_str_ptr); // must free the string
         }
     }
