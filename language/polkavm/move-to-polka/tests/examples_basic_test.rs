@@ -7,7 +7,9 @@ use common::*;
 pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
     env_logger::init();
 
-    let move_byte_code = build_move_program("../examples/basic/sources/morebasic.move")?;
+    let build_options =
+        BuildOptions::new("output/morebasic.o").source("../examples/basic/sources/morebasic.move");
+    let move_byte_code = build_move_program(build_options)?;
 
     // polka tool linking phase
     let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
@@ -38,12 +40,15 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore = "doesnt work yet"]
+#[ignore = "doesnt work yet - need further push LLVM implementation"]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
     env_logger::init();
 
-    let move_byte_code = build_move_program("../examples/basic/sources/basic.move")?;
-
+    let build_options = BuildOptions::new("output/basic.o")
+        .source("../examples/basic/sources/basic.move")
+        .dependency(&resolve_move_std_lib_sources())
+        .address_mapping("std=0x1");
+    let move_byte_code = build_move_program(build_options)?;
     // polka tool linking phase
     let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
 

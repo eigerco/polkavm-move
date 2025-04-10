@@ -22,38 +22,61 @@ pub fn load_from_elf_with_polka_linker(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     Ok(res)
 }
 
-pub fn build_move_program(move_file_path: &str) -> anyhow::Result<Vec<u8>> {
-    let mut move_compile_options = Options::default();
-    move_compile_options.compile = true;
-    move_compile_options.sources = vec![move_file_path.to_string()];
+pub struct BuildOptions {
+    options: Options,
+    output_file: String,
+}
+
+impl BuildOptions {
+    pub fn new(output_file: &str) -> Self {
+        let mut options = Options::default();
+        options.compile = true;
+        Self {
+            options,
+            output_file: output_file.to_string(),
+        }
+    }
+
+    pub fn source(mut self, source_file: &str) -> Self {
+        self.options.sources.push(source_file.to_string());
+        self
+    }
+
+    pub fn address_mapping(mut self, mapping: &str) -> Self {
+        self.options.named_address_mapping.push(mapping.to_string());
+        self
+    }
+
+    pub fn dependency(mut self, dependency_path: &str) -> Self {
+        self.options.dependencies.push(dependency_path.to_string());
+        self
+    }
+}
+
+pub fn build_move_program(options: BuildOptions) -> anyhow::Result<Vec<u8>> {
     // parse move source files
     let mut color_writer = create_colored_stdout();
-    let move_env = get_env_from_source(&mut color_writer, &move_compile_options)?;
-
-    // a little bit clumsy but does the trick for now
-    let path = Path::new(move_file_path);
-    let filename = path
-        .file_stem()
-        .ok_or_else(|| anyhow::anyhow!("cant get filename from {move_file_path}"))?;
-
-    let mut filename = OsString::from(filename);
-    filename.push(".o");
-
-    let output = Path::new("output").join(filename);
-    let output_string = output
-        .to_str()
-        .ok_or_else(|| anyhow::anyhow!("can't get string from path"))?
-        .to_string();
-
-    println!("{move_file_path} -> {output_string}");
+    let move_env = get_env_from_source(&mut color_writer, &options.options)?;
+    let output_file = &options.output_file;
+    println!("Object file output -> {output_file}");
     // translate to riscV object file
     let mut llvm_translate_options = Options::default();
     llvm_translate_options.compile = true; // we don't need linking stage
-    llvm_translate_options.output = output_string;
+    llvm_translate_options.output = output_file.to_string();
     llvm_translate_options.llvm_ir = false;
     compile(&move_env, &llvm_translate_options)?;
 
     //TODO it would be so nice if compile won't access FS directly so we can work purely in-memory
-    let data = std::fs::read(output)?;
+    let data = std::fs::read(output_file)?;
     Ok(data)
+}
+
+pub fn resolve_move_std_lib_sources() -> String {
+    //TODO(tadas): Right now we expect that move-stdlib comes from move-on-aptos checked out on the same root level as this project itself
+    //BUT since we depend on some rust crates coming from move-on-aptos repo, repo itself is available as cargo checkouts dir
+    //it would be awesome to:
+    // 1. scan cargo lock (cargo_metadata crate?) to find exact revision of move-on-aptos
+    // 2. lookup cargo home dir according to rules (respect CARGO_HOME , default to HOME/.cargo if not set)
+    // lookup actual move-on-aptos dependency and navigate to move-stdlib sources!
+    "../../../../move-on-aptos/language/move-stdlib/sources".to_string()
 }
