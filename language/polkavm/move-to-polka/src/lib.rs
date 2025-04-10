@@ -235,7 +235,7 @@ fn link_object_files(
     Ok(output_dylib)
 }
 
-fn get_env_from_source<W: WriteColor>(
+pub fn get_env_from_source<W: WriteColor>(
     error_writer: &mut W,
     options: &Options,
 ) -> anyhow::Result<GlobalEnv> {
@@ -348,7 +348,7 @@ fn get_env_from_bytecode(options: &Options) -> anyhow::Result<GlobalEnv> {
     run_bytecode_model_builder(&modules)
 }
 
-fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> {
+pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> {
     use crate::stackless::{extensions::ModuleEnvExt, *};
 
     debug!("compile");
