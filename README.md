@@ -1,40 +1,51 @@
-**This is a fork of the Move compiler with LLVM support.
-See the [move-to-solana README](language/solana/move-to-solana)
-for fork-specific documentation.**
+![Move-on-PolkaVM](assets/polkavm-move-logo.png)
 
-[![License](https://img.shields.io/badge/license-Apache-green.svg)](LICENSE)
-[![Discord chat](https://img.shields.io/discord/964205366541963294.svg?logo=discord&style=flat-square)](https://discord.gg/zamKKnZBZp)
+# Move Language support in PolkaVM
 
-![Move logo](assets/color/SVG/Move_Logo_Design_Digital_Final_-01.svg)
+Move is a statically-typed programming language designed for safe and flexible smart contract development, with a strong focus on digital asset management.
+It uses a resource-oriented model that enforces ownership and prevents assets from being accidentally copied or lost, making it ideal for secure blockchain applications.
+Move was originally developed at Facebook.
 
-# The Move Language
+PolkaVM is a lightweight virtual machine designed to execute smart contracts within the Substrate-based Polkadot ecosystem.
+It serves as the execution layer for runtime logic and smart contracts on parachains, enabling decentralized applications while maintaining interoperability, security, and upgradeability across the Polkadot network.
 
-Move is a programming language for writing safe smart contracts originally developed at Facebook to power the Diem blockchain. Move is designed to be a platform-agnostic language to enable common libraries, tooling, and developer communities across diverse blockchains with vastly different data and execution models. Move's ambition is to become the "JavaScript of web3" in terms of ubiquity--when developers want to quickly write safe code involving assets, it should be written in Move.
+This project adds support to execute smart contracts that are written in Move on PolkaVM.
 
-This repository is the official home of the Move virtual machine, bytecode verifier, compiler, prover, package manager, and book. For Move code examples and papers, check out [awesome-move](https://github.com/MystenLabs/awesome-move).
+## Getting started
 
-## Quickstart
-
-### Build the [Docker](https://www.docker.com/community/open-source/) Image for the Command Line Tool
+This project relies heavly on [LLVM](https://llvm.org/) and just must install the necessary developer tools.
 
 ```
-docker build -t move/cli -f docker/move-cli/Dockerfile .
+# MacOS
+brew install llvm
 ```
 
-### Build a Test Project
-
 ```
-cd ./language/documentation/tutorial/step_1/BasicCoin
-docker run -v `pwd`:/project move/cli build
+# Fedora
+dnf install llvm-devel
 ```
 
-Follow the [language/documentation/tutorial](./language/documentation/tutorial/README.md) to set up move for development.
+Even if llvm itself is written in C++, we use Rust and especially [llvm-sys](https://crates.io/crates/llvm-sys).
 
-## Community
+Install Rust
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
 
-* Join us on the [Move Discord](https://discord.gg/cPUmhe24Mz).
-* Browse code and content from the community at [awesome-move](https://github.com/MystenLabs/awesome-move).
+And build the move-to-polkavm tool
 
-## License
+```
+cargo build --release
+```
 
-Move is licensed as [Apache 2.0](https://github.com/move-language/move/blob/main/LICENSE).
+## Architecture
+
+On a high level, we use a stackless version of Move byte-code and compiles it down to Risc-V machine instructions.
+Then, we use the polkavm linker to covert the elf file into a polkavm file.
+These steps all happens offline.
+
+The polkavm file can then be loaded an run inside a PolkaVM.
+
+## History
+
+This repository was forked from [anza-xyz/move](https://github.com/anza-xyz/move) that added Move support to Solana.
