@@ -694,8 +694,19 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 }
             }
             Type::Vector(_) => Some(self.rtty_cx.get_llvm_type_for_move_vector(self, tyvec)),
-            Type::Tuple(_) => {
-                todo!("{mty:?}")
+            Type::Tuple(types_vec) => {
+                let llvm_types = types_vec
+                    .iter()
+                    .map(|move_ty| {
+                        self.to_llvm_type(move_ty, &[])
+                            .expect(&format!("{move_ty:?} should be available"))
+                    })
+                    .collect::<Vec<_>>();
+                Some(
+                    self.llvm_cx
+                        .anonymous_struct_type(&llvm_types)
+                        .as_any_type(),
+                )
             }
             Type::Fun(_, _, _)
             | Type::TypeDomain(_)

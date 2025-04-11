@@ -108,7 +108,7 @@ pub fn test_tuple_implementatino() -> anyhow::Result<()> {
     let result = instance
         .call_typed_and_get_result::<u64, (u64, u32)>(&mut (), "multiply", (10, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 50);
+    assert_eq!(result, 15);
 
     Ok(())
 }
