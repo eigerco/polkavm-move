@@ -697,9 +697,9 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             Type::Tuple(types_vec) => {
                 let llvm_types = types_vec
                     .iter()
-                    .map(|move_ty| {
-                        self.to_llvm_type(move_ty, &[])
-                            .expect(&format!("{move_ty:?} should be available"))
+                    .map(|move_type| {
+                        self.to_llvm_type(move_type, &[])
+                            .expect(&format!("{move_type:?} should be available"))
                     })
                     .collect::<Vec<_>>();
                 Some(

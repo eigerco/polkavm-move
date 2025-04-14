@@ -76,7 +76,7 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
-pub fn test_tuple_implementatino() -> anyhow::Result<()> {
+pub fn test_tuple_implementation() -> anyhow::Result<()> {
     let build_options =
         BuildOptions::new("output/tuple.o").source("../examples/basic/sources/tuple.move");
 
@@ -102,7 +102,7 @@ pub fn test_tuple_implementatino() -> anyhow::Result<()> {
     // Grab the function and call it.
     println!("Calling into the guest program (high level):");
     let result = instance
-        .call_typed_and_get_result::<u64, (u64, u32)>(&mut (), "multiply", (10, 5))
+        .call_typed_and_get_result::<u64, (u32, u64)>(&mut (), "add", (10, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     assert_eq!(result, 15);
 
