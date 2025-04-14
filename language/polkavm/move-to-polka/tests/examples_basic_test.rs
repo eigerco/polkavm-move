@@ -42,8 +42,6 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 #[test]
 #[ignore = "doesnt work yet - need further push LLVM implementation"]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
-    env_logger::init();
-
     let build_options = BuildOptions::new("output/basic.o")
         .source("../examples/basic/sources/basic.move")
         .dependency(&resolve_move_std_lib_sources())
@@ -79,8 +77,6 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 
 #[test]
 pub fn test_tuple_implementatino() -> anyhow::Result<()> {
-    env_logger::init();
-
     let build_options =
         BuildOptions::new("output/tuple.o").source("../examples/basic/sources/tuple.move");
 
