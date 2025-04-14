@@ -2,6 +2,7 @@ use std::{ffi::OsString, path::Path};
 
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use move_to_polka::{compile, get_env_from_source, options::Options};
+use polkavm::ProgramBlob;
 
 pub fn create_colored_stdout() -> StandardStream {
     let color = if atty::is(atty::Stream::Stderr) && atty::is(atty::Stream::Stdout) {
@@ -20,6 +21,10 @@ pub fn load_from_elf_with_polka_linker(data: &[u8]) -> anyhow::Result<Vec<u8>> {
 
     let res = polkavm_linker::program_from_elf(config, data)?;
     Ok(res)
+}
+
+pub fn parse_to_blob(program_bytes: &[u8]) -> anyhow::Result<ProgramBlob> {
+    ProgramBlob::parse(program_bytes.into()).map_err(|e| anyhow::anyhow!("{e:?}"))
 }
 
 pub struct BuildOptions {

@@ -9,13 +9,10 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 
     let build_options =
         BuildOptions::new("output/morebasic.o").source("../examples/basic/sources/morebasic.move");
+
     let move_byte_code = build_move_program(build_options)?;
-
-    // polka tool linking phase
     let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
-
-    let blob =
-        ProgramBlob::parse(program_bytes[..].into()).map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    let blob = parse_to_blob(&program_bytes)?;
 
     let config = Config::from_env()?;
     let engine = Engine::new(&config)?;
@@ -46,12 +43,10 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
         .source("../examples/basic/sources/basic.move")
         .dependency(&resolve_move_std_lib_sources())
         .address_mapping("std=0x1");
-    let move_byte_code = build_move_program(build_options)?;
-    // polka tool linking phase
-    let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
 
-    let blob =
-        ProgramBlob::parse(program_bytes[..].into()).map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    let move_byte_code = build_move_program(build_options)?;
+    let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
+    let blob = parse_to_blob(&program_bytes)?;
 
     let config = Config::from_env()?;
     let engine = Engine::new(&config)?;
@@ -81,11 +76,8 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
         BuildOptions::new("output/tuple.o").source("../examples/basic/sources/tuple.move");
 
     let move_byte_code = build_move_program(build_options)?;
-    // polka tool linking phase
     let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
-
-    let blob =
-        ProgramBlob::parse(program_bytes[..].into()).map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    let blob = parse_to_blob(&program_bytes)?;
 
     let config = Config::from_env()?;
     let engine = Engine::new(&config)?;
