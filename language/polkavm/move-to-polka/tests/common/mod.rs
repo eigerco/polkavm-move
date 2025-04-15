@@ -1,4 +1,4 @@
-use std::{ffi::OsString, path::Path};
+use std::{ffi::OsString, fs, path::Path};
 
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use move_to_polka::{compile, get_env_from_source, options::Options};
@@ -64,6 +64,7 @@ pub fn build_move_program(options: BuildOptions) -> anyhow::Result<Vec<u8>> {
     let move_env = get_env_from_source(&mut color_writer, &options.options)?;
     let output_file = &options.output_file;
     println!("Object file output -> {output_file}");
+    create_dir_all(&output_file)?;
     // translate to riscV object file
     let mut llvm_translate_options = Options::default();
     llvm_translate_options.compile = true; // we don't need linking stage
@@ -84,4 +85,12 @@ pub fn resolve_move_std_lib_sources() -> String {
     // 2. lookup cargo home dir according to rules (respect CARGO_HOME , default to HOME/.cargo if not set)
     // lookup actual move-on-aptos dependency and navigate to move-stdlib sources!
     "../../../../move-on-aptos/language/move-stdlib/sources".to_string()
+}
+
+pub fn create_dir_all<T: AsRef<Path>>(path: T) -> anyhow::Result<()> {
+    if let Some(parent) = path.as_ref().parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    Ok(())
 }
