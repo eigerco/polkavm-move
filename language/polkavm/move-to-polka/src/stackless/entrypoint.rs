@@ -77,7 +77,8 @@ impl<'mm, 'up> EntrypointGenerator<'mm, 'up> {
             let ll_param_tys = vec![llvm_cx.ptr_type()];
             llvm::FunctionType::new(ll_rty, &ll_param_tys)
         };
-        let ll_fn_solana_entrypoint = llvm_module.add_function("main", ll_fnty);
+        // there is no single entry in polkavm as in solana, this can be thrown away
+        let ll_fn_solana_entrypoint = llvm_module.add_function("main", ll_fnty, true);
         let entry_block = ll_fn_solana_entrypoint.append_basic_block("entry");
         llvm_builder.position_at_end(entry_block);
         let retval = llvm_builder
@@ -184,7 +185,7 @@ impl<'mm, 'up> EntrypointGenerator<'mm, 'up> {
             !self.fn_decls.borrow().contains_key(ll_sym_name),
             "Duplicate entry function name found."
         );
-        let tfn = self.llvm_module.add_function(ll_sym_name, llfn_type);
+        let tfn = self.llvm_module.add_function(ll_sym_name, llfn_type, true);
         self.llvm_module.add_attributes(tfn, attrs);
         tfn.as_gv()
             .set_linkage(llvm::LLVMLinkage::LLVMExternalLinkage);

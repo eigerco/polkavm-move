@@ -539,7 +539,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     .add_entry_declaration(&ll_sym_name, ll_fnty, &attrs);
                 linkage = llvm::LLVMLinkage::LLVMExternalLinkage;
             }
-            let tfn = self.llvm_module.add_function(&ll_sym_name, ll_fnty);
+            let tfn = self.llvm_module.add_function(&ll_sym_name, ll_fnty, true);
             self.llvm_module.add_attributes(tfn, &attrs);
             tfn
         };
@@ -603,8 +603,10 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
                 llvm::FunctionType::new(ll_rty, &all_ll_parms)
             };
-
-            self.llvm_module.add_function(&ll_native_sym_name, ll_fnty)
+            // native functions are functions imported by guest program and exported by polkavm
+            // we don't need to export polka sections for those
+            self.llvm_module
+                .add_function(&ll_native_sym_name, ll_fnty, false)
         };
 
         ll_fn.as_gv().set_linkage(linkage);
@@ -896,7 +898,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                         llvm_cx.get_anonymous_struct_type(&[ptr_ty, int_ty, int_ty]),
                     ]);
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);
-                    let ll_fn = llvm_module.add_function(&fn_name, llty);
+                    let ll_fn = llvm_module.add_function(&fn_name, llty, false);
                     llvm_module.add_type_attribute(ll_fn, 1, "sret", ll_sret);
                     return ll_fn;
                 }
@@ -988,7 +990,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 n => panic!("unknown runtime function {n}"),
             };
 
-            let ll_fn = llvm_module.add_function(&fn_name, llty);
+            let ll_fn = llvm_module.add_function(&fn_name, llty, false);
             llvm_module.add_attributes(ll_fn, &attrs);
             ll_fn
         }

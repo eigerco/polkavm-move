@@ -340,7 +340,7 @@ impl Module {
         unsafe { LLVMSetSourceFileName(self.0, name.as_ptr() as *const libc::c_char, name.len()) }
     }
 
-    pub fn add_function(&self, name: &str, ty: FunctionType) -> Function {
+    pub fn add_function(&self, name: &str, ty: FunctionType, polka_export: bool) -> Function {
         log::debug!("Adding function {}", name);
         unsafe {
             let hash = hash_string(format!("{}::{}", self.2, name).as_str());
@@ -353,17 +353,22 @@ impl Module {
                 hash
             );
             let function = LLVMAddFunction(self.0, mangled.cstr(), ty.0);
-            let context = LLVMGetModuleContext(self.0);
-            let num_args = LLVMCountParams(function) as u8;
-            add_polkavm_metadata(
-                self.0,
-                context,
-                self.2.as_str(),
-                name,
-                mangled.as_str(),
-                num_args,
-                self.1.clone(),
-            );
+            // TODO(tadas): it doesnt feel like the right place for polka section generation just on the fly
+            // on any function we need to declare. Its looks more like additional pass when finalizing module
+            // but we leave this for now to move forward
+            if polka_export {
+                let context = LLVMGetModuleContext(self.0);
+                let num_args = LLVMCountParams(function) as u8;
+                add_polkavm_metadata(
+                    self.0,
+                    context,
+                    self.2.as_str(),
+                    name,
+                    mangled.as_str(),
+                    num_args,
+                    self.1.clone(),
+                );
+            }
             Function(function)
         }
     }
@@ -433,7 +438,7 @@ impl Module {
             ];
             let memcmp_rty = Type(LLVMInt32TypeInContext(cx));
             let memcmp_fty = FunctionType::new(memcmp_rty, &memcmp_arg_tys);
-            self.add_function("memcmp", memcmp_fty);
+            self.add_function("memcmp", memcmp_fty, false);
         }
     }
 
