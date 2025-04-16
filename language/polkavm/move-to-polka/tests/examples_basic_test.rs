@@ -100,3 +100,36 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+#[ignore = "need to add support for imports between modules"]
+pub fn test_multi_module_call() -> anyhow::Result<()> {
+    let build_options = BuildOptions::new("output/multi_module_call.o")
+        .source("../examples/multi_module/sources/modules2.move")
+        .address_mapping("multi_module=0x7");
+
+    let move_byte_code = build_move_program(build_options)?;
+    let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
+    let blob = parse_to_blob(&program_bytes)?;
+
+    let config = Config::from_env()?;
+    let engine = Engine::new(&config)?;
+    let module = Module::from_blob(&engine, &Default::default(), blob)?;
+
+    let linker: Linker = Linker::new();
+
+    // Link the host functions with the module.
+    let instance_pre = linker.instantiate_pre(&module)?;
+
+    // Instantiate the module.
+    let mut instance = instance_pre.instantiate()?;
+
+    // Grab the function and call it.
+    println!("Calling into the guest program (high level):");
+    let result = instance
+        .call_typed_and_get_result::<u64, (u32, u64)>(&mut (), "add", (10, 5))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 15);
+
+    Ok(())
+}
