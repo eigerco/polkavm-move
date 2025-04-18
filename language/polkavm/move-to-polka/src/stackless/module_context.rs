@@ -405,7 +405,9 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             curr_fn_env.llvm_symbol_name(&curr_type_vec)
         };
 
+        debug!("Checking if {fn_name} exists in current module");
         if self.fn_decls.contains_key(&fn_name) {
+            debug!("Exists. Skipping");
             return;
         }
 
@@ -531,15 +533,18 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             if fn_env.is_entry() || fn_env.get_full_name_str().replace("::", "__") == unit_test {
                 linkage = llvm::LLVMLinkage::LLVMExternalLinkage;
             }
-            let tfn = self
-                .llvm_module
-                .add_function(&ll_sym_name, ll_fnty, fn_env.is_entry());
+            let tfn = self.llvm_module.add_function(
+                &fn_env.module_env.llvm_module_name(),
+                &ll_sym_name,
+                ll_fnty,
+                fn_env.is_entry(),
+            );
             self.llvm_module.add_attributes(tfn, &attrs);
             tfn
         };
 
         ll_fn.as_gv().set_linkage(linkage);
-
+        debug!("Adding declared {ll_sym_name} to current module");
         self.fn_decls.insert(ll_sym_name, ll_fn);
     }
 
@@ -600,7 +605,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             // native functions are functions imported by guest program and exported by polkavm
             // we don't need to export polka sections for those
             self.llvm_module
-                .add_function(&ll_native_sym_name, ll_fnty, false)
+                .add_function("native", &ll_native_sym_name, ll_fnty, false)
         };
 
         ll_fn.as_gv().set_linkage(linkage);
@@ -892,7 +897,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                         llvm_cx.get_anonymous_struct_type(&[ptr_ty, int_ty, int_ty]),
                     ]);
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);
-                    let ll_fn = llvm_module.add_function(&fn_name, llty, false);
+                    let ll_fn = llvm_module.add_function("native", &fn_name, llty, false);
                     llvm_module.add_type_attribute(ll_fn, 1, "sret", ll_sret);
                     return ll_fn;
                 }
@@ -984,7 +989,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 n => panic!("unknown runtime function {n}"),
             };
 
-            let ll_fn = llvm_module.add_function(&fn_name, llty, false);
+            let ll_fn = llvm_module.add_function("native", &fn_name, llty, false);
             llvm_module.add_attributes(ll_fn, &attrs);
             ll_fn
         }
