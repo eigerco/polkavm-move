@@ -531,7 +531,9 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             if fn_env.is_entry() || fn_env.get_full_name_str().replace("::", "__") == unit_test {
                 linkage = llvm::LLVMLinkage::LLVMExternalLinkage;
             }
-            let tfn = self.llvm_module.add_function(&ll_sym_name, ll_fnty, true);
+            let tfn = self
+                .llvm_module
+                .add_function(&ll_sym_name, ll_fnty, fn_env.is_entry());
             self.llvm_module.add_attributes(tfn, &attrs);
             tfn
         };

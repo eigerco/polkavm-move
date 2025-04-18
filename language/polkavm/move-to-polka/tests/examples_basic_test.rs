@@ -1,4 +1,4 @@
-use move_to_polka::linker::load_from_elf_with_polka_linker;
+use env_logger::Env;
 use polkavm::{Config, Engine, Linker, Module};
 
 mod common;
@@ -46,8 +46,7 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
         .dependency(&move_src)
         .address_mapping("std=0x1");
 
-    let move_byte_code = build_polka_from_move(build_options)?;
-    let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
+    let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
     let config = Config::from_env()?;
@@ -106,12 +105,14 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 #[test]
 #[ignore = "need to add support for imports between modules"]
 pub fn test_multi_module_call() -> anyhow::Result<()> {
+    let env = Env::new().default_filter_or("globalenv=INFO,sbc=INFO,nodes=INFO,dwarf=INFO,DEBUG");
+    env_logger::try_init_from_env(env)?;
+
     let build_options = BuildOptions::new("output/multi_module_call.o")
         .source("../examples/multi_module/sources/modules2.move")
         .address_mapping("multi_module=0x7");
 
-    let move_byte_code = build_polka_from_move(build_options)?;
-    let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
+    let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
     let config = Config::from_env()?;

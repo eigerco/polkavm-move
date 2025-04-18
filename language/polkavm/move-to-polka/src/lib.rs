@@ -121,6 +121,10 @@ pub fn get_env_from_source<W: WriteColor>(
         &BTreeSet::new(),
     )?;
 
+    for module in env.get_modules() {
+        debug!("Move module: {}", module.get_full_name_str())
+    }
+
     env.report_diag(error_writer, Severity::Warning);
     if env.has_errors() {
         anyhow::bail!("Move source code errors")
