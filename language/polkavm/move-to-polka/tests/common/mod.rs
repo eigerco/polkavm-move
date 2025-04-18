@@ -1,6 +1,7 @@
 use std::{ffi::OsString, fs, path::Path};
 
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use log::info;
 use move_to_polka::{compile, get_env_from_source, options::Options};
 use polkavm::ProgramBlob;
 
@@ -63,7 +64,7 @@ pub fn build_move_program(options: BuildOptions) -> anyhow::Result<Vec<u8>> {
     let mut color_writer = create_colored_stdout();
     let move_env = get_env_from_source(&mut color_writer, &options.options)?;
     let output_file = &options.output_file;
-    println!("Object file output -> {output_file}");
+    info!("Object file output -> {output_file}");
     create_dir_all(&output_file)?;
     // translate to riscV object file
     let mut llvm_translate_options = Options::default();

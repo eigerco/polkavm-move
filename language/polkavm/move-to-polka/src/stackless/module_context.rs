@@ -539,7 +539,9 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     .add_entry_declaration(&ll_sym_name, ll_fnty, &attrs);
                 linkage = llvm::LLVMLinkage::LLVMExternalLinkage;
             }
-            let tfn = self.llvm_module.add_function(&ll_sym_name, ll_fnty, true);
+            let tfn = self
+                .llvm_module
+                .add_function(&ll_sym_name, ll_fnty, fn_env.is_entry());
             self.llvm_module.add_attributes(tfn, &attrs);
             tfn
         };

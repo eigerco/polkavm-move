@@ -1,3 +1,4 @@
+use env_logger::Env;
 use polkavm::{Config, Engine, Linker, Module, ProgramBlob};
 
 mod common;
@@ -104,6 +105,9 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 #[test]
 #[ignore = "need to add support for imports between modules"]
 pub fn test_multi_module_call() -> anyhow::Result<()> {
+    let env = Env::new().default_filter_or("globalenv=INFO,sbc=INFO,nodes=INFO,dwarf=INFO,DEBUG");
+    env_logger::try_init_from_env(env)?;
+
     let build_options = BuildOptions::new("output/multi_module_call.o")
         .source("../examples/multi_module/sources/modules2.move")
         .address_mapping("multi_module=0x7");
