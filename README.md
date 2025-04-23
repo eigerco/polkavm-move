@@ -17,7 +17,7 @@ This project relies heavly on [LLVM](https://llvm.org/) and just must install th
 
 ```
 # MacOS
-brew install llvm
+brew install llvm@19
 ```
 
 ```
@@ -49,3 +49,18 @@ The polkavm file can then be loaded an run inside a PolkaVM.
 ## History
 
 This repository was forked from [anza-xyz/move](https://github.com/anza-xyz/move) that added Move support to Solana.
+
+## Troubleshooting
+
+If you get an error related to
+
+```
+error: No suitable version of LLVM was found system-wide or pointed
+              to by LLVM_SYS_191_PREFIX
+```
+
+Try using
+
+```
+export LLVM_SYS_191_PREFIX="/usr/local/opt/llvm@19"
+```
