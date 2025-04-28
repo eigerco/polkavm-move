@@ -154,16 +154,16 @@ pub fn test_abort_implementation() -> anyhow::Result<()> {
 
     // It works when it doesn't abort
     let result = instance
-        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "abort_example", (7, 42))
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "my_abort_example", (7, 42))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     assert_eq!(result, 49);
 
     // It can handle an abort
     // TODO(nijo): Update test to actual test the abort correctly
     let result = instance
-        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "abort_example", (2, 2))
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "my_abort_example", (2, 2))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 49);
+    assert_eq!(result, 4);
 
     Ok(())
 }

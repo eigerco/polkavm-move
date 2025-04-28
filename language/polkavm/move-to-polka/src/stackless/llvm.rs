@@ -312,12 +312,12 @@ impl Module {
             let ir_str_ptr = LLVMPrintModuleToString(self.0);
             let ir_str = CStr::from_ptr(ir_str_ptr);
             println!("Generated LLVM IR:\n{}", ir_str.to_string_lossy());
-            /*
+            // todo(NIJO) comment out this creation
             File::create(format!("{}.ll", self.2))
                 .unwrap()
                 .write_all(ir_str.to_bytes())
                 .unwrap();
-            */
+
             LLVMDisposeMessage(ir_str_ptr); // must free the string
         }
     }
@@ -449,6 +449,18 @@ impl Module {
             let memcmp_rty = Type(LLVMInt32TypeInContext(cx));
             let memcmp_fty = FunctionType::new(memcmp_rty, &memcmp_arg_tys);
             self.add_function("native", "memcmp", memcmp_fty, false);
+        }
+
+        // Declare void @abort(u64).
+        eprintln!("BANANA WAS YEOOLOW");
+        unsafe {
+            let cx = LLVMGetModuleContext(self.0);
+            let abort_arg_tys: Vec<Type> = vec![
+                Type(LLVMInt64TypeInContext(cx)),
+            ];
+            let abort_rty = Type(LLVMVoidTypeInContext(cx));
+            let abort_fty = FunctionType::new(abort_rty, &abort_arg_tys);
+            self.add_function("move_ir_abort", abort_fty, false);
         }
     }
 
