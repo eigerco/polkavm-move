@@ -12,7 +12,7 @@ members = [
 # test-only code included.
 #
 # For more, see the "Conditional compilation for tests" section in documentation/coding_guidelines.md.
-default-members = []
+default-members = ["language/move-native", "language/polkavm/move-to-polka"]
 
 # Dependencies that should be kept in sync through the whole workspace
 [workspace.dependencies]
