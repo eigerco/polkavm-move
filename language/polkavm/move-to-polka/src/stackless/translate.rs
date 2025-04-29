@@ -821,6 +821,8 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         self.emit_prepost_new_blocks_with_abort(cond_reg);
     }
 
+    // TODO(tadas) this can probably be removed, but good for reference
+    #[allow(dead_code)]
     fn translate_address_comparison_impl(
         &self,
         dst: &[mast::TempIndex],

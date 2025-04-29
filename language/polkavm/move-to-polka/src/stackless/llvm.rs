@@ -24,9 +24,7 @@ use crate::cstr::SafeCStr;
 use std::{
     cell::RefCell,
     ffi::{CStr, CString},
-    fs::File,
     hash::DefaultHasher,
-    io::Write,
     ptr,
     rc::Rc,
 };
@@ -96,6 +94,12 @@ impl Drop for Context {
     }
 }
 
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Context {
     pub fn new() -> Context {
         unsafe { Context(LLVMContextCreate()) }
@@ -121,7 +125,7 @@ impl Context {
         module: &Module,
         source: &str,
         debug: bool,
-    ) -> DIBuilder {
+    ) -> DIBuilder<'up> {
         DIBuilder::new(g_ctx, module, source, debug)
     }
 
@@ -202,7 +206,7 @@ impl Context {
             ArrayValue(LLVMConstStringInContext2(
                 self.0,
                 v.cstr(),
-                v.len() as usize,
+                v.len(),
                 true as i32, /* !null_terminated */
             ))
         }
@@ -223,7 +227,7 @@ impl Context {
         }
     }
 
-    pub fn const_array(&self, vals: &Vec<Constant>, llty: Type) -> ArrayValue {
+    pub fn const_array(&self, vals: &[Constant], llty: Type) -> ArrayValue {
         let mut llvals: Vec<_> = vals.iter().map(|v| v.get0()).collect();
         unsafe {
             ArrayValue(LLVMConstArray2(
@@ -1026,11 +1030,7 @@ impl Builder {
     pub fn build_call_imm(&self, fnval: Function, args: &[Constant]) {
         let fnty = fnval.llvm_type();
         unsafe {
-            let mut args = args
-                .iter()
-                .enumerate()
-                .map(|(_i, val)| val.0)
-                .collect::<Vec<_>>();
+            let mut args = args.iter().map(|val| val.0).collect::<Vec<_>>();
             LLVMBuildCall2(
                 self.0,
                 fnty.0,
@@ -1671,8 +1671,7 @@ unsafe fn add_polkavm_metadata(
     let mut struct_field_types = [array_ty];
     let struct_ty = LLVMStructType(struct_field_types.as_mut_ptr(), 1, 0);
     let text = CString::new(fn_name).unwrap();
-    let const_array =
-        LLVMConstStringInContext2(context, text.as_ptr(), text.as_bytes().len() as usize, 1);
+    let const_array = LLVMConstStringInContext2(context, text.as_ptr(), text.as_bytes().len(), 1);
     let mut struct_values = [const_array];
     let const_struct = LLVMConstStruct(struct_values.as_mut_ptr(), 1, 0);
     let hashed = hash_string(fn_name);
