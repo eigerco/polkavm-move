@@ -88,6 +88,7 @@ pub enum RawBorrowedTypedMoveValue {
     Signer(*mut MoveSigner),
     Vector(MoveType, *mut MoveUntypedVector),
     Struct(MoveType, *mut AnyValue),
+    #[allow(dead_code)]
     Reference(MoveType, *mut MoveUntypedReference),
 }
 
