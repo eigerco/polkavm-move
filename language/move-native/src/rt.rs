@@ -87,15 +87,15 @@ struct Slice {
 /// https://github.com/solana-labs/solana/blob/master/sdk/program/src/instruction.rs: new_with_borsh
 ///
 /// Input arguments consist of three items
-/// - program_id -- a 32 byte Pubkey of the deployed module in Solana ledger,
-/// - accounts -- a vector of AccountInfo items, meta data of Solana
+///   - program_id -- a 32 byte Pubkey of the deployed module in Solana ledger,
+///   - accounts -- a vector of AccountInfo items, meta data of Solana
 ///               accounts available to and used by the program,
-/// - instruction_data -- a byte array of arbitrary instruction
+///   - instruction_data -- a byte array of arbitrary instruction
 ///                       specific data. We use it to pass a name of the entry function that
 ///                       the Instruction requests to invoke.
-/// accounts in move compiler are represented by SolanaAccountinfo structure in rt_types,
-/// and program_id is represeted by SolanaPubkey structure.
-/// # Safety
+///     accounts in move compiler are represented by SolanaAccountinfo structure in rt_types,
+///     and program_id is represeted by SolanaPubkey structure.
+///   # Safety
 #[allow(clippy::arithmetic_side_effects)]
 #[allow(clippy::type_complexity)]
 #[export_name = "move_rt_deserialize"]

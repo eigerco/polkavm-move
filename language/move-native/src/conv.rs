@@ -44,18 +44,22 @@ pub unsafe fn borrow_move_value_as_rust_value<'mv>(
 ) -> BorrowedTypedMoveValue<'mv> {
     // todo need to think about the soundness of this transmute
     match type_.type_desc {
-        TypeDesc::Bool => BorrowedTypedMoveValue::Bool(mem::transmute(value)),
-        TypeDesc::U8 => BorrowedTypedMoveValue::U8(mem::transmute(value)),
-        TypeDesc::U16 => BorrowedTypedMoveValue::U16(mem::transmute(value)),
-        TypeDesc::U32 => BorrowedTypedMoveValue::U32(mem::transmute(value)),
-        TypeDesc::U64 => BorrowedTypedMoveValue::U64(mem::transmute(value)),
-        TypeDesc::U128 => BorrowedTypedMoveValue::U128(mem::transmute(value)),
-        TypeDesc::U256 => BorrowedTypedMoveValue::U256(mem::transmute(value)),
-        TypeDesc::Address => BorrowedTypedMoveValue::Address(mem::transmute(value)),
-        TypeDesc::Signer => BorrowedTypedMoveValue::Signer(mem::transmute(value)),
+        TypeDesc::Bool => BorrowedTypedMoveValue::Bool(mem::transmute::<&AnyValue, &bool>(value)),
+        TypeDesc::U8 => BorrowedTypedMoveValue::U8(mem::transmute::<&AnyValue, &u8>(value)),
+        TypeDesc::U16 => BorrowedTypedMoveValue::U16(mem::transmute::<&AnyValue, &u16>(value)),
+        TypeDesc::U32 => BorrowedTypedMoveValue::U32(mem::transmute::<&AnyValue, &u32>(value)),
+        TypeDesc::U64 => BorrowedTypedMoveValue::U64(mem::transmute::<&AnyValue, &u64>(value)),
+        TypeDesc::U128 => BorrowedTypedMoveValue::U128(mem::transmute::<&AnyValue, &u128>(value)),
+        TypeDesc::U256 => BorrowedTypedMoveValue::U256(mem::transmute::<&AnyValue, &U256>(value)),
+        TypeDesc::Address => {
+            BorrowedTypedMoveValue::Address(mem::transmute::<&AnyValue, &MoveAddress>(value))
+        }
+        TypeDesc::Signer => {
+            BorrowedTypedMoveValue::Signer(mem::transmute::<&AnyValue, &MoveSigner>(value))
+        }
         TypeDesc::Vector => {
             let element_type = *(*type_.type_info).vector.element_type;
-            let move_ref = mem::transmute(value);
+            let move_ref = mem::transmute::<&AnyValue, &MoveUntypedVector>(value);
             BorrowedTypedMoveValue::Vector(element_type, move_ref)
         }
         TypeDesc::Struct => {
@@ -67,7 +71,7 @@ pub unsafe fn borrow_move_value_as_rust_value<'mv>(
         }
         TypeDesc::Reference => {
             let element_type = *(*type_.type_info).reference.element_type;
-            let move_ref = mem::transmute(value);
+            let move_ref = mem::transmute::<&AnyValue, &MoveUntypedReference>(value);
             BorrowedTypedMoveValue::Reference(element_type, move_ref)
         }
     }
@@ -88,6 +92,7 @@ pub enum RawBorrowedTypedMoveValue {
     Signer(*mut MoveSigner),
     Vector(MoveType, *mut MoveUntypedVector),
     Struct(MoveType, *mut AnyValue),
+    #[allow(dead_code)]
     Reference(MoveType, *mut MoveUntypedReference),
 }
 
@@ -96,30 +101,50 @@ pub unsafe fn raw_borrow_move_value_as_rust_value(
     value: *mut AnyValue,
 ) -> RawBorrowedTypedMoveValue {
     match type_.type_desc {
-        TypeDesc::Bool => RawBorrowedTypedMoveValue::Bool(mem::transmute(value)),
-        TypeDesc::U8 => RawBorrowedTypedMoveValue::U8(mem::transmute(value)),
-        TypeDesc::U16 => RawBorrowedTypedMoveValue::U16(mem::transmute(value)),
-        TypeDesc::U32 => RawBorrowedTypedMoveValue::U32(mem::transmute(value)),
-        TypeDesc::U64 => RawBorrowedTypedMoveValue::U64(mem::transmute(value)),
-        TypeDesc::U128 => RawBorrowedTypedMoveValue::U128(mem::transmute(value)),
-        TypeDesc::U256 => RawBorrowedTypedMoveValue::U256(mem::transmute(value)),
-        TypeDesc::Address => RawBorrowedTypedMoveValue::Address(mem::transmute(value)),
-        TypeDesc::Signer => RawBorrowedTypedMoveValue::Signer(mem::transmute(value)),
+        TypeDesc::Bool => {
+            RawBorrowedTypedMoveValue::Bool(mem::transmute::<*mut AnyValue, *mut bool>(value))
+        }
+        TypeDesc::U8 => {
+            RawBorrowedTypedMoveValue::U8(mem::transmute::<*mut AnyValue, *mut u8>(value))
+        }
+        TypeDesc::U16 => {
+            RawBorrowedTypedMoveValue::U16(mem::transmute::<*mut AnyValue, *mut u16>(value))
+        }
+        TypeDesc::U32 => {
+            RawBorrowedTypedMoveValue::U32(mem::transmute::<*mut AnyValue, *mut u32>(value))
+        }
+        TypeDesc::U64 => {
+            RawBorrowedTypedMoveValue::U64(mem::transmute::<*mut AnyValue, *mut u64>(value))
+        }
+        TypeDesc::U128 => {
+            RawBorrowedTypedMoveValue::U128(mem::transmute::<*mut AnyValue, *mut u128>(value))
+        }
+        TypeDesc::U256 => {
+            RawBorrowedTypedMoveValue::U256(mem::transmute::<*mut AnyValue, *mut U256>(value))
+        }
+        TypeDesc::Address => RawBorrowedTypedMoveValue::Address(mem::transmute::<
+            *mut AnyValue,
+            *mut MoveAddress,
+        >(value)),
+        TypeDesc::Signer => RawBorrowedTypedMoveValue::Signer(mem::transmute::<
+            *mut AnyValue,
+            *mut MoveSigner,
+        >(value)),
         TypeDesc::Vector => {
             let element_type = *(*type_.type_info).vector.element_type;
-            let move_ref = mem::transmute(value);
+            let move_ref = mem::transmute::<*mut AnyValue, *mut MoveUntypedVector>(value);
             RawBorrowedTypedMoveValue::Vector(element_type, move_ref)
         }
         TypeDesc::Struct => RawBorrowedTypedMoveValue::Struct(*type_, value),
         TypeDesc::Reference => {
             let element_type = *(*type_.type_info).reference.element_type;
-            let move_ref = mem::transmute(value);
+            let move_ref = mem::transmute::<*mut AnyValue, *mut MoveUntypedReference>(value);
             RawBorrowedTypedMoveValue::Reference(element_type, move_ref)
         }
     }
 }
 
-impl<'mv> core::fmt::Debug for BorrowedTypedMoveValue<'mv> {
+impl core::fmt::Debug for BorrowedTypedMoveValue<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             BorrowedTypedMoveValue::Bool(v) => v.fmt(f),

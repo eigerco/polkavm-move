@@ -37,7 +37,6 @@ use std::{
 use which::which_in;
 
 struct PlatformTools {
-    clang: PathBuf,
     rustc: PathBuf,
     cargo: PathBuf,
     lld: PathBuf,
@@ -98,7 +97,6 @@ fn get_platform_tools() -> anyhow::Result<PlatformTools> {
     use which::which;
 
     let tools = PlatformTools {
-        clang: which("clang").context("no clang in PATH")?,
         rustc: which("rustc").context("no rustc in PATH")?,
         cargo: which("cargo").context("no cargo in PATH")?,
         lld: which("ld.ldd")

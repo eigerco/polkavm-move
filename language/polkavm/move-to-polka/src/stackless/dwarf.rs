@@ -91,6 +91,12 @@ pub struct DIContext {
     >,
 }
 
+impl Default for DIContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DIContext {
     pub fn new() -> DIContext {
         DIContext {
@@ -390,7 +396,7 @@ pub fn type_get_name(x: LLVMMetadataRef) -> String {
     name
 }
 
-impl<'up> DIBuilderCore<'up> {
+impl DIBuilderCore<'_> {
     pub fn add_type_struct(&self, struct_id: StructId, ty: LLVMMetadataRef) {
         let name = type_get_name(ty);
         debug!(target: "struct", "set type {} for struct {:#?}", name, struct_id);
@@ -818,7 +824,7 @@ impl<'up> DIBuilder<'up> {
 
             let module_ctx = unsafe { LLVMGetModuleContext(*module_di) };
 
-            let mty = mvec.get(0).unwrap(); // exists since !mvec.is_empty()
+            let mty = mvec.first().unwrap(); // exists since !mvec.is_empty()
             let vec_di_type = self.get_type(mty.clone(), &"unnamed-vector".to_string());
             if vec_di_type == self.core().type_unspecified {
                 return; // proceed only when type is known
@@ -1365,7 +1371,7 @@ impl<'up> DIBuilder<'up> {
         &'a self,
         bc: &'a Bytecode,
         func_ctx: &'a FunctionContext<'_, '_>,
-    ) -> PublicInstruction {
+    ) -> PublicInstruction<'a> {
         if let Some(_di_builder_core) = &self.0 {
             let instr = Instruction::new(bc, func_ctx);
             instr.debug();

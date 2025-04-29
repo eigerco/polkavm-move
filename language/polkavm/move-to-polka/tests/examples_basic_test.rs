@@ -1,4 +1,4 @@
-use polkavm::{Config, Engine, Linker, Module, ProgramBlob};
+use polkavm::{Config, Engine, Linker, Module};
 
 mod common;
 use common::*;

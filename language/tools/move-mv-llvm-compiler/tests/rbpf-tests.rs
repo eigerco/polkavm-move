@@ -601,6 +601,4 @@
 //     run_rbpf(test_plan, exe.as_path())?;
 //     Ok(())
 // }
-pub fn main() {
-    
-}
+pub fn main() {}

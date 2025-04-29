@@ -12,14 +12,14 @@ use move_model::{model as mm, ty as mty};
 use move_native::shared::MOVE_UNTYPED_VEC_DESC_SIZE;
 
 #[extension_trait]
-pub impl<'a> ModuleEnvExt for mm::ModuleEnv<'a> {
+pub impl ModuleEnvExt for mm::ModuleEnv<'_> {
     fn llvm_module_name(&self) -> String {
         self.get_full_name_str().replace(':', "_")
     }
 }
 
 #[extension_trait]
-pub impl<'a> FunctionEnvExt for mm::FunctionEnv<'a> {
+pub impl FunctionEnvExt for mm::FunctionEnv<'_> {
     fn llvm_symbol_name(&self, _tyvec: &[mty::Type]) -> String {
         let name = self.get_full_name_str();
         if name == "<SELF>::<SELF>" {
@@ -200,7 +200,7 @@ pub impl TypeExt for mty::Type {
 }
 
 #[extension_trait]
-pub impl<'a> StructEnvExt for mm::StructEnv<'a> {
+pub impl StructEnvExt for mm::StructEnv<'_> {
     fn ll_struct_name_from_raw_name(&self, tys: &[mty::Type]) -> String {
         let raw_name = self.struct_raw_type_name(tys);
         let xs = raw_name.replace([':', '<', '>'], "_").replace(", ", ".");

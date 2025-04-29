@@ -411,7 +411,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             curr_fn_env.llvm_symbol_name(&curr_type_vec)
         };
 
-        if self.fn_decls.get(&fn_name).is_some() {
+        if self.fn_decls.contains_key(&fn_name) {
             return;
         }
 
@@ -498,7 +498,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 let ll_rty = if let Some(ty) = self.to_llvm_type(&fn_data.result_type, tyvec) {
                     ty
                 } else {
-                    self.declare_struct_instance(&&fn_data.result_type, tyvec)
+                    self.declare_struct_instance(&fn_data.result_type, tyvec)
                 };
 
                 let ll_parm_tys = fn_env
@@ -701,7 +701,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     .iter()
                     .map(|move_type| {
                         self.to_llvm_type(move_type, &[])
-                            .expect(&format!("{move_type:?} should be available"))
+                            .unwrap_or_else(|| panic!("{move_type:?} should be available"))
                     })
                     .collect::<Vec<_>>();
                 Some(
