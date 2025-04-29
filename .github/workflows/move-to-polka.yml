@@ -1,11 +1,22 @@
 name: Quality Assurance move-to-polka
 
-on: push
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
 
 jobs:
   build-and-test:
     name: Build and Test move-to-polka
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
 
     defaults:
       run:
@@ -25,14 +36,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Install LLVM 19
+      - name: Install LLVM 19 on Ubuntu
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
           sudo apt-get install -y llvm-19 llvm-19-dev lld-19 llvm-19-tools clang-19 libclang-19-dev libpolly-19-dev
           llvm-config-19 --version
+          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-19 100
 
-      - name: Make sure to use LLVM 19 for the linker
-        run: sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-19 100
+      - name: Install Rustup and LLVM 19 on MacOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install llvm@19
 
       - name: Install Rust
         run: |
@@ -50,6 +65,7 @@ jobs:
         run: cargo clippy -- -D warnings
 
       - name: Enable unprivileged user namespaces
+        if: matrix.os == 'ubuntu-latest'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: Run tests
