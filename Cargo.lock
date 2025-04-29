@@ -4182,13 +4182,3 @@ dependencies = [
  "quote",
  "syn 2.0.98",
 ]
-
-[[patch.unused]]
-name = "nextest-config"
-version = "0.1.0"
-source = "git+https://github.com/solana-labs/diem-devtools?branch=solana#6293b1c5333321ac6bb2eec727ad3fd0f5b058e1"
-
-[[patch.unused]]
-name = "nextest-runner"
-version = "0.1.0"
-source = "git+https://github.com/solana-labs/diem-devtools?branch=solana#6293b1c5333321ac6bb2eec727ad3fd0f5b058e1"

@@ -550,18 +550,26 @@ impl<'mv> TypedMoveBorrowedRustVec<'mv> {
         unsafe {
             let i = usize::try_from(i).expect("usize");
             let value = match self {
-                TypedMoveBorrowedRustVec::Bool(v) => mem::transmute(&v[i]),
-                TypedMoveBorrowedRustVec::U8(v) => mem::transmute(&v[i]),
-                TypedMoveBorrowedRustVec::U16(v) => mem::transmute(&v[i]),
-                TypedMoveBorrowedRustVec::U32(v) => mem::transmute(&v[i]),
-                TypedMoveBorrowedRustVec::U64(v) => mem::transmute(&v[i]),
-                TypedMoveBorrowedRustVec::U128(v) => mem::transmute(&v[i]),
-                TypedMoveBorrowedRustVec::U256(v) => mem::transmute(&v[i]),
-                TypedMoveBorrowedRustVec::Address(v) => mem::transmute(&v[i]),
-                TypedMoveBorrowedRustVec::Signer(v) => mem::transmute(&v[i]),
-                TypedMoveBorrowedRustVec::Vector(_t, v) => mem::transmute(&v[i]),
+                TypedMoveBorrowedRustVec::Bool(v) => mem::transmute::<&bool, &AnyValue>(&v[i]),
+                TypedMoveBorrowedRustVec::U8(v) => mem::transmute::<&u8, &AnyValue>(&v[i]),
+                TypedMoveBorrowedRustVec::U16(v) => mem::transmute::<&u16, &AnyValue>(&v[i]),
+                TypedMoveBorrowedRustVec::U32(v) => mem::transmute::<&u32, &AnyValue>(&v[i]),
+                TypedMoveBorrowedRustVec::U64(v) => mem::transmute::<&u64, &AnyValue>(&v[i]),
+                TypedMoveBorrowedRustVec::U128(v) => mem::transmute::<&u128, &AnyValue>(&v[i]),
+                TypedMoveBorrowedRustVec::U256(v) => mem::transmute::<&U256, &AnyValue>(&v[i]),
+                TypedMoveBorrowedRustVec::Address(v) => {
+                    mem::transmute::<&MoveAddress, &AnyValue>(&v[i])
+                }
+                TypedMoveBorrowedRustVec::Signer(v) => {
+                    mem::transmute::<&MoveSigner, &AnyValue>(&v[i])
+                }
+                TypedMoveBorrowedRustVec::Vector(_t, v) => {
+                    mem::transmute::<&MoveUntypedVector, &AnyValue>(&v[i])
+                }
                 TypedMoveBorrowedRustVec::Struct(s) => s.get(i),
-                TypedMoveBorrowedRustVec::Reference(_t, v) => mem::transmute(&v[i]),
+                TypedMoveBorrowedRustVec::Reference(_t, v) => {
+                    mem::transmute::<&MoveUntypedReference, &AnyValue>(&v[i])
+                }
             };
 
             value
