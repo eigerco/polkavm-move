@@ -108,7 +108,7 @@ fn test_vec_with_bool() {
 
         TypedMoveBorrowedRustVecMut::new(&ELEMENT_TYPE, &mut move_vec).pop_back(popped_element_ptr);
         assert_eq!(move_vec.length, 0);
-        assert_eq!(popped_element, true);
+        assert!(popped_element);
 
         move_vec.destroy_empty(&ELEMENT_TYPE);
     }
@@ -182,13 +182,13 @@ fn test_vec_with_vector() {
         let popped_element_inner_ptr_0 = &mut popped_element_inner_0 as *mut _ as *mut AnyValue;
         TypedMoveBorrowedRustVecMut::new(&INNER_ELEMENT_TYPE, &mut popped_element)
             .pop_back(popped_element_inner_ptr_0);
-        assert_eq!(popped_element_inner_0, false);
+        assert!(!popped_element_inner_0);
 
         let mut popped_element_inner_1: bool = false;
         let popped_element_inner_ptr_1 = &mut popped_element_inner_1 as *mut _ as *mut AnyValue;
         TypedMoveBorrowedRustVecMut::new(&INNER_ELEMENT_TYPE, &mut popped_element)
             .pop_back(popped_element_inner_ptr_1);
-        assert_eq!(popped_element_inner_1, true);
+        assert!(popped_element_inner_1);
 
         assert_eq!(popped_element.length, 0);
 

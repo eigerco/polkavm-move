@@ -349,7 +349,7 @@ impl MoveByteVector {
     }
 }
 
-impl<'mv, T> MoveBorrowedRustVec<'mv, T> {
+impl<T> MoveBorrowedRustVec<'_, T> {
     pub unsafe fn new(mv: &MoveUntypedVector) -> MoveBorrowedRustVec<'_, T> {
         let rv = Vec::from_raw_parts(
             mv.ptr as *mut T,
@@ -363,7 +363,7 @@ impl<'mv, T> MoveBorrowedRustVec<'mv, T> {
     }
 }
 
-impl<'mv, T> MoveBorrowedRustVecMut<'mv, T> {
+impl<T> MoveBorrowedRustVecMut<'_, T> {
     pub unsafe fn new(mv: &mut MoveUntypedVector) -> MoveBorrowedRustVecMut<'_, T> {
         let rv = Vec::from_raw_parts(
             mv.ptr as *mut T,
@@ -377,7 +377,7 @@ impl<'mv, T> MoveBorrowedRustVecMut<'mv, T> {
     }
 }
 
-impl<'mv, T> Drop for MoveBorrowedRustVec<'mv, T> {
+impl<T> Drop for MoveBorrowedRustVec<'_, T> {
     fn drop(&mut self) {
         let rv = mem::take(&mut self.inner);
 
@@ -395,7 +395,7 @@ impl<'mv, T> Drop for MoveBorrowedRustVec<'mv, T> {
     }
 }
 
-impl<'mv, T> Drop for MoveBorrowedRustVecMut<'mv, T> {
+impl<T> Drop for MoveBorrowedRustVecMut<'_, T> {
     fn drop(&mut self) {
         let mut rv = mem::take(&mut self.inner);
 
@@ -407,7 +407,7 @@ impl<'mv, T> Drop for MoveBorrowedRustVecMut<'mv, T> {
     }
 }
 
-impl<'mv, T> Deref for MoveBorrowedRustVec<'mv, T> {
+impl<T> Deref for MoveBorrowedRustVec<'_, T> {
     type Target = Vec<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -415,7 +415,7 @@ impl<'mv, T> Deref for MoveBorrowedRustVec<'mv, T> {
     }
 }
 
-impl<'mv, T> Deref for MoveBorrowedRustVecMut<'mv, T> {
+impl<T> Deref for MoveBorrowedRustVecMut<'_, T> {
     type Target = Vec<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -423,7 +423,7 @@ impl<'mv, T> Deref for MoveBorrowedRustVecMut<'mv, T> {
     }
 }
 
-impl<'mv, T> DerefMut for MoveBorrowedRustVecMut<'mv, T> {
+impl<T> DerefMut for MoveBorrowedRustVecMut<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
@@ -630,7 +630,7 @@ impl<'mv> TypedMoveBorrowedRustVec<'mv> {
     }
 }
 
-impl<'mv> TypedMoveBorrowedRustVecMut<'mv> {
+impl TypedMoveBorrowedRustVecMut<'_> {
     pub fn len(&self) -> u64 {
         let len = match self {
             TypedMoveBorrowedRustVecMut::Bool(v) => v.len(),
@@ -877,7 +877,7 @@ impl<'mv> MoveBorrowedRustVecOfStruct<'mv> {
     }
 }
 
-impl<'mv> MoveBorrowedRustVecOfStructMut<'mv> {
+impl MoveBorrowedRustVecOfStructMut<'_> {
     pub unsafe fn get_mut(&mut self, i: usize) -> *mut AnyValue {
         let struct_size = usize::try_from(self.type_.size).expect("overflow");
         let vec_len = usize::try_from(self.inner.length).expect("overflow");
@@ -1061,7 +1061,7 @@ impl<'mv> MoveBorrowedRustVecOfStructMut<'mv> {
     }
 }
 
-impl<'mv> core::fmt::Debug for TypedMoveBorrowedRustVec<'mv> {
+impl core::fmt::Debug for TypedMoveBorrowedRustVec<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TypedMoveBorrowedRustVec::Bool(v) => v.fmt(f),

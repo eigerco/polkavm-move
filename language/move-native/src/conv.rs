@@ -120,7 +120,7 @@ pub unsafe fn raw_borrow_move_value_as_rust_value(
     }
 }
 
-impl<'mv> core::fmt::Debug for BorrowedTypedMoveValue<'mv> {
+impl core::fmt::Debug for BorrowedTypedMoveValue<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             BorrowedTypedMoveValue::Bool(v) => v.fmt(f),
