@@ -24,7 +24,9 @@ use crate::cstr::SafeCStr;
 use std::{
     cell::RefCell,
     ffi::{CStr, CString},
+    fs::File,
     hash::DefaultHasher,
+    io::Write,
     ptr,
     rc::Rc,
 };
