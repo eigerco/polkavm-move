@@ -378,9 +378,7 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
             .or_else(|err| anyhow::bail!("Error creating directory: {}", err))?;
     }
     let mut objects = vec![];
-    let entry_llmod = global_cx.llvm_cx.create_module("solana_entrypoint");
-    let entrypoint_generator =
-        EntrypointGenerator::new(&global_cx, &entry_llmod, &llmachine, options);
+
     // Deserialization is only for one (the last) module.
     let skip_cnt = if options.bytecode_file_path.is_some() {
         global_env.get_modules().count() - 1
@@ -400,13 +398,8 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
         debug!("Generating code for module {}", modname);
         let llmod = global_cx.llvm_cx.create_module(&modname);
         let module_source_path = module.get_source_path().to_str().expect("utf-8");
-        let mod_cx = &mut global_cx.create_module_context(
-            mod_id,
-            &llmod,
-            &entrypoint_generator,
-            options,
-            module_source_path,
-        );
+        let mod_cx =
+            &mut global_cx.create_module_context(mod_id, &llmod, options, module_source_path);
         mod_cx.translate();
 
         let mut out_path = out_path.join(&modname);
@@ -436,10 +429,6 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
         }
     }
     if !(options.compile || options.llvm_ir) {
-        if entrypoint_generator.has_entries() {
-            let output_file = entrypoint_generator.write_object_file(&out_path).unwrap();
-            objects.push(Path::new(&output_file).to_path_buf());
-        }
         link_object_files(
             out_path,
             objects.as_slice(),
@@ -449,7 +438,6 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
     }
     // FIXME: this should be handled with lifetimes.
     // Context (global_cx) must outlive llvm module (entry_llmod).
-    drop(entry_llmod);
     drop(global_cx);
     Ok(())
 }

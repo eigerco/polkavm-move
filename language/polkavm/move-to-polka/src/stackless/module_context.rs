@@ -6,7 +6,6 @@ use crate::{
     options::Options,
     stackless::{
         dwarf::{DIBuilder, UnresolvedPrintLogLevel},
-        entrypoint::EntrypointGenerator,
         extensions::*,
         llvm,
         llvm::TargetMachine,
@@ -31,7 +30,6 @@ use std::{
 
 pub struct ModuleContext<'mm: 'up, 'up> {
     pub env: mm::ModuleEnv<'mm>,
-    pub entrypoint_generator: &'up EntrypointGenerator<'mm, 'up>,
     pub llvm_cx: &'up llvm::Context,
     pub llvm_module: &'up llvm::Module,
     pub llvm_builder: llvm::Builder,
@@ -69,10 +67,6 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             self.rtty_cx.reset_func(fn_qiid);
             let fn_cx = self.create_fn_context(fn_env, self, &fn_qiid.inst);
             fn_cx.translate();
-        }
-
-        if !self.env.is_script_module() {
-            self.entrypoint_generator.add_entries(self);
         }
 
         self.llvm_di_builder
@@ -535,8 +529,6 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             }
             let unit_test = self.options.unit_test_function.clone().unwrap_or_default();
             if fn_env.is_entry() || fn_env.get_full_name_str().replace("::", "__") == unit_test {
-                self.entrypoint_generator
-                    .add_entry_declaration(&ll_sym_name, ll_fnty, &attrs);
                 linkage = llvm::LLVMLinkage::LLVMExternalLinkage;
             }
             let tfn = self.llvm_module.add_function(&ll_sym_name, ll_fnty, true);
