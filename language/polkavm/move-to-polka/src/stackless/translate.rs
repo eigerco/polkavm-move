@@ -33,8 +33,7 @@
 use crate::{
     options::Options,
     stackless::{
-        dwarf::DIContext, entrypoint::EntrypointGenerator, extensions::*, llvm,
-        module_context::ModuleContext, rttydesc::RttyContext,
+        dwarf::DIContext, extensions::*, llvm, module_context::ModuleContext, rttydesc::RttyContext,
     },
 };
 use codespan::Location;
@@ -142,7 +141,6 @@ impl<'up> GlobalContext<'up> {
         &'this self,
         id: mm::ModuleId,
         llmod: &'this llvm::Module,
-        entrypoint_generator: &'this EntrypointGenerator<'this, 'up>,
         options: &'this Options,
         source: &'this str,
     ) -> ModuleContext<'up, 'this> {
@@ -157,7 +155,6 @@ impl<'up> GlobalContext<'up> {
         let rtty_cx = RttyContext::new(self.env, &self.llvm_cx, llmod);
         ModuleContext {
             env: self.env.get_module(id),
-            entrypoint_generator,
             llvm_cx: &self.llvm_cx,
             llvm_module: llmod,
             llvm_builder,
