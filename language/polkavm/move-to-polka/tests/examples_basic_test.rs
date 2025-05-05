@@ -39,9 +39,10 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 #[test]
 #[ignore = "doesnt work yet - need further push LLVM implementation"]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
+    let move_src = format!("{}/sources", MOVE_STDLIB_PATH);
     let build_options = BuildOptions::new("output/basic.o")
         .source("../examples/basic/sources/basic.move")
-        .dependency(&resolve_move_std_lib_sources())
+        .dependency(&move_src)
         .address_mapping("std=0x1");
 
     let move_byte_code = build_move_program(build_options)?;
