@@ -258,7 +258,6 @@ fn main() -> anyhow::Result<()> {
                 println!("{}", modname);
             }
         }
-        let entry_llmod = global_cx.llvm_cx.create_module("solana_entrypoint");
         for mod_id in modules {
             let module = global_env.get_module(mod_id);
             let modname = module.llvm_module_name();
@@ -272,7 +271,7 @@ fn main() -> anyhow::Result<()> {
             mod_cx.translate();
 
             if args.diagnostics {
-                println!("Module {} Solana llvm ir", modname);
+                println!("Module {} llvm ir", modname);
                 llmod.dump();
             }
             if !args.obj {
@@ -304,7 +303,6 @@ fn main() -> anyhow::Result<()> {
         }
         // NB: context must outlive llvm module
         // fixme this should be handled with lifetimes
-        drop(entry_llmod);
         drop(global_cx);
     };
 

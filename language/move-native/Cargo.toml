@@ -9,14 +9,8 @@ homepage = "https://diem.com"
 license = "Apache-2.0"
 publish = false
 
-# When compiled as a Solana runtime, this crate is compiled
-# as a staticlib, though it is not declared as such here.
-# See the crate documentation on `no-std` compatibility for explanation.
 [lib]
 crate-type = ["rlib"]
-
-[features]
-polkavm = []
 
 [dependencies]
 borsh = { version = "0.10.3", default-features = false }
