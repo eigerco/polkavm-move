@@ -17,7 +17,7 @@ pub struct Options {
 
     /// Path to output file or if option `-c` is set to output directory.
     #[clap(short)]
-    #[clap(long, default_value = "output.so")]
+    #[clap(long, default_value = "output.polkavm")]
     pub output: String,
 
     /// Sources to compile (positional arg)

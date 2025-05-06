@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod cstr;
+pub mod linker;
 pub mod options;
 pub mod stackless;
 
@@ -10,6 +11,7 @@ use crate::options::Options;
 
 use anyhow::Context;
 use codespan_reporting::{diagnostic::Severity, term::termcolor::WriteColor};
+use linker::load_from_elf_with_polka_linker;
 use log::{debug, Level};
 use move_binary_format::{
     binary_views::BinaryIndexedView, file_format::CompiledScript, CompiledModule,
@@ -32,38 +34,7 @@ use std::{
     fs,
     io::Write,
     path::{Path, PathBuf},
-    process::Command,
 };
-use which::which_in;
-
-struct PlatformTools {
-    rustc: PathBuf,
-    cargo: PathBuf,
-    lld: PathBuf,
-}
-
-impl PlatformTools {
-    fn run_cargo(&self, target_dir: &PathBuf, args: &[&str]) -> anyhow::Result<()> {
-        println!("running cargo in {:?} with args: {:?}", target_dir, args);
-        let mut cmd = Command::new(&self.cargo);
-        cmd.env_remove("RUSTUP_TOOLCHAIN");
-        cmd.env_remove("RUSTC_WRAPPER");
-        cmd.env_remove("RUSTC_WORKSPACE_WRAPPER");
-        cmd.env("CARGO_TARGET_DIR", target_dir);
-        cmd.env("CARGO", &self.cargo);
-        cmd.env("RUSTC", &self.rustc);
-        cmd.env("CARGO_PROFILE_DEV_PANIC", "abort");
-        cmd.env("CARGO_PROFILE_RELEASE_PANIC", "abort");
-        cmd.args(args);
-
-        let status = cmd.status()?;
-        if !status.success() {
-            anyhow::bail!("running SBF cargo failed");
-        }
-
-        Ok(())
-    }
-}
 
 fn initialize_logger() {
     static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
@@ -93,144 +64,37 @@ fn initialize_logger() {
     });
 }
 
-fn get_platform_tools() -> anyhow::Result<PlatformTools> {
-    use which::which;
-
-    let tools = PlatformTools {
-        rustc: which("rustc").context("no rustc in PATH")?,
-        cargo: which("cargo").context("no cargo in PATH")?,
-        lld: which("ld.ldd")
-            .or(which_in("ld.lld", Some("/opt/homebrew/bin"), "/"))
-            .context("no ld.lld in PATH")?,
-    };
-
-    Ok(tools)
-}
-
-fn get_runtime(out_path: &PathBuf, tools: &PlatformTools) -> anyhow::Result<PathBuf> {
-    debug!("building move-native runtime for polkavm in {out_path:?}");
-    println!("building move-native runtime for polkavm in {out_path:?}");
-    let archive_file = out_path
-        .join("riscv32imac-unknown-none-elf")
-        .join("release")
-        .join("libmove_native.a");
-
-    if archive_file.exists() {
-        return Ok(archive_file);
-    }
-
-    let move_native = std::env::var("MOVE_NATIVE").expect("move native");
-    let move_native = PathBuf::from(move_native);
-    let move_native = move_native.join("Cargo.toml").to_string_lossy().to_string();
-
-    // Using `cargo rustc` to compile move-native as a staticlib.
-    // See move-native documentation on `no-std` compatibilty for explanation.
-    // Release mode is required to eliminate large stack frames.
-    let res = tools.run_cargo(
-        out_path,
-        &[
-            "rustc",
-            "--crate-type=staticlib",
-            "-p",
-            "move-native",
-            "--target",
-            "riscv32imac-unknown-none-elf",
-            "--manifest-path",
-            &move_native,
-            "--release",
-            "--features",
-            "polkavm",
-            // "-q",
-        ],
-    );
-
-    if let Err(e) = res {
-        anyhow::bail!("{e}");
-    }
-
-    if !archive_file.exists() {
-        anyhow::bail!("native runtime not found at {archive_file:?}. this is a bug");
-    }
-
-    Ok(archive_file)
-}
-
 fn link_object_files(
-    out_path: PathBuf,
+    _out_path: PathBuf,
     objects: &[PathBuf],
-    output_dylib: PathBuf,
-    move_native: &Option<String>,
+    polka_object_file: PathBuf,
+    _move_native: &Option<String>,
 ) -> anyhow::Result<PathBuf> {
     log::trace!("link_object_files");
-    //     let script = r"
-    // PHDRS
-    // {
-    //   text PT_LOAD ;
-    //   rodata PT_LOAD ;
-    //   data PT_LOAD ;
-    //   dynamic PT_DYNAMIC ;
-    // }
-    //
-    // SECTIONS
-    // {
-    //   . = SIZEOF_HEADERS;
-    //   .text : { *(.text*) } :text
-    //   .rodata : { *(.rodata*) } :rodata
-    //   .data.rel.ro : { *(.data.rel.ro*) } :rodata
-    //   .dynamic : { *(.dynamic) } :dynamic
-    //   .dynsym : { *(.dynsym) } :data
-    //   .dynstr : { *(.dynstr) } :data
-    //   .rel.dyn : { *(.rel.dyn) } :data
-    //   /DISCARD/ : {
-    //       *(.eh_frame*)
-    //       *(.gnu.hash*)
-    //       *(.hash*)
-    //     }
-    // }
-    // ";
-    //
-    //     let tmpdir = tempfile::Builder::new()
-    //         .prefix("move")
-    //         .tempdir()
-    //         .unwrap()
-    //         .into_path();
-    //     let file_name = "move-to-solana-linkfile.ld";
-    //     let link_script_path = tmpdir.join(file_name);
-    //     if let Err(error) = fs::write(&link_script_path, script) {
-    //         anyhow::bail!("can't output linker script: {}", error);
-    //     }
-    let tools = get_platform_tools()?;
-    let mut cmd = Command::new(&tools.lld);
-    cmd.arg("--threads=1");
-    cmd.arg("-znotext");
-    cmd.arg("-znoexecstack");
-    // cmd.args(["--script", &link_script_path.to_string_lossy()]);
-    cmd.arg("--gc-sections");
-    cmd.arg("--shared");
-    cmd.arg("--Bstatic");
-    cmd.arg("--strip-all");
-    cmd.args(["--entry", "main"]);
-    cmd.arg("-o");
-    cmd.arg(&output_dylib);
-    for obj in objects {
-        cmd.arg(obj);
+
+    // this will be needed later when we start supporting multimodule builds
+    // let tools = get_platform_tools()?;
+
+    // runtime setup - will be needed later
+    // let move_native_known = move_native.is_some();
+    // let empty_path = String::from("");
+    // let move_native = move_native.as_ref().unwrap_or(&empty_path);
+    // let path = Path::new(move_native).to_path_buf();
+    // let move_native_path = if move_native_known { &path } else { &out_path };
+    // let runtime = get_runtime(move_native_path, &tools)?;
+
+    if objects.len() > 1 {
+        anyhow::bail!("Only single move module build is supported for now")
     }
-    let move_native_known = move_native.is_some();
-    let empty_path = String::from("");
-    let move_native = move_native.as_ref().unwrap_or(&empty_path);
-    let path = Path::new(move_native).to_path_buf();
-    let move_native_path = if move_native_known { &path } else { &out_path };
-    let runtime = get_runtime(move_native_path, &tools)?;
-    cmd.arg(&runtime);
-    debug!("Running {cmd:?}");
-    let output = cmd.output()?;
-    if !output.status.success() {
-        anyhow::bail!(
-            "linking with lld failed. stderr:\n\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    Ok(output_dylib)
+
+    let object_bytes = std::fs::read(&objects[0])?;
+    let polka_object = load_from_elf_with_polka_linker(&object_bytes)?;
+    std::fs::write(&polka_object_file, &polka_object)?;
+    println!(
+        "Polka object file written to: {}",
+        polka_object_file.display()
+    );
+    Ok(polka_object_file)
 }
 
 pub fn get_env_from_source<W: WriteColor>(

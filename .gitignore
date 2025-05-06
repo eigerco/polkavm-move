@@ -77,3 +77,4 @@ target-out-docker
 **/move-mv-llvm-compiler/**/cargo-target-dir
 
 output/
+*.polkavm

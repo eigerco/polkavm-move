@@ -1,3 +1,4 @@
+use move_to_polka::linker::load_from_elf_with_polka_linker;
 use polkavm::{Config, Engine, Linker, Module};
 
 mod common;
@@ -5,14 +6,12 @@ use common::*;
 
 #[test]
 pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
-    env_logger::init();
+    let build_options = BuildOptions::new("output/morebasic.polkavm")
+        .source("../examples/basic/sources/morebasic.move");
 
-    let build_options =
-        BuildOptions::new("output/morebasic.o").source("../examples/basic/sources/morebasic.move");
+    let move_byte_code = build_polka_from_move(build_options)?;
 
-    let move_byte_code = build_move_program(build_options)?;
-    let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
-    let blob = parse_to_blob(&program_bytes)?;
+    let blob = parse_to_blob(&move_byte_code)?;
 
     let config = Config::from_env()?;
     let engine = Engine::new(&config)?;
@@ -45,7 +44,7 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
         .dependency(&move_src)
         .address_mapping("std=0x1");
 
-    let move_byte_code = build_move_program(build_options)?;
+    let move_byte_code = build_polka_from_move(build_options)?;
     let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
     let blob = parse_to_blob(&program_bytes)?;
 
@@ -74,10 +73,9 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 #[test]
 pub fn test_tuple_implementation() -> anyhow::Result<()> {
     let build_options =
-        BuildOptions::new("output/tuple.o").source("../examples/basic/sources/tuple.move");
+        BuildOptions::new("output/tuple.polkavm").source("../examples/basic/sources/tuple.move");
 
-    let move_byte_code = build_move_program(build_options)?;
-    let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
+    let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
     let config = Config::from_env()?;
@@ -109,7 +107,7 @@ pub fn test_multi_module_call() -> anyhow::Result<()> {
         .source("../examples/multi_module/sources/modules2.move")
         .address_mapping("multi_module=0x7");
 
-    let move_byte_code = build_move_program(build_options)?;
+    let move_byte_code = build_polka_from_move(build_options)?;
     let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
     let blob = parse_to_blob(&program_bytes)?;
 
