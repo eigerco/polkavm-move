@@ -16,7 +16,8 @@ log = "0.4.14"
 chrono = "0.4"
 once_cell = "1.10"
 parking_lot = "0.12"
-toml = "0.7"                                                                                                                    # this must remain on 0.7 until aptos-move updates
+# toml must remain on 0.7 until aptos-move updates
+toml = "0.7"
 regex = "1.1.9"
 rand = "0.9"
 move-coverage = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-coverage" }
@@ -36,21 +37,20 @@ move-stdlib = { git = "https://github.com/move-language/move-on-aptos.git", pack
 move-symbol-pool = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-symbol-pool" }
 move-to-polka = { path = "../../polkavm/move-to-polka" }
 clap = { version = "4.5", features = ["derive"] }
-#inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }
 semver = "1.0.13"
 llvm-sys = "191.0.0"
 extension-trait = "1.0.1"
 num = "0.4.0"
 num-traits = "0.2"
+# codespan must remain on 0.11 until aptos-move updates
 codespan = "0.11.1"
 codespan-reporting = "0.11.1"
 
 [dev-dependencies]
-datatest-stable = "0.1.1"
+datatest-stable = "0.3.2"
 serde = { version = "1.0.124", features = ["derive"] }
 serde_json = "1.0.64"
 similar = "2.1.0"
-thiserror = "1.0.69"
 
 [features]
 
