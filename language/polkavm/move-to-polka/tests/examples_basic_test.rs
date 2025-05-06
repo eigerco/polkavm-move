@@ -3,8 +3,10 @@ use polkavm::{Config, Engine, Linker, Module};
 
 mod common;
 use common::*;
+use serial_test::serial;
 
 #[test]
+#[serial] // TODO: find the reason this needs to run serially on macOS
 pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
     let build_options = BuildOptions::new("output/morebasic.polkavm")
         .source("../examples/basic/sources/morebasic.move");
@@ -71,6 +73,7 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 pub fn test_tuple_implementation() -> anyhow::Result<()> {
     let build_options =
         BuildOptions::new("output/tuple.polkavm").source("../examples/basic/sources/tuple.move");
