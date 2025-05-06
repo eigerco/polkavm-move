@@ -76,16 +76,7 @@ pub fn build_move_program(options: BuildOptions) -> anyhow::Result<Vec<u8>> {
     let data = std::fs::read(output_file)?;
     Ok(data)
 }
-
-pub fn resolve_move_std_lib_sources() -> String {
-    //TODO(tadas): Right now we expect that move-stdlib comes from move-on-aptos checked out on the same root level as this project itself
-    //BUT since we depend on some rust crates coming from move-on-aptos repo, repo itself is available as cargo checkouts dir
-    //it would be awesome to:
-    // 1. scan cargo lock (cargo_metadata crate?) to find exact revision of move-on-aptos
-    // 2. lookup cargo home dir according to rules (respect CARGO_HOME , default to HOME/.cargo if not set)
-    // lookup actual move-on-aptos dependency and navigate to move-stdlib sources!
-    "../../../../move-on-aptos/language/move-stdlib/sources".to_string()
-}
+pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
 
 pub fn create_dir_all<T: AsRef<Path>>(path: T) -> anyhow::Result<()> {
     if let Some(parent) = path.as_ref().parent() {

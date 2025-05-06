@@ -49,3 +49,8 @@ which = "7.0"
 [dev-dependencies]
 polkavm = "0.22.0"
 polkavm-linker = "0.22.0"
+
+[build-dependencies]
+move-stdlib = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-stdlib" }
+cargo_metadata = "0.19"
+thiserror = "2.0"
