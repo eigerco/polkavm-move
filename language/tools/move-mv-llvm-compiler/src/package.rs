@@ -2,7 +2,7 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use move_cli::base::reroot_path;
 use move_compiler::shared::{NumericalAddress, PackagePaths};
 use move_core_types::account_address::AccountAddress;
@@ -71,8 +71,8 @@ pub fn build_dependency(
                 .unwrap()
                 .compilation_dependency
                 .iter()
+                .filter(|&s| *s != *target_path_string)
                 .cloned()
-                .filter(|s| *s != *target_path_string)
                 .collect();
 
             let account_addresses = res.unwrap().account_addresses;
@@ -315,18 +315,4 @@ fn download_and_update_if_remote(
         ));
     }
     Ok(())
-}
-
-fn url_to_file_name(url: &str) -> String {
-    regex::Regex::new(r"/|:|\.|@")
-        .unwrap()
-        .replace_all(url, "_")
-        .to_string()
-}
-
-pub fn _path_to_string(path: &Path) -> anyhow::Result<String> {
-    match path.to_str() {
-        Some(p) => Ok(p.to_string()),
-        None => Err(anyhow!("non-Unicode file name")),
-    }
 }

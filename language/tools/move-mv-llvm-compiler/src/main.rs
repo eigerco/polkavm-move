@@ -20,20 +20,18 @@ use move_binary_format::{
     binary_views::BinaryIndexedView,
     file_format::{CompiledModule, CompiledScript},
 };
-use move_bytecode_source_map::{
-    mapping::SourceMapping, source_map::SourceMap, utils::source_map_from_file,
-};
+use move_bytecode_source_map::{mapping::SourceMapping, utils::source_map_from_file};
 use move_command_line_common::files::{
-    FileHash, MOVE_COMPILED_EXTENSION, MOVE_EXTENSION, SOURCE_MAP_EXTENSION,
+    MOVE_COMPILED_EXTENSION, MOVE_EXTENSION, SOURCE_MAP_EXTENSION,
 };
 use move_compiler::{shared::PackagePaths, Flags};
 use move_ir_types::location::Spanned;
 use move_model::{
-    model::{GlobalEnv, ModuleId, MoveIrLoc},
-    options::ModelBuilderOptions,
+    model::GlobalEnv, options::ModelBuilderOptions,
     run_model_builder_with_options_and_compilation_flags,
 };
 use move_symbol_pool::Symbol as SymbolPool;
+use move_to_polka::run_bytecode_model_builder;
 use package::build_dependency;
 use std::{collections::BTreeSet, fs, io::Write, path::Path};
 
@@ -261,8 +259,6 @@ fn main() -> anyhow::Result<()> {
             }
         }
         let entry_llmod = global_cx.llvm_cx.create_module("solana_entrypoint");
-        let entrypoint_generator =
-            EntrypointGenerator::new(&global_cx, &entry_llmod, &llmachine, &options);
         for mod_id in modules {
             let module = global_env.get_module(mod_id);
             let modname = module.llvm_module_name();
@@ -272,13 +268,7 @@ fn main() -> anyhow::Result<()> {
                 println!("Module {} bytecode {}", modname, disasm);
             }
             let mod_src = module.get_source_path().to_str().expect("utf-8");
-            let mod_cx = &mut global_cx.create_module_context(
-                mod_id,
-                &llmod,
-                &entrypoint_generator,
-                &options,
-                mod_src,
-            );
+            let mod_cx = &mut global_cx.create_module_context(mod_id, &llmod, &options, mod_src);
             mod_cx.translate();
 
             if args.diagnostics {
@@ -311,10 +301,6 @@ fn main() -> anyhow::Result<()> {
             } else {
                 write_object_file(llmod, &llmachine, &output_file_path)?;
             }
-        }
-        if entrypoint_generator.has_entries() {
-            let path = Path::new(&output_file_path);
-            entrypoint_generator.write_object_file(path.to_path_buf().parent().unwrap())?;
         }
         // NB: context must outlive llvm module
         // fixme this should be handled with lifetimes
