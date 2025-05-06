@@ -2,6 +2,8 @@ use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use move_to_polka::{options::Options, run_to_polka};
 use polkavm::ProgramBlob;
 
+pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
+
 pub fn create_colored_stdout() -> StandardStream {
     let color = if atty::is(atty::Stream::Stderr) && atty::is(atty::Stream::Stdout) {
         ColorChoice::Auto
@@ -53,4 +55,3 @@ pub fn build_polka_from_move(options: BuildOptions) -> anyhow::Result<Vec<u8>> {
     let data = std::fs::read(output_file)?;
     Ok(data)
 }
-pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
