@@ -357,7 +357,7 @@ impl Module {
                 hash
             );
             let function = LLVMAddFunction(self.0, mangled.cstr(), ty.0);
-            // TODO(tadas): it doesnt feel like the right place for polka section generation just on the fly
+            // TODO(M3: support core Move): it doesnt feel like the right place for polka section generation just on the fly
             // on any function we need to declare. Its looks more like additional pass when finalizing module
             // but we leave this for now to move forward
             if polka_export {
