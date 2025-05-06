@@ -46,6 +46,7 @@ hex = "0.4"
 
 [dev-dependencies]
 polkavm = "0.23.0"
+serial_test = "3.2.0"
 
 [build-dependencies]
 move-stdlib = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-stdlib" }
