@@ -300,9 +300,6 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
             &options.move_native_archive,
         )?;
     }
-    // FIXME: this should be handled with lifetimes.
-    // Context (global_cx) must outlive llvm module (entry_llmod).
-    drop(global_cx);
     Ok(())
 }
 
