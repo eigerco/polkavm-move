@@ -4,8 +4,6 @@
 
 //! A Move native runtime prototype.
 //!
-//! This crate is part of the Solana project to port Move to LLVM and SBF.
-//!
 //! It contains three types of definitions
 //!
 //! - Types with layouts known to the compiler for the purposes of calling

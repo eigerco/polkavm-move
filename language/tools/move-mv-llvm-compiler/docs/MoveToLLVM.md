@@ -47,7 +47,9 @@ it is similar to Rust's calling convention. For example, varargs aren't supporte
 
 Functions that return multiple values, use a second-class tuple-like expression to bind, return, and destructure multiple values.
 
-On exit from a function, we generate LLVM IR to wrap them up into a struct, which is returned as a single IR value. Similarly, when a callee that returns such a value is used in an expression, we generate IR to extract each actual value from the struct. (See [PR#105](https://github.com/solana-labs/move/pull/105))
+On exit from a function, we generate LLVM IR to wrap them up into a struct, which is returned as a single IR value.
+Similarly, when a callee that returns such a value is used in an expression, we generate IR to extract each actual
+value from the struct.
 
 ## Serialization/Deserialization byte order
 
@@ -56,7 +58,8 @@ The rbpf VM [supports little endian](https://github.com/qmonnet/rbpf/blob/main/s
 
 ## Support for native function calls
 
-Some functions do not have a body specified, and instead have the body provided by the VM. These are called [native functions](https://move-language.github.io/move/functions.html#native-functions). These functions as part of the [move-native](https://github.com/solana-labs/move/tree/llvm-sys/language/move-native) runtime shipped with the compiler.
+Some functions do not have a body specified, and instead have the body provided by the VM. These are called [native functions](https://move-language.github.io/move/functions.html#native-functions).
+These functions as part of the [move-native](https://github.com/eigerco/polkavm-move/tree/main/language/move-native) runtime shipped with the compiler.
 
 - [abort](https://move-language.github.io/move/abort-and-assert.html)
 - [return](https://move-language.github.io/move/functions.html#return-type)
@@ -76,13 +79,9 @@ Some functions do not have a body specified, and instead have the body provided 
 ## Testing
 
 Every level of translation is tested. In addition to move-language tests,
-following are the [additional tests](https://github.com/solana-labs/move/tree/llvm-sys/language/tools/move-mv-llvm-compiler/tests).
+following are the [additional tests](https://github.com/eigerco/move/tree/main/language/tools/move-mv-llvm-compiler/tests).
 
 - move to move-ir
 - executable tests in rbpf
 - move to llvm ir unit tests
 - stdlib tests
-
-## Project stages
-
-See [project milestones](https://github.com/solana-labs/move/milestones)

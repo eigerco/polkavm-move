@@ -33,6 +33,7 @@ brew install llvm@19
 Even though LLVM itself is written in C++, we use Rust, especially [llvm-sys](https://crates.io/crates/llvm-sys).
 
 Install Rust:
+
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
@@ -95,13 +96,14 @@ Install `polkavm-wrapper` binary accessible from a terminal:
 cargo install --path language/tools/polkavm-wrapper
 ```
 
-Call the previously compiled module's entry function `sum` with the  given args:
+Call the previously compiled module's entry function `sum` with the given args:
 
 ```bash
 polkavm-wrapper -m output.polkavm -e sum -p 100 10
 ```
 
 The expected output:
+
 ```bash
 2025-05-06T06:55:13.223390Z  INFO polkavm_wrapper: Reading output.polkavm module
 2025-05-06T06:55:13.223708Z  INFO polkavm_wrapper: 64bit module?: false
@@ -112,11 +114,11 @@ The expected output:
 
 ### Known limitations:
 
- - No multi-module support, only SINGLE move module compilation is supported. An error will be generated if two modules in a single file are detected.
- - Move project layout is not supported yet, only single Move file -> PolkaVM module compilation.
- - No native function support yet (meaning that module compiles, but the polka linking phase will fail even with basic operations like division because it will emit abort native function call as part of the post-check).
- - No `move-stdlib` yet (requires multi-module support).
- - `polkavm-wrapper` assumes that all entry function args are `u64` (and therefore passed through two RISC-V 32-bit registers) and the return value is also `u64` (returned through two RISC-V 32-bit registers). This limitation can be lifted later when more complex data, such as args support, is added.
+- No multi-module support, only SINGLE move module compilation is supported. An error will be generated if two modules in a single file are detected.
+- Move project layout is not supported yet, only single Move file -> PolkaVM module compilation.
+- No native function support yet (meaning that module compiles, but the polka linking phase will fail even with basic operations like division because it will emit abort native function call as part of the post-check).
+- No `move-stdlib` yet (requires multi-module support).
+- `polkavm-wrapper` assumes that all entry function args are `u64` (and therefore passed through two RISC-V 32-bit registers) and the return value is also `u64` (returned through two RISC-V 32-bit registers). This limitation can be lifted later when more complex data, such as args support, is added.
 
 ## History
 

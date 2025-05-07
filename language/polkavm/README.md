@@ -27,14 +27,7 @@ Developer documentation
 
 Create issues instead of having TODOs here.
 
-- Create move programming language specific issues in [move-language/move](https://github.com/move-language/move/issues)
-- For the move-llvm compiler, create issues in [solana-labs/move/issues](https://github.com/solana-labs/move/issues). If you can't decide feel free to create issues here and the developers will guide accordingly.
-
 ## ACKNOWLEDGEMENTS
 
-- This project is a fork of [move-language](https://github.com/move-language/move).
-- Parts of [inkwell](https://github.com/TheDan64/inkwell) code has been copied to this subfolder.
-  It will be rewritten based on the needs of the project. If exact code is to be adopted, they will be
-  put in a sub folder with appropriate acknowledgement.
 - The [ziglang codebase](https://git.sr.ht/~andrewrk/ziglang/tree/master) has examples of LLVM C API that has been helpful.
 - Parts of [Aptos move](https://github.com/aptos-labs/aptos-core) and [Sui move](https://github.com/MystenLabs/sui) were very helpful.
