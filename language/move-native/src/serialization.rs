@@ -58,7 +58,7 @@ unsafe fn serialize_to_buf(type_v: &MoveType, v: &AnyValue, buf: &mut Vec<u8>) {
             serialize_struct(&t, v, buf);
         }
         BorrowedTypedMoveValue::Reference(_, _) => {
-            todo!("impossible case?");
+            todo!("serialize_to_buf for BorrowedTypedMoveValue::Reference - impossible case?");
         }
     };
 }
@@ -120,7 +120,7 @@ unsafe fn deserialize_from_slice(type_v: &MoveType, bytes: &mut &[u8], v: *mut A
             deserialize_struct(&t, bytes, vptr);
         }
         RawBorrowedTypedMoveValue::Reference(_, _) => {
-            todo!("impossible case?");
+            todo!("deserialize_from_slice for BorrowedTypedMoveValue::Reference - impossible case?");
         }
     }
 }
@@ -152,7 +152,7 @@ unsafe fn serialize_vector(type_elt: &MoveType, v: &MoveUntypedVector, buf: &mut
             }
         }
         TypedMoveBorrowedRustVec::Reference(_, _) => {
-            todo!("impossible case?");
+            todo!("serialize_vector for BorrowedTypedMoveValue::Reference - impossible case?");
         }
     }
 }
@@ -208,7 +208,7 @@ unsafe fn deserialize_vector(type_elt: &MoveType, bytes: &mut &[u8]) -> MoveUnty
             vs.set_length(len);
         }
         TypedMoveBorrowedRustVecMut::Reference(..) => {
-            todo!("impossible case?");
+            todo!("deserialize_vector for BorrowedTypedMoveValue::Reference - impossible case?");
         }
     }
     drop(rv);

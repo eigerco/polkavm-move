@@ -22,8 +22,8 @@ module 0x100::fixed_point32 {
     /// decimal.
     struct FixedPoint32 has copy, drop, store { value: u64 }
 
-    ///> TODO: This is a basic constant and should be provided somewhere centrally in the framework.
-    const MAX_U64: u128 = 18446744073709551615;
+    /// Largest possible value in U64
+    const MAX_U64: u128 = u64::MAX as u128;
 
     /// The denominator provided was zero
     const EDENOMINATOR: u64 = 0x10001;

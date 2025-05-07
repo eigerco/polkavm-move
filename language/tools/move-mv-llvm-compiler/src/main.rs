@@ -87,7 +87,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         let sources = vec![PackagePaths {
-            name: Some(SymbolPool::from(target_path_string.clone())), // TODO: is it better than `None`?
+            name: Some(SymbolPool::from(target_path_string.clone())), // TODO(M3: clean or fix for standard core Move): is it better than `None`?
             paths: vec![target_path_string],
             named_address_map: named_address_map.clone(),
         }];

@@ -1,6 +1,7 @@
 module 0x1234::tuplebasic {
     // this should be enough to check tuple structuring/destructuring
-    // TODO(tadas): removing public keyword compiles just fine, but LLVM phase still exports this function even if its marked as private
+    // TODO(M3: support core Move): removing public keyword compiles just fine,
+    //   but LLVM phase still exports this function even if its marked as private
     public fun giveMeTuple(a: u32, b: u64): (u32, u64) {
         (a, b)
     }

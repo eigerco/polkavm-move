@@ -228,7 +228,7 @@ impl<'a> MoveTestAdapter<'a> for SimpleVMTestAdapter<'a> {
             .iter()
             .map(|arg| arg.simple_serialize().unwrap())
             .collect::<Vec<_>>();
-        // TODO rethink testing signer args
+        // TODO(M4: runtime features) rethink testing signer args
         let args = signers
             .iter()
             .map(|a| MoveValue::Signer(*a).simple_serialize().unwrap())
@@ -270,7 +270,7 @@ impl<'a> MoveTestAdapter<'a> for SimpleVMTestAdapter<'a> {
             .iter()
             .map(|arg| arg.simple_serialize().unwrap())
             .collect::<Vec<_>>();
-        // TODO rethink testing signer args
+        // TODO(M4: test runtime features) rethink testing signer args
         let args = signers
             .iter()
             .map(|a| MoveValue::Signer(*a).simple_serialize().unwrap())
@@ -327,7 +327,7 @@ pub fn format_vm_error(e: &VMError) -> String {
         major_status = e.major_status(),
         sub_status = e.sub_status(),
         location_string = location_string,
-        // TODO maybe include source map info?
+        // TODO(M3: testing) maybe include source map info?
         indices = e.indices(),
         offsets = e.offsets(),
     )
@@ -344,7 +344,7 @@ impl<'a> SimpleVMTestAdapter<'a> {
         let vm = MoveVM::new_with_config(
             move_stdlib::natives::all_natives(
                 STD_ADDR,
-                // TODO: come up with a suitable gas schedule
+                // TODO(M4: runtime features) come up with a suitable gas schedule
                 move_stdlib::natives::GasParameters::zeros(),
             ),
             vm_config,
@@ -364,7 +364,7 @@ impl<'a> SimpleVMTestAdapter<'a> {
         let res = f(&mut session, &mut gas_status)?;
 
         // save changeset
-        // TODO support events
+        // TODO(M4: runtime features) support events
         let (changeset, _events) = session.finish()?;
         self.storage.apply(changeset).unwrap();
         Ok(res)
