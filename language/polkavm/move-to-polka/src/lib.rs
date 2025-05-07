@@ -6,6 +6,7 @@ pub mod cstr;
 pub mod linker;
 pub mod options;
 pub mod stackless;
+pub mod tools;
 
 use crate::options::Options;
 
@@ -65,7 +66,7 @@ fn initialize_logger() {
 }
 
 fn link_object_files(
-    _out_path: PathBuf,
+    out_path: PathBuf,
     objects: &[PathBuf],
     polka_object_file: PathBuf,
     _move_native: &Option<String>,
@@ -82,10 +83,8 @@ fn link_object_files(
     // let path = Path::new(move_native).to_path_buf();
     // let move_native_path = if move_native_known { &path } else { &out_path };
     // let runtime = get_runtime(move_native_path, &tools)?;
-
-    if objects.len() > 1 {
-        anyhow::bail!("Only single move module build is supported for now")
-    }
+    let merged_object = out_path.join("merged.o");
+    tools::get_platform_tools()?.merge_object_files(objects, merged_object)?;
 
     let object_bytes = std::fs::read(&objects[0])?;
     let polka_object = load_from_elf_with_polka_linker(&object_bytes)?;
