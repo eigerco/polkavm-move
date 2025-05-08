@@ -103,7 +103,7 @@ pub fn get_platform_tools() -> anyhow::Result<PlatformTools> {
     let tools = PlatformTools {
         rustc: which("rustc").context("no rustc in PATH")?,
         cargo: which("cargo").context("no cargo in PATH")?,
-        lld: which("ld.ldd")
+        lld: which("ld.lld")
             .or(which_in("ld.lld", Some("/opt/homebrew/bin"), "/"))
             .context("no ld.lld in PATH")?,
     };
