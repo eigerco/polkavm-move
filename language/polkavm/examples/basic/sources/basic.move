@@ -1,5 +1,5 @@
 module 0x10::debug {
-  native public fun print<T>(x: &T);
+    native public fun print<T>(x: &T);
 }
 
 module 0xa000::basic {
@@ -17,5 +17,9 @@ module 0xa000::basic {
         debug::print(&rv);
         debug::print(&signer::address_of(account));
         rv
+    }
+
+    public entry fun abort_with_code(code: u64) {
+        abort code
     }
 }

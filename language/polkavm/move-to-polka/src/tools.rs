@@ -1,96 +1,156 @@
 use std::{path::PathBuf, process::Command};
 
 use anyhow::Context;
+use itertools::Itertools;
 use log::{debug, error};
 
 pub struct PlatformTools {
-    rustc: PathBuf,
     cargo: PathBuf,
     lld: PathBuf,
+    llvm_ar: PathBuf,
 }
 
 impl PlatformTools {
-    fn run_cargo(&self, target_dir: &PathBuf, args: &[&str]) -> anyhow::Result<()> {
-        println!("running cargo in {:?} with args: {:?}", target_dir, args);
+    fn run_cargo(
+        &self,
+        crate_dir: &PathBuf,
+        target_dir: &PathBuf,
+        args: &[&str],
+    ) -> anyhow::Result<()> {
+        debug!(
+            "running {:?} in {:?} with args: {:?}",
+            self.cargo, crate_dir, args
+        );
+        debug!("target output dir: {:?}", target_dir);
         let mut cmd = Command::new(&self.cargo);
-        cmd.env_remove("RUSTUP_TOOLCHAIN");
+        cmd.current_dir(crate_dir);
         cmd.env_remove("RUSTC_WRAPPER");
         cmd.env_remove("RUSTC_WORKSPACE_WRAPPER");
+        cmd.env_remove("CARGO");
+        cmd.env_remove("RUSTUP_TOOLCHAIN");
+        cmd.env_remove("RUSTC");
         cmd.env("CARGO_TARGET_DIR", target_dir);
-        cmd.env("CARGO", &self.cargo);
-        cmd.env("RUSTC", &self.rustc);
+        //cmd.env("CARGO", &self.cargo);
         cmd.env("CARGO_PROFILE_DEV_PANIC", "abort");
         cmd.env("CARGO_PROFILE_RELEASE_PANIC", "abort");
         cmd.args(args);
 
         let status = cmd.status()?;
         if !status.success() {
-            anyhow::bail!("running SBF cargo failed");
+            anyhow::bail!("cargo failed: exit status: {}", status.code().unwrap())
         }
 
         Ok(())
     }
 
-    pub fn get_runtime(&self, out_path: &PathBuf) -> anyhow::Result<PathBuf> {
-        debug!("building move-native runtime for polkavm in {out_path:?}");
-        println!("building move-native runtime for polkavm in {out_path:?}");
-        let archive_file = out_path
-            .join("riscv32imac-unknown-none-elf")
-            .join("release")
-            .join("libmove_native.a");
+    fn extract_lib_archive(
+        &self,
+        target_dir: &PathBuf,
+        lib_archive: &PathBuf,
+    ) -> anyhow::Result<()> {
+        let mut cmd = Command::new(&self.llvm_ar);
+        let status = cmd
+            .current_dir(target_dir)
+            .arg("x")
+            .arg(lib_archive)
+            .status()?;
+        if !status.success() {
+            anyhow::bail!("llvm-ar failed with: {}", status.code().unwrap())
+        }
+        Ok(())
+    }
 
-        if archive_file.exists() {
-            return Ok(archive_file);
+    pub fn get_native_runtime_lib(&self, out_path: &PathBuf) -> anyhow::Result<PathBuf> {
+        debug!("building move-native runtime for polkavm in {out_path:?}");
+        let final_object_file = out_path.join("polkavm_native_final.o");
+
+        if final_object_file.exists() {
+            return Ok(final_object_file);
         }
 
         let move_native = std::env::var("MOVE_NATIVE").expect("move native");
-        let move_native = PathBuf::from(move_native);
-        let move_native = move_native.join("Cargo.toml").to_string_lossy().to_string();
+        let move_native = PathBuf::from(move_native).canonicalize()?;
+        let target_json = "riscv32emac-unknown-none-polkavm.json".to_string();
 
         // Using `cargo rustc` to compile move-native as a staticlib.
         // See move-native documentation on `no-std` compatibilty for explanation.
         // Release mode is required to eliminate large stack frames.
-        let res = self.run_cargo(
-            out_path,
+        self.run_cargo(
+            &move_native.canonicalize()?,
+            &out_path.canonicalize()?,
             &[
                 "rustc",
                 "--crate-type=staticlib",
-                "-p",
-                "move-native",
+                "-Z",
+                "build-std=core,alloc",
                 "--target",
-                "riscv32imac-unknown-none-elf",
-                "--manifest-path",
-                &move_native,
+                &target_json,
                 "--release",
                 "--features",
                 "polkavm",
-                // "-q",
+                "--verbose", // for build process debuging purposes
+                "--",
+                // following are direct rustc flags
+                // create one object in static library - we need this for object merge invocation later (and probably embedding too)
+                "-C",
+                "codegen-units=1",
+                // optimize for binary size, but also respect performance
+                "-C",
+                "opt-level=s",
             ],
-        );
+        )?;
 
-        if let Err(e) = res {
-            anyhow::bail!("{e}");
-        }
+        let archive_file = out_path
+            .join("riscv32emac-unknown-none-polkavm")
+            .join("release")
+            .join("libpolkavm_move_native.a");
 
         if !archive_file.exists() {
             anyhow::bail!("native runtime not found at {archive_file:?}. this is a bug");
         }
 
-        Ok(archive_file)
+        let extracted_content = out_path.join("archive_contents");
+        // cleanup any possible leftovers
+        if extracted_content.exists() {
+            std::fs::remove_dir_all(&extracted_content)?;
+        }
+        std::fs::create_dir_all(&extracted_content)?;
+        self.extract_lib_archive(&extracted_content, &archive_file.canonicalize()?)?;
+
+        let mut object_files = vec![];
+        // collect all extracted files
+        for entry in std::fs::read_dir(extracted_content)? {
+            let path: PathBuf = entry?.path();
+            if path.extension().is_some_and(|ext| ext == "o") {
+                object_files.push(path);
+            }
+        }
+
+        self.merge_object_files(
+            &object_files.iter().collect_vec(),
+            &final_object_file,
+            false,
+        )?;
+
+        Ok(final_object_file)
     }
 
-    pub fn merge_object_files(&self, sources: &[PathBuf], output: &PathBuf) -> anyhow::Result<()> {
-        let output = Command::new(&self.lld)
-            .arg("-r")
-            .arg("-o")
-            .arg(output)
-            .args(sources)
-            .output()?;
-        let status = output.status;
+    pub fn merge_object_files(
+        &self,
+        sources: &[&PathBuf],
+        output: &PathBuf,
+        gc_sections: bool,
+    ) -> anyhow::Result<()> {
+        let mut cmd = Command::new(&self.lld);
+        // this flag is essential as it strips all unused symbols AFTER we merge native lib with actual move program code
+        // otherwise there are lot of bits (like atomics) included by rust compiler which result in undefined symbols
+        // during polka linking phase.
+        if gc_sections {
+            cmd.arg("--gc-sections");
+        }
+        let status = cmd.arg("-r").arg("-o").arg(output).args(sources).status()?;
         if !status.success() {
             error!("ld.lld execution error:");
-            error!("Stdout {}", String::from_utf8_lossy(&output.stdout));
-            error!("Stderr {}", String::from_utf8_lossy(&output.stderr));
             anyhow::bail!("lld failed: exit status: {}", status.code().unwrap())
         }
         Ok(())
@@ -101,11 +161,17 @@ pub fn get_platform_tools() -> anyhow::Result<PlatformTools> {
     use which::{which, which_in};
 
     let tools = PlatformTools {
-        rustc: which("rustc").context("no rustc in PATH")?,
         cargo: which("cargo").context("no cargo in PATH")?,
         lld: which("ld.lld")
             .or(which_in("ld.lld", Some("/opt/homebrew/bin"), "/"))
             .context("no ld.lld in PATH")?,
+        llvm_ar: which("llvm-ar")
+            .or(which_in(
+                "llvm-ar",
+                Some("/opt/homebrew/opt/llvm/bin/"),
+                "/",
+            ))
+            .context("no llvm-ar in PATH")?,
     };
 
     Ok(tools)
