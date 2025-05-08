@@ -79,7 +79,7 @@ impl PlatformTools {
         Ok(archive_file)
     }
 
-    pub fn merge_object_files(&self, sources: &[PathBuf], output: PathBuf) -> anyhow::Result<()> {
+    pub fn merge_object_files(&self, sources: &[PathBuf], output: &PathBuf) -> anyhow::Result<()> {
         let output = Command::new(&self.lld)
             .arg("-r")
             .arg("-o")

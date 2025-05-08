@@ -41,7 +41,7 @@ pub fn initialize_logger() {
     static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
     LOGGER_INIT.call_once(|| {
         use anstyle::{AnsiColor, Color};
-        env_logger::Builder::new()
+        env_logger::Builder::from_env("RUST_LOG")
             .format(|formatter, record| {
                 let level = record.level();
                 let style = formatter.default_level_style(level);
@@ -56,7 +56,7 @@ pub fn initialize_logger() {
                     formatter,
                     "[{} {}:{}] {}",
                     level,
-                    record.file().unwrap_or("unknown"),
+                    record.target(),
                     record.line().unwrap_or(0),
                     record.args()
                 )
@@ -84,9 +84,9 @@ fn link_object_files(
     // let move_native_path = if move_native_known { &path } else { &out_path };
     // let runtime = get_runtime(move_native_path, &tools)?;
     let merged_object = out_path.join("merged.o");
-    tools::get_platform_tools()?.merge_object_files(objects, merged_object)?;
+    tools::get_platform_tools()?.merge_object_files(objects, &merged_object)?;
 
-    let object_bytes = std::fs::read(&objects[0])?;
+    let object_bytes = std::fs::read(&merged_object)?;
     let polka_object = load_from_elf_with_polka_linker(&object_bytes)?;
     std::fs::write(&polka_object_file, &polka_object)?;
     println!(

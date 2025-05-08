@@ -1,3 +1,4 @@
+use move_to_polka::initialize_logger;
 use polkavm::{Config, Engine, Linker, Module};
 
 mod common;
@@ -103,6 +104,8 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 
 #[test]
 pub fn test_multi_module_call() -> anyhow::Result<()> {
+    std::env::set_var("RUST_LOG", "polkavm_linker=TRACE");
+    initialize_logger();
     let build_options = BuildOptions::new("output/multi_module_call.polkavm")
         .source("../examples/multi_module/sources/modules2.move")
         .address_mapping("multi_module=0x7");
