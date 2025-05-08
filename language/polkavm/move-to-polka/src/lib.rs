@@ -6,6 +6,7 @@ pub mod cstr;
 pub mod linker;
 pub mod options;
 pub mod stackless;
+pub mod tools;
 
 use crate::options::Options;
 
@@ -36,11 +37,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
-fn initialize_logger() {
+// init logger from RUST_LOG env var, defaults to INFO
+pub fn initialize_logger() {
     static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
     LOGGER_INIT.call_once(|| {
         use anstyle::{AnsiColor, Color};
         env_logger::Builder::new()
+            .filter_level(log::LevelFilter::Info)
+            .parse_default_env()
             .format(|formatter, record| {
                 let level = record.level();
                 let style = formatter.default_level_style(level);
@@ -55,7 +59,7 @@ fn initialize_logger() {
                     formatter,
                     "[{} {}:{}] {}",
                     level,
-                    record.file().unwrap_or("unknown"),
+                    record.target(),
                     record.line().unwrap_or(0),
                     record.args()
                 )
@@ -65,7 +69,7 @@ fn initialize_logger() {
 }
 
 fn link_object_files(
-    _out_path: PathBuf,
+    out_path: PathBuf,
     objects: &[PathBuf],
     polka_object_file: PathBuf,
     _move_native: &Option<String>,
@@ -82,12 +86,10 @@ fn link_object_files(
     // let path = Path::new(move_native).to_path_buf();
     // let move_native_path = if move_native_known { &path } else { &out_path };
     // let runtime = get_runtime(move_native_path, &tools)?;
+    let merged_object = out_path.join("merged.o");
+    tools::get_platform_tools()?.merge_object_files(objects, &merged_object)?;
 
-    if objects.len() > 1 {
-        anyhow::bail!("Only single move module build is supported for now")
-    }
-
-    let object_bytes = std::fs::read(&objects[0])?;
+    let object_bytes = std::fs::read(&merged_object)?;
     let polka_object = load_from_elf_with_polka_linker(&object_bytes)?;
     std::fs::write(&polka_object_file, &polka_object)?;
     println!(
@@ -120,6 +122,10 @@ pub fn get_env_from_source<W: WriteColor>(
         Flags::empty().set_flavor("async"),
         &BTreeSet::new(),
     )?;
+
+    for module in env.get_modules() {
+        debug!("Move module: {}", module.get_full_name_str())
+    }
 
     env.report_diag(error_writer, Severity::Warning);
     if env.has_errors() {
@@ -304,7 +310,6 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
 }
 
 pub fn run_to_polka<W: WriteColor>(error_writer: &mut W, options: Options) -> anyhow::Result<()> {
-    initialize_logger();
     // Normally the compiler is invoked on a package from `move build`
     // coomand, and builds an entire package as a .so file.  The test
     // harness is currently designed to invoke stand-alone compiler

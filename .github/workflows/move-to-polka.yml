@@ -56,7 +56,12 @@ jobs:
       - name: Install LLVM 19 on MacOS
         if: matrix.os == 'macos-latest'
         run: |
-          brew install llvm@19
+          brew install llvm@19 lld
+      
+      - name: Check ld.ldd version
+        run: |
+          which ld.lld
+          ld.lld --version
 
       - name: Install Rust
         if: matrix.rust != 'nightly'

@@ -1,4 +1,5 @@
-use move_to_polka::linker::load_from_elf_with_polka_linker;
+use log::info;
+use move_to_polka::initialize_logger;
 use polkavm::{Config, Engine, Linker, Module};
 
 mod common;
@@ -28,7 +29,7 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
     let mut instance = instance_pre.instantiate()?;
 
     // Grab the function and call it.
-    println!("Calling into the guest program (high level):");
+    info!("Calling into the guest program (high level):");
     let result = instance
         .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "sum", (1, 10))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -46,8 +47,7 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
         .dependency(&move_src)
         .address_mapping("std=0x1");
 
-    let move_byte_code = build_polka_from_move(build_options)?;
-    let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
+    let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
     let config = Config::from_env()?;
@@ -94,7 +94,7 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
     let mut instance = instance_pre.instantiate()?;
 
     // Grab the function and call it.
-    println!("Calling into the guest program (high level):");
+    info!("Calling into the guest program (high level):");
     let result = instance
         .call_typed_and_get_result::<u64, (u32, u64)>(&mut (), "add", (10, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -104,14 +104,13 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore = "need to add support for imports between modules"]
 pub fn test_multi_module_call() -> anyhow::Result<()> {
-    let build_options = BuildOptions::new("output/multi_module_call.o")
+    initialize_logger();
+    let build_options = BuildOptions::new("output/multi_module_call.polkavm")
         .source("../examples/multi_module/sources/modules2.move")
         .address_mapping("multi_module=0x7");
 
-    let move_byte_code = build_polka_from_move(build_options)?;
-    let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
+    let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
     let config = Config::from_env()?;
@@ -127,11 +126,11 @@ pub fn test_multi_module_call() -> anyhow::Result<()> {
     let mut instance = instance_pre.instantiate()?;
 
     // Grab the function and call it.
-    println!("Calling into the guest program (high level):");
+    info!("Calling into the guest program (high level):");
     let result = instance
-        .call_typed_and_get_result::<u64, (u32, u64)>(&mut (), "add", (10, 5))
+        .call_typed_and_get_result::<u32, (u32, u32, u32)>(&mut (), "add_all", (10, 5, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 15);
+    assert_eq!(result, 20);
 
     Ok(())
 }

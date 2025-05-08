@@ -1,10 +1,13 @@
 pub mod common;
 
 use common::{build_polka_from_move, parse_to_blob, BuildOptions};
+use move_to_polka::initialize_logger;
 use polkavm::{Config, Engine, Linker, Module};
 
 #[test]
 pub fn test_multiple_functions() -> anyhow::Result<()> {
+    initialize_logger();
+
     let build_options = BuildOptions::new("output/multiple_functions.polkavm")
         .source("../examples/basic/sources/multiple_functions.move");
 

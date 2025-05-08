@@ -344,14 +344,20 @@ impl Module {
         unsafe { LLVMSetSourceFileName(self.0, name.as_ptr() as *const libc::c_char, name.len()) }
     }
 
-    pub fn add_function(&self, name: &str, ty: FunctionType, polka_export: bool) -> Function {
+    pub fn add_function(
+        &self,
+        module: &str,
+        name: &str,
+        ty: FunctionType,
+        polka_export: bool,
+    ) -> Function {
         log::debug!("Adding function {}", name);
         unsafe {
-            let hash = hash_string(format!("{}::{}", self.2, name).as_str());
+            let hash = hash_string(format!("{}::{}", module, name).as_str());
             let mangled = format!(
                 "_ZN{}{}{}{}17h{}E",
-                self.2.len(),
-                self.2,
+                module.len(),
+                module,
                 name.len(),
                 name,
                 hash
@@ -366,7 +372,7 @@ impl Module {
                 add_polkavm_metadata(
                     self.0,
                     context,
-                    self.2.as_str(),
+                    module,
                     name,
                     mangled.as_str(),
                     num_args,
@@ -442,7 +448,7 @@ impl Module {
             ];
             let memcmp_rty = Type(LLVMInt32TypeInContext(cx));
             let memcmp_fty = FunctionType::new(memcmp_rty, &memcmp_arg_tys);
-            self.add_function("memcmp", memcmp_fty, false);
+            self.add_function("native", "memcmp", memcmp_fty, false);
         }
     }
 
