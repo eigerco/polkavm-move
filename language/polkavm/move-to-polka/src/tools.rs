@@ -11,7 +11,7 @@ pub struct PlatformTools {
 
 impl PlatformTools {
     fn run_cargo(&self, target_dir: &PathBuf, args: &[&str]) -> anyhow::Result<()> {
-        println!("running cargo in {:?} with args: {:?}", target_dir, args);
+        debug!("running cargo in {:?} with args: {:?}", target_dir, args);
         let mut cmd = Command::new(&self.cargo);
         cmd.env_remove("RUSTUP_TOOLCHAIN");
         cmd.env_remove("RUSTC_WRAPPER");
@@ -25,15 +25,14 @@ impl PlatformTools {
 
         let status = cmd.status()?;
         if !status.success() {
-            anyhow::bail!("running SBF cargo failed");
+            anyhow::bail!("cargo failed: exit status: {}", status.code().unwrap())
         }
 
         Ok(())
     }
 
-    pub fn get_runtime(&self, out_path: &PathBuf) -> anyhow::Result<PathBuf> {
+    pub fn get_native_runtime_lib(&self, out_path: &PathBuf) -> anyhow::Result<PathBuf> {
         debug!("building move-native runtime for polkavm in {out_path:?}");
-        println!("building move-native runtime for polkavm in {out_path:?}");
         let archive_file = out_path
             .join("riscv32imac-unknown-none-elf")
             .join("release")

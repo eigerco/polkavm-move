@@ -39,8 +39,12 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore = "doesnt work yet - need further push LLVM implementation"]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
+    // FIXME(tadas) this should be handled in nicer way
+    std::env::set_var("MOVE_NATIVE", "../../move-native");
+
+    std::env::set_var("RUST_LOG", "DEBUG");
+    initialize_logger();
     let move_src = format!("{}/sources", MOVE_STDLIB_PATH);
     let build_options = BuildOptions::new("output/basic.o")
         .source("../examples/basic/sources/basic.move")
