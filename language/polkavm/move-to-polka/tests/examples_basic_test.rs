@@ -1,3 +1,4 @@
+use log::info;
 use move_to_polka::initialize_logger;
 use polkavm::{Config, Engine, Linker, Module};
 
@@ -28,7 +29,7 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
     let mut instance = instance_pre.instantiate()?;
 
     // Grab the function and call it.
-    println!("Calling into the guest program (high level):");
+    info!("Calling into the guest program (high level):");
     let result = instance
         .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "sum", (1, 10))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -93,7 +94,7 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
     let mut instance = instance_pre.instantiate()?;
 
     // Grab the function and call it.
-    println!("Calling into the guest program (high level):");
+    info!("Calling into the guest program (high level):");
     let result = instance
         .call_typed_and_get_result::<u64, (u32, u64)>(&mut (), "add", (10, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -104,7 +105,6 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 
 #[test]
 pub fn test_multi_module_call() -> anyhow::Result<()> {
-    std::env::set_var("RUST_LOG", "polkavm_linker=TRACE");
     initialize_logger();
     let build_options = BuildOptions::new("output/multi_module_call.polkavm")
         .source("../examples/multi_module/sources/modules2.move")
@@ -126,9 +126,9 @@ pub fn test_multi_module_call() -> anyhow::Result<()> {
     let mut instance = instance_pre.instantiate()?;
 
     // Grab the function and call it.
-    println!("Calling into the guest program (high level):");
+    info!("Calling into the guest program (high level):");
     let result = instance
-        .call_typed_and_get_result::<u64, (u32, u32, u32)>(&mut (), "add_all", (10, 5, 5))
+        .call_typed_and_get_result::<u32, (u32, u32, u32)>(&mut (), "add_all", (10, 5, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     assert_eq!(result, 20);
 

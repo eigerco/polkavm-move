@@ -88,7 +88,7 @@ impl PlatformTools {
             .output()?;
         let status = output.status;
         if !status.success() {
-            error!("ld.ldd execution error:");
+            error!("ld.lld execution error:");
             error!("Stdout {}", String::from_utf8_lossy(&output.stdout));
             error!("Stderr {}", String::from_utf8_lossy(&output.stderr));
             anyhow::bail!("lld failed: exit status: {}", status.code().unwrap())

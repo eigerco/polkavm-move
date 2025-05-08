@@ -37,11 +37,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+// init logger from RUST_LOG env var, defaults to INFO
 pub fn initialize_logger() {
     static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
     LOGGER_INIT.call_once(|| {
         use anstyle::{AnsiColor, Color};
-        env_logger::Builder::from_env("RUST_LOG")
+        env_logger::Builder::new()
+            .filter_level(log::LevelFilter::Info)
+            .parse_default_env()
             .format(|formatter, record| {
                 let level = record.level();
                 let style = formatter.default_level_style(level);
