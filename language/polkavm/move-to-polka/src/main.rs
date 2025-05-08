@@ -6,9 +6,10 @@
 
 use clap::Parser;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
-use move_to_polka::{options::Options, run_to_polka};
+use move_to_polka::{initialize_logger, options::Options, run_to_polka};
 
 fn main() -> anyhow::Result<()> {
+    initialize_logger();
     let options = Options::parse();
     let color = if atty::is(atty::Stream::Stderr) && atty::is(atty::Stream::Stdout) {
         ColorChoice::Auto

@@ -37,7 +37,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-fn initialize_logger() {
+pub fn initialize_logger() {
     static LOGGER_INIT: std::sync::Once = std::sync::Once::new();
     LOGGER_INIT.call_once(|| {
         use anstyle::{AnsiColor, Color};
@@ -307,7 +307,6 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
 }
 
 pub fn run_to_polka<W: WriteColor>(error_writer: &mut W, options: Options) -> anyhow::Result<()> {
-    initialize_logger();
     // Normally the compiler is invoked on a package from `move build`
     // coomand, and builds an entire package as a .so file.  The test
     // harness is currently designed to invoke stand-alone compiler
