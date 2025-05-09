@@ -38,9 +38,11 @@ impl PlatformTools {
             .join("release")
             .join("libmove_native.a");
 
+        /* we are not ready yet - rebuild everytime
         if archive_file.exists() {
             return Ok(archive_file);
         }
+        */
 
         let move_native = std::env::var("MOVE_NATIVE").expect("move native");
         let move_native = PathBuf::from(move_native);
@@ -63,7 +65,13 @@ impl PlatformTools {
                 "--release",
                 "--features",
                 "polkavm",
-                // "-q",
+                "--verbose", // for build process debuging purposes
+                "--",
+                // following are direct rustc flags
+                "-C",
+                "codegen-units=1", // create one object in static library - we need this for object merge invocation later (and probably embedding too)
+                "-C",
+                "opt-level=s", // optimize for binary size, but also respect performance
             ],
         );
 
