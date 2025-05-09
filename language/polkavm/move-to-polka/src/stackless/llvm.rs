@@ -462,7 +462,7 @@ impl Module {
             ];
             let abort_rty = Type(LLVMVoidTypeInContext(cx));
             let abort_fty = FunctionType::new(abort_rty, &abort_arg_tys);
-            self.add_function("move_ir_abort", abort_fty, false);
+            self.add_function("native", "move_ir_abort", abort_fty, false);
         }
     }
 

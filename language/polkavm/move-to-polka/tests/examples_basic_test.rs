@@ -140,8 +140,7 @@ pub fn test_abort_implementation() -> anyhow::Result<()> {
     let build_options =
         BuildOptions::new("output/abort.o").source("../examples/basic/sources/abort.move");
 
-    let move_byte_code = build_move_program(build_options)?;
-    let program_bytes = load_from_elf_with_polka_linker(&move_byte_code)?;
+    let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
     let config = Config::from_env()?;
