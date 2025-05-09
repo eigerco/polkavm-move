@@ -134,3 +134,35 @@ pub fn test_multi_module_call() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+pub fn test_abort_implementation() -> anyhow::Result<()> {
+    let build_options =
+        BuildOptions::new("output/abort.o").source("../examples/basic/sources/abort.move");
+
+    let program_bytes = build_polka_from_move(build_options)?;
+    let blob = parse_to_blob(&program_bytes)?;
+
+    let config = Config::from_env()?;
+    let engine = Engine::new(&config)?;
+    let module = Module::from_blob(&engine, &Default::default(), blob)?;
+
+    let linker: Linker = Linker::new();
+    let instance_pre = linker.instantiate_pre(&module)?;
+    let mut instance = instance_pre.instantiate()?;
+
+    // It works when it doesn't abort
+    let result = instance
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "my_abort_example", (7, 42))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 49);
+
+    // It can handle an abort
+    // TODO(nijo): Update test to actual test the abort correctly
+    let result = instance
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "my_abort_example", (2, 2))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 4);
+
+    Ok(())
+}
