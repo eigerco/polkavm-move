@@ -364,6 +364,7 @@ impl Module {
                 name,
                 hash
             );
+            eprintln!("+++++ {}", mangled);
             let function = LLVMAddFunction(self.0, mangled.cstr(), ty.0);
             // TODO(M3: support core Move): it doesnt feel like the right place for polka section generation just on the fly
             // on any function we need to declare. Its looks more like additional pass when finalizing module
