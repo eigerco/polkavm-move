@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        rust: [1.84.1, nightly]
+        rust: [stable, nightly]
         exclude:
           # Segfaults in CI
           - os: macos-latest
@@ -78,11 +78,11 @@ jobs:
           components: miri
 
       - name: Check formatting
-        if: matrix.rust == '1.84.1'
+        if: matrix.rust == 'stable'
         run: cargo fmt -- --check
 
       - name: Lint with Clippy
-        if: matrix.rust == '1.84.1'
+        if: matrix.rust == 'stable'
         run: cargo clippy -- -D warnings
 
       - name: Build
