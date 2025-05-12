@@ -12,6 +12,7 @@ use crate::options::Options;
 
 use anyhow::Context;
 use codespan_reporting::{diagnostic::Severity, term::termcolor::WriteColor};
+use itertools::Itertools;
 use linker::load_from_elf_with_polka_linker;
 use log::{debug, Level};
 use move_binary_format::{
@@ -34,6 +35,7 @@ use std::{
     collections::BTreeSet,
     fs,
     io::Write,
+    iter::once,
     path::{Path, PathBuf},
 };
 use tools::get_platform_tools;
@@ -87,8 +89,14 @@ fn link_object_files(
     let _runtime = tools.get_native_runtime_lib(move_native_path)?;
     log::debug!("Native lib available at: {_runtime:?}");
 
+    // FIXME(tadas) - manually crafted move native object file
+    let move_native_full = out_path.join("move_native_full.o");
+
     let merged_object = out_path.join("merged.o");
-    tools.merge_object_files(objects, &merged_object)?;
+    tools.merge_object_files(
+        &objects.iter().chain(once(&move_native_full)).collect_vec(),
+        &merged_object,
+    )?;
 
     let object_bytes = std::fs::read(&merged_object)?;
     let polka_object = load_from_elf_with_polka_linker(&object_bytes)?;
