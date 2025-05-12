@@ -214,8 +214,10 @@ fn main() -> anyhow::Result<()> {
     };
 
     {
-        use move_to_polka::options::Options as MoveToPolkaOptions;
-        use move_to_polka::stackless::{extensions::ModuleEnvExt, *};
+        use move_to_polka::{
+            options::Options as MoveToPolkaOptions,
+            stackless::{extensions::ModuleEnvExt, *},
+        };
 
         let options = MoveToPolkaOptions {
             gen_dot_cfg: args.gen_dot_cfg.clone(),

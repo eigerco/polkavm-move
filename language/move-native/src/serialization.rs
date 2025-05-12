@@ -120,7 +120,9 @@ unsafe fn deserialize_from_slice(type_v: &MoveType, bytes: &mut &[u8], v: *mut A
             deserialize_struct(&t, bytes, vptr);
         }
         RawBorrowedTypedMoveValue::Reference(_, _) => {
-            todo!("deserialize_from_slice for BorrowedTypedMoveValue::Reference - impossible case?");
+            todo!(
+                "deserialize_from_slice for BorrowedTypedMoveValue::Reference - impossible case?"
+            );
         }
     }
 }
