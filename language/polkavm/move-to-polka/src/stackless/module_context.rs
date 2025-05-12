@@ -23,10 +23,7 @@ use move_stackless_bytecode::{
     function_target::FunctionData, stackless_bytecode as sbc,
     stackless_bytecode_generator::StacklessBytecodeGenerator,
 };
-use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque},
-    iter,
-};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub struct ModuleContext<'mm: 'up, 'up> {
     pub env: mm::ModuleEnv<'mm>,
@@ -583,7 +580,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 // Native functions take type parameters as the
                 // first arguments.
                 let num_typarams = fn_env.get_type_parameter_count();
-                let ll_tydesc_parms = iter::repeat(llcx.ptr_type()).take(num_typarams);
+                let ll_tydesc_parms = std::iter::repeat_n(llcx.ptr_type(), num_typarams);
 
                 let ll_parm_tys = fn_env.get_parameter_types();
                 let ll_parm_tys = ll_parm_tys.iter().map(|mty| {
