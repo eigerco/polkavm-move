@@ -129,8 +129,8 @@ pub(crate) mod string {
 
         let rust_str = str::from_utf8(&rust_vec).expect("invalid utf8");
 
-        let sub_rust_vec = rust_str[i..j].as_bytes().to_vec();
-        MoveByteVector::from_rust_vec(sub_rust_vec)
+        let sub_rust_vec = &rust_str.as_bytes()[i..j];
+        MoveByteVector::from_rust_vec(sub_rust_vec.into())
     }
 
     #[export_name = "move_native_string_internal_index_of"]
