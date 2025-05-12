@@ -121,11 +121,7 @@ impl<'up> GlobalContext<'up> {
         // compiled in). The move-native crate is no_std, so it interferes with std on the compiler
         // build (e.g,, duplicate panic_impl). Also, in the "solana" config, the crate requires
         // feature(default_alloc_error_handler) which is rejected by the Move-blessed Rust.
-        //
-        // As near as I can tell, it's a catch-22 and will require a bit of refactoring in
-        // move-native. Since we need one simple constant, I've avoided that rat's nest and simply
-        // test for feature "solana" here. Needless to say, the compiler-build of move-native has
-        // been getting non-Solana target_defs all along.
+
         debug!(target: "globalenv", "{:#?}", env);
 
         GlobalContext {

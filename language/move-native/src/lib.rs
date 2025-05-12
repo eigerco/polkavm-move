@@ -29,8 +29,7 @@
 //! - [`rt`] - runtime calls emitted by the compiler
 //! - [`std`] - the native functions called declared by Move `std`.
 //! - [`conv`] - conversions between Move types and Rust types.
-//! - [`target_defs`] - Solana-specific definitions that differ from Move VM
-//!   or might reasonably differ for non-Solana targets.
+//! - [`target_defs`] - definitions that differ from Move VM
 //! - [`shared`] - reexports shared with the compiler.
 //! - [`vector`] - implementations of vector ops.
 //! - [`structs`] - implementations of struct ops.
@@ -96,8 +95,6 @@
 //!
 //! In the future specific targets may need to depend on `std`,
 //! and that support can be isolated to the target-specific `target_defs`
-//! module. For Solana specifically, we will probably link to `solana_program`,
-//! which links to `std.
 //!
 //! When compiled as a Move runtime, and not for e.g. a host or testing,
 //! this library is compiled as a "staticlib" crate type, which results
@@ -108,15 +105,6 @@
 //! to build it as a staticlib for the host, and this library does not declare
 //! the lang-items necessary to build a staticlib for the host.
 //! Instead, the build process for rbpf runs `cargo rustc --crate-type staticlib`.
-//!
-//!
-//! # Platform compatibility
-//!
-//! Some definitions are different on Solana than on Move VM.
-//!
-//! - An address is 32 bytes to match Solana pubkeys. On Move VM an address is
-//!   16 bytes by default but can be configured as 20 or 32 bytes at compile
-//!   time.
 //!
 //!
 //! # Naming conventions
@@ -266,7 +254,7 @@ mod vector;
 /// Move struct support.
 mod structs;
 
-/// Compatibility with the target platform, e.g. Solana.
+/// Compatibility with the target platform, e.g. PVM.
 mod target_defs;
 
 /// Serialization and deserialization of move types,
