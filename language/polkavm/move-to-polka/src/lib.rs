@@ -80,7 +80,7 @@ fn link_object_files(
     log::trace!("link_object_files");
 
     let tools = get_platform_tools()?;
-
+    /*
     let move_native_known = move_native.is_some();
     let empty_path = String::from("");
     let move_native = move_native.as_ref().unwrap_or(&empty_path);
@@ -88,9 +88,10 @@ fn link_object_files(
     let move_native_path = if move_native_known { &path } else { &out_path };
     let _runtime = tools.get_native_runtime_lib(move_native_path)?;
     log::debug!("Native lib available at: {_runtime:?}");
+    */
 
     // FIXME(tadas) - manually crafted move native object file
-    let move_native_full = out_path.join("move_native_full.o");
+    let move_native_full = out_path.join("../../../../polkavm-move-native/output/native.out");
 
     let merged_object = out_path.join("merged.o");
     tools.merge_object_files(
