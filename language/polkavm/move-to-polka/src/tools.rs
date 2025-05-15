@@ -88,6 +88,7 @@ impl PlatformTools {
 
     pub fn merge_object_files(&self, sources: &[&PathBuf], output: &PathBuf) -> anyhow::Result<()> {
         let output = Command::new(&self.lld)
+            .arg("--gc-sections")
             .arg("-r")
             .arg("-o")
             .arg(output)
