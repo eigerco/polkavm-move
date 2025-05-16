@@ -2,7 +2,8 @@
 resolver = "2"
 
 members = [
-    "language/move-native",
+    #"language/move-native", 
+    "language/polkavm-move-native",
     "language/polkavm/move-to-polka",
     "language/tools/move-mv-llvm-compiler",
     "language/tools/polkavm-wrapper",
@@ -14,7 +15,7 @@ members = [
 #
 # For more, see the "Conditional compilation for tests" section in documentation/coding_guidelines.md.
 default-members = [
-    "language/move-native",
+    # "language/move-native",
     "language/polkavm/move-to-polka",
     "language/tools/polkavm-wrapper",
 ]

@@ -12,6 +12,7 @@ use crate::options::Options;
 
 use anyhow::Context;
 use codespan_reporting::{diagnostic::Severity, term::termcolor::WriteColor};
+use itertools::Itertools;
 use linker::load_from_elf_with_polka_linker;
 use log::{debug, Level};
 use move_binary_format::{
@@ -34,8 +35,10 @@ use std::{
     collections::BTreeSet,
     fs,
     io::Write,
+    iter::once,
     path::{Path, PathBuf},
 };
+use tools::get_platform_tools;
 
 // init logger from RUST_LOG env var, defaults to INFO
 pub fn initialize_logger() {
@@ -72,22 +75,26 @@ fn link_object_files(
     out_path: PathBuf,
     objects: &[PathBuf],
     polka_object_file: PathBuf,
-    _move_native: &Option<String>,
+    move_native: &Option<String>,
 ) -> anyhow::Result<PathBuf> {
     log::trace!("link_object_files");
 
-    // this will be needed later when we start supporting multimodule builds
-    // let tools = get_platform_tools()?;
+    let tools = get_platform_tools()?;
 
-    // runtime setup - will be needed later
-    // let move_native_known = move_native.is_some();
-    // let empty_path = String::from("");
-    // let move_native = move_native.as_ref().unwrap_or(&empty_path);
-    // let path = Path::new(move_native).to_path_buf();
-    // let move_native_path = if move_native_known { &path } else { &out_path };
-    // let runtime = get_runtime(move_native_path, &tools)?;
+    let move_native_known = move_native.is_some();
+    let empty_path = String::from("");
+    let move_native = move_native.as_ref().unwrap_or(&empty_path);
+    let path = Path::new(move_native).to_path_buf();
+    let move_native_path = if move_native_known { &path } else { &out_path };
+    let runtime = tools.get_native_runtime_lib(move_native_path)?;
+    log::debug!("Native lib available at: {runtime:?}");
+
     let merged_object = out_path.join("merged.o");
-    tools::get_platform_tools()?.merge_object_files(objects, &merged_object)?;
+    tools.merge_object_files(
+        &objects.iter().chain(once(&runtime)).collect_vec(),
+        &merged_object,
+        true,
+    )?;
 
     let object_bytes = std::fs::read(&merged_object)?;
     let polka_object = load_from_elf_with_polka_linker(&object_bytes)?;

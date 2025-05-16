@@ -230,6 +230,12 @@
 
 extern crate alloc;
 
+#[cfg(feature = "polkavm")]
+mod panic;
+
+#[cfg(feature = "polkavm")]
+mod allocator;
+
 /// Types literally shared with the compiler through crate linkage.
 pub mod shared {
     pub use crate::rt_types::{TypeDesc, MOVE_TYPE_DESC_SIZE, MOVE_UNTYPED_VEC_DESC_SIZE};

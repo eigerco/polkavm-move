@@ -38,7 +38,7 @@ mod debug {
     use crate::{conv::*, rt_types::*, target_defs};
     use alloc::format;
 
-    #[export_name = "move_native_debug_print"]
+    #[export_name = "_ZN6native23move_native_debug_print17hf268c585c096f4dcE"]
     unsafe extern "C" fn print(type_x: &MoveType, x: &AnyValue) {
         let v = borrow_move_value_as_rust_value(type_x, x);
         target_defs::print_string(&format!("{:?}", v));
@@ -90,7 +90,8 @@ mod hash {
 mod signer {
     use crate::rt_types::*;
 
-    #[export_name = "move_native_signer_borrow_address"]
+    // our move tool expects mangled native calls - so be it
+    #[export_name = "_ZN6native33move_native_signer_borrow_address17ha48b6bb6485a828bE"]
     extern "C" fn borrow_address(s: &MoveSigner) -> &MoveAddress {
         &s.0
     }

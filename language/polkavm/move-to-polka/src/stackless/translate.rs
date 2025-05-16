@@ -66,19 +66,19 @@ pub enum TargetPlatform {
 impl TargetPlatform {
     pub fn triple(&self) -> &'static str {
         match self {
-            TargetPlatform::PVM => "riscv32-unknown-none-elf",
+            TargetPlatform::PVM => "riscv32--none-ilp32e",
         }
     }
 
     pub fn llvm_cpu(&self) -> &'static str {
         match self {
-            TargetPlatform::PVM => "generic",
+            TargetPlatform::PVM => "generic-rv32",
         }
     }
 
     pub fn llvm_features(&self) -> &'static str {
         match self {
-            TargetPlatform::PVM => "",
+            TargetPlatform::PVM => "+e,+m,+a,+c",
         }
     }
 
