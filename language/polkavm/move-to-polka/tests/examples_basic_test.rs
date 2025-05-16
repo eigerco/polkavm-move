@@ -1,4 +1,4 @@
-use log::{info, warn};
+use log::info;
 use move_to_polka::initialize_logger;
 use polkavm::{CallError, Config, Engine, Linker, Module, ModuleConfig};
 
@@ -41,9 +41,9 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 #[test]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
     // FIXME(tadas) this should be handled in nicer way
-    std::env::set_var("MOVE_NATIVE", "../../move-native");
+    std::env::set_var("MOVE_NATIVE", "../../polkavm-move-native");
 
-    std::env::set_var("RUST_LOG", "DEBUG");
+    //std::env::set_var("RUST_LOG", "DEBUG");
     initialize_logger();
     let move_src = format!("{}/sources", MOVE_STDLIB_PATH);
     let build_options = BuildOptions::new("output/basic.o")
@@ -64,10 +64,7 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 
     let mut linker: Linker<_, ProgramError> = Linker::new();
 
-    linker.define_untyped("debug_print", |caller| {
-        // FIXME(tadas) as soon as we learn how to pass around typed parameters we can make this great again
-        let ptr_to_type: u64 = caller.instance.reg(polkavm::Reg::A0);
-        let ptr_to_data: u64 = caller.instance.reg(polkavm::Reg::A1);
+    linker.define_typed("debug_print", |ptr_to_type: u32, ptr_to_data: u32| {
         info!("debug_print called. type ptr: {ptr_to_type:x} Data ptr: {ptr_to_data:x}");
         Ok(())
     })?;

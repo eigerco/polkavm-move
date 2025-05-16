@@ -20,6 +20,6 @@ module 0xa000::basic {
     }
 
     public entry fun abort_with_code(code: u64) {
-        abort code;
+        abort code
     }
 }
