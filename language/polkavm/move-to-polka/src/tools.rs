@@ -1,6 +1,7 @@
 use std::{path::PathBuf, process::Command};
 
 use anyhow::Context;
+use itertools::Itertools;
 use log::{debug, error};
 
 pub struct PlatformTools {
@@ -25,8 +26,11 @@ impl PlatformTools {
         cmd.current_dir(crate_dir);
         cmd.env_remove("RUSTC_WRAPPER");
         cmd.env_remove("RUSTC_WORKSPACE_WRAPPER");
+        cmd.env_remove("CARGO");
+        cmd.env_remove("RUSTUP_TOOLCHAIN");
+        cmd.env_remove("RUSTC");
         cmd.env("CARGO_TARGET_DIR", target_dir);
-        cmd.env("CARGO", &self.cargo);
+        //cmd.env("CARGO", &self.cargo);
         cmd.env("CARGO_PROFILE_DEV_PANIC", "abort");
         cmd.env("CARGO_PROFILE_RELEASE_PANIC", "abort");
         cmd.args(args);
@@ -72,7 +76,7 @@ impl PlatformTools {
         // See move-native documentation on `no-std` compatibilty for explanation.
         // Release mode is required to eliminate large stack frames.
         self.run_cargo(
-            &move_native,
+            &move_native.canonicalize()?,
             &out_path.canonicalize()?,
             &[
                 "rustc",
@@ -99,37 +103,54 @@ impl PlatformTools {
         let archive_file = out_path
             .join("riscv32emac-unknown-none-polkavm")
             .join("release")
-            .join("libmove_native.a");
+            .join("libpolkavm_move_native.a");
 
         if !archive_file.exists() {
             anyhow::bail!("native runtime not found at {archive_file:?}. this is a bug");
         }
 
         let extracted_content = out_path.join("archive_contents");
+        // cleanup any possible leftovers
+        if extracted_content.exists() {
+            std::fs::remove_dir_all(&extracted_content)?;
+        }
         std::fs::create_dir_all(&extracted_content)?;
-        self.extract_lib_archive(&extracted_content, &archive_file)?;
-        let object_pattern = extracted_content.join("*.o");
-        self.merge_object_files(&[&object_pattern], &final_object_file)?;
+        self.extract_lib_archive(&extracted_content, &archive_file.canonicalize()?)?;
+
+        let mut object_files = vec![];
+        // collect all extracted files
+        for entry in std::fs::read_dir(extracted_content)? {
+            let path: PathBuf = entry?.path();
+            if path.extension().is_some_and(|ext| ext == "o") {
+                object_files.push(path);
+            }
+        }
+
+        self.merge_object_files(
+            &object_files.iter().collect_vec(),
+            &final_object_file,
+            false,
+        )?;
 
         Ok(final_object_file)
     }
 
-    pub fn merge_object_files(&self, sources: &[&PathBuf], output: &PathBuf) -> anyhow::Result<()> {
-        let output = Command::new(&self.lld)
-            // this flag is essential as it strips all unused symbols AFTER we merge native lib with actual move program code
-            // otherwise there are lot of bits (like atomics) included by rust compiler which result in undefined symbols
-            // during polka linking phase.
-            .arg("--gc-sections")
-            .arg("-r")
-            .arg("-o")
-            .arg(output)
-            .args(sources)
-            .output()?;
-        let status = output.status;
+    pub fn merge_object_files(
+        &self,
+        sources: &[&PathBuf],
+        output: &PathBuf,
+        gc_sections: bool,
+    ) -> anyhow::Result<()> {
+        let mut cmd = Command::new(&self.lld);
+        // this flag is essential as it strips all unused symbols AFTER we merge native lib with actual move program code
+        // otherwise there are lot of bits (like atomics) included by rust compiler which result in undefined symbols
+        // during polka linking phase.
+        if gc_sections {
+            cmd.arg("--gc-sections");
+        }
+        let status = cmd.arg("-r").arg("-o").arg(output).args(sources).status()?;
         if !status.success() {
             error!("ld.lld execution error:");
-            error!("Stdout {}", String::from_utf8_lossy(&output.stdout));
-            error!("Stderr {}", String::from_utf8_lossy(&output.stderr));
             anyhow::bail!("lld failed: exit status: {}", status.code().unwrap())
         }
         Ok(())

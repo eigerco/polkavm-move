@@ -6,6 +6,9 @@ use polkavm::{Config, Engine, Linker, Module};
 
 #[test]
 pub fn test_multiple_functions() -> anyhow::Result<()> {
+    // FIXME(tadas) this should be handled in nicer way
+    std::env::set_var("MOVE_NATIVE", "../../polkavm-move-native");
+
     initialize_logger();
 
     let build_options = BuildOptions::new("output/multiple_functions.polkavm")

@@ -127,6 +127,9 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 
 #[test]
 pub fn test_multi_module_call() -> anyhow::Result<()> {
+    // FIXME(tadas) this should be handled in nicer way
+    std::env::set_var("MOVE_NATIVE", "../../polkavm-move-native");
+
     initialize_logger();
     let build_options = BuildOptions::new("output/multi_module_call.polkavm")
         .source("../examples/multi_module/sources/modules2.move")

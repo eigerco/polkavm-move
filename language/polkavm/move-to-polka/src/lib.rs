@@ -93,6 +93,7 @@ fn link_object_files(
     tools.merge_object_files(
         &objects.iter().chain(once(&runtime)).collect_vec(),
         &merged_object,
+        true,
     )?;
 
     let object_bytes = std::fs::read(&merged_object)?;
