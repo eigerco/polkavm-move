@@ -618,7 +618,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             .into_function(qiid.id);
         let sname = fn_env.llvm_symbol_name(&qiid.inst);
         let decl = self.fn_decls.get(&sname);
-        assert!(decl.is_some(), "move fn decl not found: {}", sname);
+        assert!(decl.is_some(), "move fn decl not found: {sname}");
         *decl.unwrap()
     }
 
@@ -626,7 +626,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         let fn_env = self.env.env.get_module(qid.module_id).into_function(qid.id);
         let sname = fn_env.llvm_native_fn_symbol_name();
         let decl = self.fn_decls.get(&sname);
-        assert!(decl.is_some(), "native fn decl not found: {}", sname);
+        assert!(decl.is_some(), "native fn decl not found: {sname}");
         *decl.unwrap()
     }
 
@@ -754,7 +754,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     &rtcall,
                 );
                 let mut typarams: Vec<_> = self
-                    .get_rttydesc_ptrs(&[elt_mty.clone()])
+                    .get_rttydesc_ptrs(std::slice::from_ref(elt_mty))
                     .iter()
                     .map(|llval| llval.as_any_value())
                     .collect();
@@ -770,7 +770,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     &rtcall,
                 );
                 let mut typarams: Vec<_> = self
-                    .get_rttydesc_ptrs(&[elt_mty.clone()])
+                    .get_rttydesc_ptrs(std::slice::from_ref(elt_mty))
                     .iter()
                     .map(|llval| llval.as_any_value())
                     .collect();
@@ -786,7 +786,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     &rtcall,
                 );
                 let typarams: Vec<_> = self
-                    .get_rttydesc_ptrs(&[elt_mty.clone()])
+                    .get_rttydesc_ptrs(std::slice::from_ref(elt_mty))
                     .iter()
                     .map(|llval| llval.as_any_value())
                     .collect();
@@ -810,7 +810,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     &rtcall,
                 );
                 let mut typarams: Vec<_> = self
-                    .get_rttydesc_ptrs(&[s_mty.clone()])
+                    .get_rttydesc_ptrs(std::slice::from_ref(s_mty))
                     .iter()
                     .map(|llval| llval.as_any_value())
                     .collect();

@@ -42,7 +42,7 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 #[serial]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
     initialize_logger();
-    let move_src = format!("{}/sources", MOVE_STDLIB_PATH);
+    let move_src = format!("{MOVE_STDLIB_PATH}/sources");
     let build_options = BuildOptions::new("output/basic.o")
         .source("../examples/basic/sources/basic.move")
         .dependency(&move_src)

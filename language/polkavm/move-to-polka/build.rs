@@ -25,6 +25,6 @@ fn main() {
         .expect("manifest_path had no parent")
         .to_path_buf();
 
-    println!("cargo:rustc-env=MOVE_STDLIB_PATH={}", dep_dir);
-    println!("cargo:rerun-if-changed={}", dep_dir);
+    println!("cargo:rustc-env=MOVE_STDLIB_PATH={dep_dir}");
+    println!("cargo:rerun-if-changed={dep_dir}");
 }
