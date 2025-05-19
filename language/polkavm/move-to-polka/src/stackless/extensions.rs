@@ -204,7 +204,7 @@ pub impl StructEnvExt for mm::StructEnv<'_> {
     fn ll_struct_name_from_raw_name(&self, tys: &[mty::Type]) -> String {
         let raw_name = self.struct_raw_type_name(tys);
         let xs = raw_name.replace([':', '<', '>'], "_").replace(", ", ".");
-        format!("struct.{}", xs)
+        format!("struct.{xs}")
     }
 
     fn struct_raw_type_name(&self, tys: &[mty::Type]) -> String {

@@ -122,7 +122,7 @@ impl<'up> GlobalContext<'up> {
         // build (e.g,, duplicate panic_impl). Also, in the "solana" config, the crate requires
         // feature(default_alloc_error_handler) which is rejected by the Move-blessed Rust.
 
-        debug!(target: "globalenv", "{:#?}", env);
+        debug!(target: "globalenv", "{env:#?}");
 
         GlobalContext {
             env,
@@ -144,7 +144,7 @@ impl<'up> GlobalContext<'up> {
 
         let m_env = env.get_module(id);
         let modname = m_env.llvm_module_name();
-        debug!(target: "dwarf", "Create DWARF for module {:#?} with source {:#?}", modname, source);
+        debug!(target: "dwarf", "Create DWARF for module {modname:#?} with source {source:#?}");
         // DIBuilder does not depend on Builder and can be created first
         let llvm_di_builder = llvm_cx.create_di_builder(self, llmod, source, options.debug);
         let llvm_builder = llvm_cx.create_builder();
@@ -214,7 +214,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         let fn_data = StacklessBytecodeGenerator::new(&self.env).generate_function();
         let func_target =
             move_stackless_bytecode::function_target::FunctionTarget::new(&self.env, &fn_data);
-        debug!(target: "sbc", "\n{}", func_target);
+        debug!(target: "sbc", "\n{func_target}");
 
         let g_env = self.get_global_env();
         let map_node_to_type: BTreeMap<mm::NodeId, move_model::ty::Type> = g_env
@@ -230,14 +230,14 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         if action == "write" || action == "view" {
             let fname = &self.env.llvm_symbol_name(self.type_params);
             let dot_graph = generate_cfg_in_dot_format(&func_target, true);
-            let graph_label = format!("digraph {{ label=\"Function: {}\"\n", fname);
+            let graph_label = format!("digraph {{ label=\"Function: {fname}\"\n");
             let dgraph2 = dot_graph.replacen("digraph {", &graph_label, 1);
             let output_path = (*options.dot_file_path).to_owned();
             let path_sep = match &*output_path {
                 "" => "",
                 _ => "/",
             };
-            let dot_file = format!("{}{}{}_cfg.dot", output_path, path_sep, fname);
+            let dot_file = format!("{output_path}{path_sep}{fname}_cfg.dot");
             std::fs::write(&dot_file, dgraph2).expect("generating dot file for CFG");
             // If requested by user, also invoke the xdot viewer.
             if action == "view" {
@@ -280,9 +280,9 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         {
             for (i, mty) in fn_data.local_types.iter().enumerate() {
                 let llty = self.module_cx.to_llvm_type(mty, self.type_params).unwrap();
-                let mut name = format!("local_{}", i);
+                let mut name = format!("local_{i}");
                 if let Some(s) = named_locals.get(&i) {
-                    name = format!("local_{}__{}", i, s);
+                    name = format!("local_{i}__{s}");
                 }
                 let llval = self.module_cx.llvm_builder.build_alloca(llty, &name);
                 self.locals.push(Local {
@@ -589,7 +589,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                         let tmp_idx = dst[0];
                         let fenv = senv.get_field_by_offset(*offset);
                         let name = fenv.get_name().display(senv.symbol_pool()).to_string();
-                        debug!(target: "functions", "BorrowField: added named local {}: {}", tmp_idx, name);
+                        debug!(target: "functions", "BorrowField: added named local {tmp_idx}: {name}");
                         named_locals.insert(tmp_idx, name);
                     }
                     Operation::Pack(mod_id, struct_id, _types) => {
@@ -1635,7 +1635,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let llty = loc_dst.llty;
                 let llval = loc_dst.llval;
                 let dst_name = llval.get_name();
-                debug!(target: "dwarf", "translate_fun_call {dst_name} mty {mty_info} llty {:#?} loc_dst {:#?}", llty, loc_dst);
+                debug!(target: "dwarf", "translate_fun_call {dst_name} mty {mty_info} llty {llty:#?} loc_dst {loc_dst:#?}");
                 loc_dst
             })
             .collect::<Vec<_>>();
@@ -1644,7 +1644,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             .iter()
             .map(|i| {
                 let loc_src = &self.locals[*i];
-                debug!(target: "dwarf", "translate_fun_call {:#?}", loc_src);
+                debug!(target: "dwarf", "translate_fun_call {loc_src:#?}");
                 loc_src
             })
             .collect::<Vec<_>>();
@@ -1906,7 +1906,9 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     &self.module_cx.rtty_cx,
                     &rtcall,
                 );
-                let typarams = self.module_cx.get_rttydesc_ptrs(&[elt_mty.clone()]);
+                let typarams = self
+                    .module_cx
+                    .get_rttydesc_ptrs(std::slice::from_ref(elt_mty));
                 let typarams = typarams.into_iter().map(|llval| llval.as_any_value());
                 // The C ABI passes the by-val-vector as a pointer.
                 let local = &self.locals[*local_idx];

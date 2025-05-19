@@ -21,7 +21,7 @@ impl PlatformTools {
             "running {:?} in {:?} with args: {:?}",
             self.cargo, crate_dir, args
         );
-        debug!("target output dir: {:?}", target_dir);
+        debug!("target output dir: {target_dir:?}");
         let mut cmd = Command::new(&self.cargo);
         cmd.current_dir(crate_dir);
         cmd.env_remove("RUSTC_WRAPPER");

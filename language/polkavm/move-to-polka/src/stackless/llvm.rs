@@ -351,9 +351,9 @@ impl Module {
         ty: FunctionType,
         polka_export: bool,
     ) -> Function {
-        log::debug!("Adding function {}", name);
+        log::debug!("Adding function {name}");
         unsafe {
-            let hash = hash_string(format!("{}::{}", module, name).as_str());
+            let hash = hash_string(format!("{module}::{name}").as_str());
             let mangled = format!(
                 "_ZN{}{}{}{}17h{}E",
                 module.len(),
@@ -457,7 +457,7 @@ impl Module {
         unsafe {
             let name = &self.get_module_id();
             let addr = &self.0;
-            debug!(target: "module", "{name} module verification address {:#?}", addr);
+            debug!(target: "module", "{name} module verification address {addr:#?}");
             if LLVMVerifyModule(
                 self.0,
                 LLVMVerifierFailureAction::LLVMPrintMessageAction,
@@ -1681,7 +1681,7 @@ unsafe fn add_polkavm_metadata(
     let mut struct_values = [const_array];
     let const_struct = LLVMConstStruct(struct_values.as_mut_ptr(), 1, 0);
     let hashed = hash_string(fn_name);
-    let metadata_str = CString::new(format!("alloc_{}", hashed)).unwrap();
+    let metadata_str = CString::new(format!("alloc_{hashed}")).unwrap();
     let metadata_global = LLVMAddGlobal(module, struct_ty, metadata_str.as_ptr());
     LLVMSetInitializer(metadata_global, const_struct);
     LLVMSetLinkage(metadata_global, LLVMLinkage::LLVMPrivateLinkage);
@@ -1690,7 +1690,7 @@ unsafe fn add_polkavm_metadata(
     LLVMSetGlobalConstant(metadata_global, 1);
     LLVMSetSection(
         metadata_global,
-        CString::new(format!(".rodata..Lalloc_{}", hashed))
+        CString::new(format!(".rodata..Lalloc_{hashed}"))
             .unwrap()
             .as_ptr(),
     );
@@ -1751,8 +1751,7 @@ unsafe fn add_polkavm_metadata(
 
     asm.borrow_mut().push_str(
         format!(
-        ".pushsection .polkavm_exports,\"R\",@note\n.byte 1\n.4byte {}\n.4byte {}\n.popsection\n",
-        mangled, mangled_fn_name
+        ".pushsection .polkavm_exports,\"R\",@note\n.byte 1\n.4byte {mangled}\n.4byte {mangled_fn_name}\n.popsection\n"
     )
         .as_str(),
     );

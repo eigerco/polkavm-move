@@ -41,7 +41,7 @@ mod debug {
     #[export_name = "move_native_debug_print"]
     unsafe extern "C" fn print(type_x: &MoveType, x: &AnyValue) {
         let v = borrow_move_value_as_rust_value(type_x, x);
-        target_defs::print_string(&format!("{:?}", v));
+        target_defs::print_string(&format!("{v:?}"));
     }
 
     #[export_name = "move_native_print_stack_trace"]

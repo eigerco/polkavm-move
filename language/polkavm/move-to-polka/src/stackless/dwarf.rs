@@ -196,10 +196,10 @@ impl<'up> Instruction<'up> {
 
         let (start_line, start_column) = find_line_column(&file, start as usize).unwrap_or((-1, 0));
         let (end_line, end_column) = find_line_column(&file, end as usize).unwrap_or((-1, 0));
-        debug!(target: "bytecode", "{:#?} loc {:#?}", bc, loc);
+        debug!(target: "bytecode", "{bc:#?} loc {loc:#?}");
         let substring = read_substring(&file, start as usize, end as usize)
             .unwrap_or("String not found".to_string());
-        debug!(target: "bytecode", "file {:#?}[{start}-{end}]:{start_line}.{start_column}-{end_line}.{end_column} {substring}", file);
+        debug!(target: "bytecode", "file {file:#?}[{start}-{end}]:{start_line}.{start_column}-{end_line}.{end_column} {substring}");
     }
 
     // returns text in source code associated with this instruction
@@ -207,7 +207,7 @@ impl<'up> Instruction<'up> {
         let bc = self.bc;
         let loc = &self.loc;
         let (file, _line, _column, start, end) = self.loc_display();
-        debug!(target: "bytecode", "{:#?} loc {:#?}", bc, loc);
+        debug!(target: "bytecode", "{bc:#?} loc {loc:#?}");
         read_substring(&file, start as usize, end as usize).unwrap_or("".to_string())
     }
 
@@ -376,7 +376,7 @@ impl<'up> Instruction<'up> {
                     debug_location,
                     basic_block,
                 );
-                debug!(target: "instruction", "create_instr_impl instr_debug starting at next line and until line starting with !!!\n{:#?}\n!!!\n", instr_debug);
+                debug!(target: "instruction", "create_instr_impl instr_debug starting at next line and until line starting with !!!\n{instr_debug:#?}\n!!!\n");
             }
 
             let module_info = module_ref.print_to_str();
@@ -399,7 +399,7 @@ pub fn type_get_name(x: LLVMMetadataRef) -> String {
 impl DIBuilderCore<'_> {
     pub fn add_type_struct(&self, struct_id: StructId, ty: LLVMMetadataRef) {
         let name = type_get_name(ty);
-        debug!(target: "struct", "set type {} for struct {:#?}", name, struct_id);
+        debug!(target: "struct", "set type {name} for struct {struct_id:#?}");
         self.g_ctx
             .di_context
             .type_struct_db
@@ -420,12 +420,12 @@ impl DIBuilderCore<'_> {
             None => self.type_unspecified,
         };
         let type_name = type_get_name(ty);
-        debug!(target: "struct", "get type {} for struct {} {:#?}", type_name, struct_name, struct_id);
+        debug!(target: "struct", "get type {type_name} for struct {struct_name} {struct_id:#?}");
         ty
     }
 
     pub fn add_unresolved_mty(&self, mty: mty::Type, mty_name: String, msg: String) {
-        debug!(target: "struct", "unresolved mty type {}: {}", mty_name, msg);
+        debug!(target: "struct", "unresolved mty type {mty_name}: {msg}");
         self.g_ctx
             .di_context
             .unresolved_mty
@@ -439,13 +439,13 @@ impl DIBuilderCore<'_> {
             let (mty, name, msg) = el;
             match lev {
                 UnresolvedPrintLogLevel::Debug => {
-                    debug!(target: "struct", "Unresolved type {:#?} for struct {} {:#?}", mty, name, msg)
+                    debug!(target: "struct", "Unresolved type {mty:#?} for struct {name} {msg:#?}")
                 }
                 UnresolvedPrintLogLevel::Warning => {
-                    warn!(target: "struct", "Unresolved type {:#?} for struct {} {:#?}", mty, name, msg)
+                    warn!(target: "struct", "Unresolved type {mty:#?} for struct {name} {msg:#?}")
                 }
                 _ => {
-                    error!(target: "struct", "Unresolved type {:#?} for struct {} {:#?}", mty, name, msg)
+                    error!(target: "struct", "Unresolved type {mty:#?} for struct {name} {msg:#?}")
                 }
             }
         }
@@ -506,7 +506,7 @@ impl<'up> DIBuilder<'up> {
             // check dbg module name
             let mod_nm_ptr = unsafe { LLVMGetModuleIdentifier(module_di, &mut mod_nm_len) };
             let module_di_name = &from_raw_slice_to_string(mod_nm_ptr, mod_nm_len);
-            debug!(target: "dwarf", "Created dbg module {:#?}", module_di_name);
+            debug!(target: "dwarf", "Created dbg module {module_di_name:#?}");
 
             let source = relative_to_absolute(source).expect("Must be the legal path");
             let cstr = to_cstring!(source.as_str());
@@ -516,7 +516,7 @@ impl<'up> DIBuilder<'up> {
             let mut src_len: ::libc::size_t = 0;
             let src_ptr = unsafe { LLVMGetSourceFileName(module_di, &mut src_len) };
             let module_src = &from_raw_slice_to_string(src_ptr, src_len);
-            debug!(target: "dwarf", "Module {:#?} has source {:#?}", module_name, module_src);
+            debug!(target: "dwarf", "Module {module_name:#?} has source {module_src:#?}");
 
             // create builder
             let builder_ref = unsafe { LLVMCreateDIBuilder(module_di) };
@@ -694,7 +694,7 @@ impl<'up> DIBuilder<'up> {
                             .to_string_lossy()
                             .into_owned()
                     };
-                    println!("Name of type: {}", name);
+                    println!("Name of type: {name}");
                     true
                 } else {
                     println!("Type does not have a name.");
@@ -792,7 +792,7 @@ impl<'up> DIBuilder<'up> {
             let offset_of_element = s.offset_of_element(data_layout, idx);
             let sz = field_ty.get_int_type_width();
             let property = field_ty.dump_properties_to_str(data_layout);
-            debug!(target: "struct", "{idx} field from struct_type: {:#?} {}, \nsz {sz}, offset_of_element {offset_of_element}, \n{}", field_ty, field_info, property);
+            debug!(target: "struct", "{idx} field from struct_type: {field_ty:#?} {field_info}, \nsz {sz}, offset_of_element {offset_of_element}, \n{property}");
         }
     }
 
@@ -864,7 +864,7 @@ impl<'up> DIBuilder<'up> {
                 let c_str = CStr::from_ptr(c_string)
                     .to_str()
                     .expect("Cannot convert to &str");
-                debug!(target: "vectors", "vector {vec_name}: DI content: starting at next line and until line starting with !!!\n{}\n!!!\n", c_str);
+                debug!(target: "vectors", "vector {vec_name}: DI content: starting at next line and until line starting with !!!\n{c_str}\n!!!\n");
             };
         }
     }
@@ -1180,8 +1180,7 @@ impl<'up> DIBuilder<'up> {
             let data_layout = module.get_module_data_layout();
 
             let name = struct_env.get_full_name_str();
-            debug!(target: "struct", "Creating dwarf info for struct move_name {}, llvm_name {} mod_id {:#?} struct_id {:#?}",
-                name, struct_llvm_name, mod_id, struct_id);
+            debug!(target: "struct", "Creating dwarf info for struct move_name {name}, llvm_name {struct_llvm_name} mod_id {mod_id:#?} struct_id {struct_id:#?}");
 
             // FIXME: not clear whether to use 'name' or 'struct_llvm_name' for DWARF
             let struct_name = struct_llvm_name;
@@ -1214,7 +1213,7 @@ impl<'up> DIBuilder<'up> {
                 .expect("no struct type");
 
             let struct_info = struct_type.dump_to_string();
-            debug!(target: "struct", "{struct_name} {}", struct_info);
+            debug!(target: "struct", "{struct_name} {struct_info}");
 
             let struct_type_in_bits = struct_type.as_any_type().size_of_type_in_bits(data_layout);
             let struct_prefered_alignment = struct_type
@@ -1246,8 +1245,7 @@ impl<'up> DIBuilder<'up> {
                 let size_of_type_in_bits = llvm_ty.size_of_type_in_bits(data_layout);
                 let preferred_alignment_of_type = llvm_ty.preferred_alignment_of_type(data_layout);
                 let element_offset = struct_type.offset_of_element(data_layout, idx);
-                debug!(target: "struct", "Struct at {idx} field {fld_name}: store_size_of_type {}, abi_size_of_type {}, abi_alignment_of_type {}, size_of_type_in_bits {}, preferred_alignment_of_type {}, element_offset {}",
-                    store_size_of_type, abi_size_of_type, abi_alignment_of_type, size_of_type_in_bits, preferred_alignment_of_type, element_offset);
+                debug!(target: "struct", "Struct at {idx} field {fld_name}: store_size_of_type {store_size_of_type}, abi_size_of_type {abi_size_of_type}, abi_alignment_of_type {abi_alignment_of_type}, size_of_type_in_bits {size_of_type_in_bits}, preferred_alignment_of_type {preferred_alignment_of_type}, element_offset {element_offset}");
 
                 let fld_loc = mod_env.find_named_constant(symbol).map_or_else(|| mod_env.env.unknown_loc(), |named_const| named_const.get_loc());
                 let fld_loc_str = fld_loc.display(mod_env.env).to_string();
@@ -1257,17 +1255,17 @@ impl<'up> DIBuilder<'up> {
 
                 if fld_type == self.core().type_unspecified {
                     if let mty::Type::Struct(mod_id, struct_id, _v) = mv_ty.clone() {
-                        debug!(target: "struct", "fld {fld_name} mod_id {:#?} struct_id {:#?}", mod_id, struct_id);
+                        debug!(target: "struct", "fld {fld_name} mod_id {mod_id:#?} struct_id {struct_id:#?}");
                         let fld_struct_type = llvm_ty.as_struct_type();
                         let fld_struct_info = fld_struct_type.dump_to_string();
-                        debug!(target: "struct", "fld {fld_name} {}", fld_struct_info);
-                        let msg = format!("Unresoled field in struct {}", struct_name);
+                        debug!(target: "struct", "fld {fld_name} {fld_struct_info}");
+                        let msg = format!("Unresoled field in struct {struct_name}");
                         self.core().add_unresolved_mty(mv_ty.clone(), fld_name.clone(), msg);
                     }
                 }
 
                 let vars = mv_ty.get_vars(); // FIXME: how vars can be used for DWARF?
-                debug!(target: "struct", "vars {:#?}", vars);
+                debug!(target: "struct", "vars {vars:#?}");
 
                 let sz_in_bits: u64 = size_of_type_in_bits;
                 let align_in_bits: u32 = abi_alignment_of_type * 8;
@@ -1321,7 +1319,7 @@ impl<'up> DIBuilder<'up> {
             // Check the name in DWARF
             let struct_ref = struct_meta as LLVMMetadataRef;
             let struct_name_new = type_get_name(struct_ref);
-            debug!(target: "struct", "Added struct type {}", struct_name_new);
+            debug!(target: "struct", "Added struct type {struct_name_new}");
 
             assert!(
                 struct_name == struct_name_new,
@@ -1330,7 +1328,7 @@ impl<'up> DIBuilder<'up> {
 
             // FIXME: is it used/usefull?
             let struct_kind = unsafe { LLVMGetMetadataKind(struct_meta) };
-            debug!(target: "struct", "struct_kind {:#?}", struct_kind);
+            debug!(target: "struct", "struct_kind {struct_kind:#?}");
 
             let name_cstr_for_ptr = to_cstring!(format!("{}__ptr", struct_name));
             let (name_cstr_for_ptr_nm_ptr, name_cstr_for_ptr_nm_len) = (
@@ -1363,7 +1361,7 @@ impl<'up> DIBuilder<'up> {
                     .to_str()
                     .expect("Cannot convert to &str")
             };
-            debug!(target: "struct", "struct {struct_name}: DI content: starting at next line and until line starting with !!!\n{}\n!!!\n", c_str);
+            debug!(target: "struct", "struct {struct_name}: DI content: starting at next line and until line starting with !!!\n{c_str}\n!!!\n");
         }
     }
 
@@ -1487,7 +1485,7 @@ fn find_line_column(file_path: &str, find_offset: usize) -> Result<(i32, usize)>
         if current_offset + line_length > find_offset {
             // Found the line where the substring starts
             let start_column = find_offset - current_offset;
-            debug!(target: "bytecode", "{:#?} offset {find_offset} @ {line_number}:{start_column}", file_path);
+            debug!(target: "bytecode", "{file_path:#?} offset {find_offset} @ {line_number}:{start_column}");
             return Ok((line_number, start_column));
         }
 
@@ -1498,7 +1496,7 @@ fn find_line_column(file_path: &str, find_offset: usize) -> Result<(i32, usize)>
 
     // Substring spans multiple lines. Unable to determine end position.
     let err_msg = "Substring spans multiple lines. Unable to determine end position.";
-    Err(anyhow::anyhow!(err_msg)).with_context(|| format!("Error processing file: {}", file_path))
+    Err(anyhow::anyhow!(err_msg)).with_context(|| format!("Error processing file: {file_path}"))
 }
 
 // for debugging: for a given ascii file returns substring in the range file[begin, end]

@@ -111,7 +111,7 @@ pub fn get_env_from_source<W: WriteColor>(
     options: &Options,
 ) -> anyhow::Result<GlobalEnv> {
     let addrs = parse_addresses_from_options(options.named_address_mapping.clone())?;
-    debug!("Named addresses {:?}", addrs);
+    debug!("Named addresses {addrs:?}");
 
     let env = run_model_builder_with_options_and_compilation_flags(
         vec![PackagePaths {
@@ -272,7 +272,7 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
     {
         let module = global_env.get_module(mod_id);
         let modname = module.llvm_module_name();
-        debug!("Generating code for module {}", modname);
+        debug!("Generating code for module {modname}");
         let llmod = global_cx.llvm_cx.create_module(&modname);
         let module_source_path = module.get_source_path().to_str().expect("utf-8");
         let mod_cx =
@@ -292,13 +292,13 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
                 path.set_extension(&options.output_file_extension);
                 output_file = path.to_string_lossy().to_string();
             }
-            debug!("Output generated code to {}", output_file);
+            debug!("Output generated code to {output_file}");
             llmod.write_to_file(options.llvm_ir, &output_file)?;
         } else {
             if options.compile {
                 output_file = options.output.clone();
             }
-            debug!("Output generated code to {}", output_file);
+            debug!("Output generated code to {output_file}");
             write_object_file(llmod, &llmachine, &output_file)?;
         }
         if !(options.compile || options.llvm_ir) {
