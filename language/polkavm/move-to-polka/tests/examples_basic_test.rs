@@ -1,6 +1,6 @@
 use log::info;
 use move_to_polka::initialize_logger;
-use polkavm::{Config, Engine, Linker, Module};
+use polkavm::{CallError, Config, Engine, Linker, Module, ModuleConfig};
 
 mod common;
 use common::*;
@@ -39,8 +39,9 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore = "doesnt work yet - need further push LLVM implementation"]
+#[serial]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
+    initialize_logger();
     let move_src = format!("{}/sources", MOVE_STDLIB_PATH);
     let build_options = BuildOptions::new("output/basic.o")
         .source("../examples/basic/sources/basic.move")
@@ -52,9 +53,22 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 
     let config = Config::from_env()?;
     let engine = Engine::new(&config)?;
-    let module = Module::from_blob(&engine, &Default::default(), blob)?;
 
-    let linker: Linker = Linker::new();
+    let mut module_config = ModuleConfig::new();
+    module_config.set_strict(true); // enforce module loading fail if not all host functions are provided
+
+    let module = Module::from_blob(&engine, &module_config, blob)?;
+
+    let mut linker: Linker<_, ProgramError> = Linker::new();
+
+    linker.define_typed("debug_print", |ptr_to_type: u32, ptr_to_data: u32| {
+        info!("debug_print called. type ptr: {ptr_to_type:x} Data ptr: {ptr_to_data:x}");
+        Ok(())
+    })?;
+
+    linker.define_typed("abort", |code: u64| {
+        Result::<(), _>::Err(ProgramError::Abort(code))
+    })?;
 
     // Link the host functions with the module.
     let instance_pre = linker.instantiate_pre(&module)?;
@@ -63,12 +77,17 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
     let mut instance = instance_pre.instantiate()?;
 
     // Grab the function and call it.
-    println!("Calling into the guest program (high level):");
     let result = instance
-        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "sum", (1, 10))
+        .call_typed_and_get_result::<u64, ()>(&mut (), "bar", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 11);
+    assert_eq!(result, 19);
 
+    let result =
+        instance.call_typed_and_get_result::<(), (u64,)>(&mut (), "abort_with_code", (42,));
+    assert!(matches!(
+        result,
+        Err(CallError::User(ProgramError::Abort(42)))
+    ));
     Ok(())
 }
 
@@ -104,6 +123,7 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 pub fn test_multi_module_call() -> anyhow::Result<()> {
     initialize_logger();
     let build_options = BuildOptions::new("output/multi_module_call.polkavm")

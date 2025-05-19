@@ -52,6 +52,7 @@ jobs:
           sudo apt-get install -y llvm-19 llvm-19-dev lld-19 llvm-19-tools clang-19 libclang-19-dev libpolly-19-dev
           llvm-config-19 --version
           sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-19 100
+          echo "/usr/lib/llvm-19/bin" >> $GITHUB_PATH
 
       - name: Install LLVM 19 on MacOS
         if: matrix.os == 'macos-latest'

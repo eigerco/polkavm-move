@@ -23,6 +23,9 @@ pub struct BuildOptions {
 
 impl BuildOptions {
     pub fn new(output_file: &str) -> Self {
+        // FIXME(tadas) this should be handled in nicer way
+        std::env::set_var("MOVE_NATIVE", "../../polkavm-move-native");
+
         let mut options = Options::default();
         options.output = output_file.to_string();
         options.llvm_ir = false;
@@ -54,4 +57,10 @@ pub fn build_polka_from_move(options: BuildOptions) -> anyhow::Result<Vec<u8>> {
     //TODO it would be so nice if compile won't access FS directly so we can work purely in-memory
     let data = std::fs::read(output_file)?;
     Ok(data)
+}
+
+#[derive(Debug)]
+pub enum ProgramError {
+    // move abort called with code
+    Abort(u64),
 }

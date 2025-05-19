@@ -1,0 +1,13 @@
+[package]
+name = "polkavm-move-native"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+polkavm-derive = "0.23.0"
+
+[features]
+polkavm = []
