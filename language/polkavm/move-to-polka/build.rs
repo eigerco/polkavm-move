@@ -39,7 +39,7 @@ fn fetch_move_stdlib() -> anyhow::Result<()> {
 }
 
 fn build_move_native_lib() -> anyhow::Result<()> {
-    let tools = platform_tools::get_platform_tools().expect("platform tools");
+    let tools = build_tools::get_platform_tools().expect("platform tools");
 
     let move_native_crate =
         std::env::var("MOVE_NATIVE_CRATE").unwrap_or("../../polkavm-move-native".to_string());

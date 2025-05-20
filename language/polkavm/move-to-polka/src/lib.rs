@@ -78,7 +78,7 @@ fn link_object_files(
 ) -> anyhow::Result<PathBuf> {
     log::trace!("link_object_files");
 
-    let tools = platform_tools::get_platform_tools()?;
+    let tools = build_tools::get_platform_tools()?;
 
     let native_lib_content = native::move_native_lib_content();
 

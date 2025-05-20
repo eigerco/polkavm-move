@@ -1,4 +1,7 @@
-use std::{path::PathBuf, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use anyhow::Context;
 use itertools::Itertools;
@@ -62,7 +65,7 @@ impl PlatformTools {
 
     pub fn get_native_runtime_lib(
         &self,
-        crate_path: &PathBuf,
+        crate_path: &Path,
         out_path: &PathBuf,
     ) -> anyhow::Result<PathBuf> {
         debug!("building move-native runtime for polkavm in {out_path:?}");
