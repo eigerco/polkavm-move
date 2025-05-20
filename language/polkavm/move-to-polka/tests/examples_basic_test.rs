@@ -1,6 +1,6 @@
 use log::info;
 use move_to_polka::initialize_logger;
-use polkavm::{CallError, Config, Engine, Linker, Module, ModuleConfig};
+use polkavm::{CallError, Config, Engine, Instance, Linker, Module, ModuleConfig};
 
 mod common;
 use common::*;
@@ -9,25 +9,11 @@ use serial_test::serial;
 #[test]
 #[serial] // TODO: find the reason this needs to run serially on macOS
 pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
-    let build_options = BuildOptions::new("output/morebasic.polkavm")
-        .source("../examples/basic/sources/morebasic.move");
-
-    let move_byte_code = build_polka_from_move(build_options)?;
-
-    let blob = parse_to_blob(&move_byte_code)?;
-
-    let config = Config::from_env()?;
-    let engine = Engine::new(&config)?;
-    let module = Module::from_blob(&engine, &Default::default(), blob)?;
-
-    let linker: Linker = Linker::new();
-
-    // Link the host functions with the module.
-    let instance_pre = linker.instantiate_pre(&module)?;
-
-    // Instantiate the module.
-    let mut instance = instance_pre.instantiate()?;
-
+    let mut instance = build_instance(
+        "output/morebasic.polkavm",
+        "../examples/basic/sources/morebasic.move",
+        Vec::new(),
+    )?;
     // Grab the function and call it.
     info!("Calling into the guest program (high level):");
     let result = instance
@@ -94,24 +80,11 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_tuple_implementation() -> anyhow::Result<()> {
-    let build_options =
-        BuildOptions::new("output/tuple.polkavm").source("../examples/basic/sources/tuple.move");
-
-    let program_bytes = build_polka_from_move(build_options)?;
-    let blob = parse_to_blob(&program_bytes)?;
-
-    let config = Config::from_env()?;
-    let engine = Engine::new(&config)?;
-    let module = Module::from_blob(&engine, &Default::default(), blob)?;
-
-    let linker: Linker = Linker::new();
-
-    // Link the host functions with the module.
-    let instance_pre = linker.instantiate_pre(&module)?;
-
-    // Instantiate the module.
-    let mut instance = instance_pre.instantiate()?;
-
+    let mut instance = build_instance(
+        "output/tuple.polkavm",
+        "../examples/basic/sources/tuple.move",
+        Vec::new(),
+    )?;
     // Grab the function and call it.
     info!("Calling into the guest program (high level):");
     let result = instance
@@ -124,12 +97,29 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 
 #[test]
 #[serial]
-pub fn test_multi_module_call() -> anyhow::Result<()> {
-    initialize_logger();
-    let build_options = BuildOptions::new("output/multi_module_call.polkavm")
-        .source("../examples/multi_module/sources/modules2.move")
-        .address_mapping("multi_module=0x7");
+pub fn test_multi_module_call2() -> anyhow::Result<()> {
+    let mut instance = build_instance(
+        "output/multi_module_call.polkavm",
+        "../examples/multi_module/sources/modules2.move",
+        vec!["multi_module=0x7"],
+    )?;
 
+    // Grab the function and call it.
+    info!("Calling into the guest program (high level):");
+    let result = instance
+        .call_typed_and_get_result::<u32, (u32, u32, u32)>(&mut (), "add_all", (10, 5, 5))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 20);
+
+    Ok(())
+}
+
+fn build_instance(output: &str, source: &str, mapping: Vec<&str>) -> anyhow::Result<Instance> {
+    initialize_logger();
+    let mut build_options = BuildOptions::new(output).source(source);
+    for m in mapping {
+        build_options = build_options.address_mapping(m);
+    }
     let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
@@ -143,14 +133,7 @@ pub fn test_multi_module_call() -> anyhow::Result<()> {
     let instance_pre = linker.instantiate_pre(&module)?;
 
     // Instantiate the module.
-    let mut instance = instance_pre.instantiate()?;
+    let instance = instance_pre.instantiate()?;
 
-    // Grab the function and call it.
-    info!("Calling into the guest program (high level):");
-    let result = instance
-        .call_typed_and_get_result::<u32, (u32, u32, u32)>(&mut (), "add_all", (10, 5, 5))
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 20);
-
-    Ok(())
+    Ok(instance)
 }
