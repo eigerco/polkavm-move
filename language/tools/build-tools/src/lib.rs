@@ -6,14 +6,61 @@ use std::{
 use anyhow::Context;
 use itertools::Itertools;
 use log::{debug, error};
+use which::{which, which_in};
 
-pub struct PlatformTools {
+pub struct Lld(PathBuf);
+
+impl Lld {
+    pub fn try_init() -> anyhow::Result<Self> {
+        let path = which("ld.lld")
+            .or(which_in("ld.lld", Some("/opt/homebrew/bin"), "/"))
+            .context("no ld.lld in PATH")?;
+        Ok(Self(path))
+    }
+
+    pub fn merge_object_files(
+        &self,
+        sources: &[&PathBuf],
+        output: &PathBuf,
+        gc_sections: bool,
+    ) -> anyhow::Result<()> {
+        let mut cmd = Command::new(&self.0);
+        // this flag is essential as it strips all unused symbols AFTER we merge native lib with actual move program code
+        // otherwise there are lot of bits (like atomics) included by rust compiler which result in undefined symbols
+        // during polka linking phase.
+        if gc_sections {
+            cmd.arg("--gc-sections");
+        }
+        let status = cmd.arg("-r").arg("-o").arg(output).args(sources).status()?;
+        if !status.success() {
+            error!("ld.lld execution error:");
+            anyhow::bail!("lld failed: exit status: {}", status.code().unwrap())
+        }
+        Ok(())
+    }
+}
+
+pub struct NativeBuildTools {
     cargo: PathBuf,
-    lld: PathBuf,
+    lld: Lld,
     llvm_ar: PathBuf,
 }
 
-impl PlatformTools {
+impl NativeBuildTools {
+    pub fn try_init() -> anyhow::Result<Self> {
+        Ok(Self {
+            cargo: which("cargo").context("no cargo in PATH")?,
+            lld: Lld::try_init()?,
+            llvm_ar: which("llvm-ar")
+                .or(which_in(
+                    "llvm-ar",
+                    Some("/opt/homebrew/opt/llvm/bin/"),
+                    "/",
+                ))
+                .context("no llvm-ar in PATH")?,
+        })
+    }
+
     fn run_cargo(
         &self,
         crate_dir: &PathBuf,
@@ -63,7 +110,7 @@ impl PlatformTools {
         Ok(())
     }
 
-    pub fn get_native_runtime_lib(
+    pub fn build_native_move_lib(
         &self,
         crate_path: &Path,
         out_path: &PathBuf,
@@ -131,7 +178,7 @@ impl PlatformTools {
             }
         }
 
-        self.merge_object_files(
+        self.lld.merge_object_files(
             &object_files.iter().collect_vec(),
             &final_object_file,
             false,
@@ -139,45 +186,4 @@ impl PlatformTools {
 
         Ok(final_object_file)
     }
-
-    pub fn merge_object_files(
-        &self,
-        sources: &[&PathBuf],
-        output: &PathBuf,
-        gc_sections: bool,
-    ) -> anyhow::Result<()> {
-        let mut cmd = Command::new(&self.lld);
-        // this flag is essential as it strips all unused symbols AFTER we merge native lib with actual move program code
-        // otherwise there are lot of bits (like atomics) included by rust compiler which result in undefined symbols
-        // during polka linking phase.
-        if gc_sections {
-            cmd.arg("--gc-sections");
-        }
-        let status = cmd.arg("-r").arg("-o").arg(output).args(sources).status()?;
-        if !status.success() {
-            error!("ld.lld execution error:");
-            anyhow::bail!("lld failed: exit status: {}", status.code().unwrap())
-        }
-        Ok(())
-    }
-}
-
-pub fn get_platform_tools() -> anyhow::Result<PlatformTools> {
-    use which::{which, which_in};
-
-    let tools = PlatformTools {
-        cargo: which("cargo").context("no cargo in PATH")?,
-        lld: which("ld.lld")
-            .or(which_in("ld.lld", Some("/opt/homebrew/bin"), "/"))
-            .context("no ld.lld in PATH")?,
-        llvm_ar: which("llvm-ar")
-            .or(which_in(
-                "llvm-ar",
-                Some("/opt/homebrew/opt/llvm/bin/"),
-                "/",
-            ))
-            .context("no llvm-ar in PATH")?,
-    };
-
-    Ok(tools)
 }

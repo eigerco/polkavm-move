@@ -78,7 +78,7 @@ fn link_object_files(
 ) -> anyhow::Result<PathBuf> {
     log::trace!("link_object_files");
 
-    let tools = build_tools::get_platform_tools()?;
+    let lld = build_tools::Lld::try_init()?;
 
     let native_lib_content = native::move_native_lib_content();
 
@@ -95,7 +95,7 @@ fn link_object_files(
     log::debug!("Native lib available at: {move_native:?}");
 
     let merged_object = out_path.join("merged.o");
-    tools.merge_object_files(
+    lld.merge_object_files(
         &objects.iter().chain(once(&move_native)).collect_vec(),
         &merged_object,
         true,
