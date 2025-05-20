@@ -1,0 +1,10 @@
+[package]
+name = "build-tools"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.98"
+itertools = "0.14.0"
+log = "0.4.27"
+which = "7.0.3"

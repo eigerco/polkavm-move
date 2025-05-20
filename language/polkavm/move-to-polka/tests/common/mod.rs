@@ -23,8 +23,6 @@ pub struct BuildOptions {
 
 impl BuildOptions {
     pub fn new(output_file: &str) -> Self {
-        // FIXME(tadas) this should be handled in nicer way
-        std::env::set_var("MOVE_NATIVE", "../../polkavm-move-native");
         let options = Options {
             output: output_file.to_string(),
             llvm_ir: false,

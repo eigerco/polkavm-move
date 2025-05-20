@@ -7,6 +7,7 @@ members = [
     "language/polkavm/move-to-polka",
     "language/tools/move-mv-llvm-compiler",
     "language/tools/polkavm-wrapper",
+    "language/tools/build-tools",
 ]
 
 # NOTE: default-members is the complete list of binaries that form the "production Move codebase". These members should
@@ -18,6 +19,7 @@ default-members = [
     # "language/move-native",
     "language/polkavm/move-to-polka",
     "language/tools/polkavm-wrapper",
+    "language/tools/build-tools",
 ]
 
 # Dependencies that should be kept in sync through the whole workspace
