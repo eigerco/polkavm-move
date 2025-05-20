@@ -58,32 +58,22 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           brew install llvm@19 lld
-      
+
       - name: Check ld.ldd version
         run: |
           which ld.lld
           ld.lld --version
 
       - name: Install Rust
-        if: matrix.rust != 'nightly'
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
           components: clippy, rustfmt
 
-      - name: Install Rust miri if nightly
-        if: matrix.rust == 'nightly'
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: ${{ matrix.rust }}
-          components: miri
-
       - name: Check formatting
-        if: matrix.rust == 'stable'
         run: cargo fmt -- --check
 
       - name: Lint with Clippy
-        if: matrix.rust == 'stable'
         run: cargo clippy -- -D warnings
 
       - name: Build
@@ -97,7 +87,3 @@ jobs:
         env:
           RUST_BACKTRACE: full
         run: cargo test --verbose
-
-      # - name: Test with Miri on nightly
-      #   if: matrix.rust == 'nightly'
-      #   run: cargo miri test
