@@ -4,7 +4,7 @@ resolver = "2"
 members = [
     #"language/move-native",
     "language/polkavm-move-native",
-    "language/polkavm/move-to-polka",
+    "language/polkavm/move-to-polka", "language/polkavm/platform-tools",
     "language/tools/move-mv-llvm-compiler",
     "language/tools/polkavm-wrapper",
 ]

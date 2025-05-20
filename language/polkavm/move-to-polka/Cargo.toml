@@ -44,6 +44,7 @@ serde_json = "1.0.64"
 tempfile = "3.2"
 hex = "0.4"
 which = "7.0.3"
+platform-tools = { path = "../platform-tools" }
 
 [dev-dependencies]
 polkavm = "0.23.0"
@@ -53,3 +54,5 @@ serial_test = "3.2.0"
 move-stdlib = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-stdlib" }
 cargo_metadata = "0.19"
 thiserror = "2.0"
+platform-tools = { path = "../platform-tools" }
+anyhow = "1.0.98"

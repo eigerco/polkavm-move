@@ -4,9 +4,9 @@
 
 pub mod cstr;
 pub mod linker;
+pub mod native;
 pub mod options;
 pub mod stackless;
-pub mod tools;
 
 use crate::options::Options;
 
@@ -38,7 +38,6 @@ use std::{
     iter::once,
     path::{Path, PathBuf},
 };
-use tools::get_platform_tools;
 
 // init logger from RUST_LOG env var, defaults to INFO
 pub fn initialize_logger() {
@@ -75,23 +74,29 @@ fn link_object_files(
     out_path: PathBuf,
     objects: &[PathBuf],
     polka_object_file: PathBuf,
-    move_native: &Option<String>,
+    move_native_path: Option<&str>,
 ) -> anyhow::Result<PathBuf> {
     log::trace!("link_object_files");
 
-    let tools = get_platform_tools()?;
+    let tools = platform_tools::get_platform_tools()?;
 
-    let move_native_known = move_native.is_some();
-    let empty_path = String::from("");
-    let move_native = move_native.as_ref().unwrap_or(&empty_path);
-    let path = Path::new(move_native).to_path_buf();
-    let move_native_path = if move_native_known { &path } else { &out_path };
-    let runtime = tools.get_native_runtime_lib(move_native_path)?;
-    log::debug!("Native lib available at: {runtime:?}");
+    let native_lib_content = native::move_native_lib_content();
+
+    let move_native = if let Some(move_native) = move_native_path {
+        // if passed explicitly through args - use that
+        PathBuf::from(move_native)
+    } else {
+        // TODO(tadas) check file already exists and skip this
+        let move_native = out_path.join("move_native.o");
+        std::fs::write(&move_native, native_lib_content)?;
+        move_native
+    };
+
+    log::debug!("Native lib available at: {move_native:?}");
 
     let merged_object = out_path.join("merged.o");
     tools.merge_object_files(
-        &objects.iter().chain(once(&runtime)).collect_vec(),
+        &objects.iter().chain(once(&move_native)).collect_vec(),
         &merged_object,
         true,
     )?;
@@ -310,7 +315,7 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
             out_path,
             objects.as_slice(),
             Path::new(&output_file_path).to_path_buf(),
-            &options.move_native_archive,
+            options.move_native_archive.as_deref(),
         )?;
     }
     Ok(())
@@ -340,7 +345,7 @@ pub fn run_to_polka<W: WriteColor>(error_writer: &mut W, options: Options) -> an
             output.parent().unwrap().to_path_buf(),
             objects.as_slice(),
             output,
-            &options.move_native_archive,
+            options.move_native_archive.as_deref(),
         )?;
         return Ok(());
     }

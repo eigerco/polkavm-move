@@ -60,7 +60,11 @@ impl PlatformTools {
         Ok(())
     }
 
-    pub fn get_native_runtime_lib(&self, out_path: &PathBuf) -> anyhow::Result<PathBuf> {
+    pub fn get_native_runtime_lib(
+        &self,
+        crate_path: &PathBuf,
+        out_path: &PathBuf,
+    ) -> anyhow::Result<PathBuf> {
         debug!("building move-native runtime for polkavm in {out_path:?}");
         let final_object_file = out_path.join("polkavm_native_final.o");
 
@@ -68,15 +72,13 @@ impl PlatformTools {
             return Ok(final_object_file);
         }
 
-        let move_native = std::env::var("MOVE_NATIVE").expect("move native");
-        let move_native = PathBuf::from(move_native).canonicalize()?;
         let target_json = "riscv32emac-unknown-none-polkavm.json".to_string();
 
         // Using `cargo rustc` to compile move-native as a staticlib.
         // See move-native documentation on `no-std` compatibilty for explanation.
         // Release mode is required to eliminate large stack frames.
         self.run_cargo(
-            &move_native.canonicalize()?,
+            &crate_path.canonicalize()?,
             &out_path.canonicalize()?,
             &[
                 "rustc",
