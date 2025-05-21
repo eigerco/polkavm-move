@@ -35,6 +35,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Cache Cargo registry and target
         uses: actions/cache@v4
@@ -43,7 +45,7 @@ jobs:
             target
           key: ${{ env.cache_version }}-${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ env.cache_version }}-$${{ runner.os }}-cargo-${{ matrix.rust }}-
+            ${{ env.cache_version }}-${{ runner.os }}-cargo-${{ matrix.rust }}-
 
       - name: Install LLVM 19 on Ubuntu
         if: matrix.os == 'ubuntu-latest'
