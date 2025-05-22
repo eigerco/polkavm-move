@@ -41,11 +41,13 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
     let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
-    let config = Config::from_env()?;
+    let mut config = Config::from_env()?;
+    config.set_allow_dynamic_paging(true);
     let engine = Engine::new(&config)?;
 
     let mut module_config = ModuleConfig::new();
     module_config.set_strict(true); // enforce module loading fail if not all host functions are provided
+    module_config.set_dynamic_paging(true); // needed if we want to use heap
 
     let module = Module::from_blob(&engine, &module_config, blob)?;
 
@@ -71,7 +73,11 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
         Err(CallError::User(ProgramError::Abort(42)))
     ));
 
-    let move_signer = MoveSigner(MoveAddress([1u8; ACCOUNT_ADDRESS_LENGTH]));
+    let mut move_signer = MoveSigner(MoveAddress([1u8; ACCOUNT_ADDRESS_LENGTH]));
+    // set markers for debug displaying
+    move_signer.0 .0[0] = 0xab;
+    move_signer.0 .0[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
     let signer_address = allocator.load_to(&mut instance, &move_signer)?;
 
     let result = instance
