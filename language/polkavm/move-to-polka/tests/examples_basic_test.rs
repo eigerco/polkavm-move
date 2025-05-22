@@ -5,7 +5,7 @@ use polkavm::{CallError, Config, Engine, Instance, Linker, Module, ModuleConfig}
 mod common;
 use common::*;
 use polkavm_move_native::{
-    host::{load_to, new_move_program_linker, ProgramError},
+    host::{new_move_program_linker, MemAllocator, ProgramError},
     types::{MoveAddress, MoveSigner, ACCOUNT_ADDRESS_LENGTH},
 };
 use serial_test::serial;
@@ -56,6 +56,7 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 
     // Instantiate the module.
     let mut instance = instance_pre.instantiate()?;
+    let mut allocator = MemAllocator::init(instance.module());
 
     // Grab the function and call it.
     let result = instance
@@ -71,9 +72,10 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
     ));
 
     let move_signer = MoveSigner(MoveAddress([1u8; ACCOUNT_ADDRESS_LENGTH]));
+    let signer_address = allocator.load_to(&mut instance, &move_signer)?;
 
     let result = instance
-        .call_typed_and_get_result::<u64, _>(&mut (), "foo", (load_to(&instance, &move_signer),))
+        .call_typed_and_get_result::<u64, _>(&mut (), "foo", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     assert_eq!(result, 17);
 

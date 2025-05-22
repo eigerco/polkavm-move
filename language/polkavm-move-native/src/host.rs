@@ -1,5 +1,5 @@
 use log::info;
-use polkavm::{Instance, Linker};
+use polkavm::{Instance, Linker, MemoryAccessError, Module};
 
 use crate::types::MoveSigner;
 
@@ -32,6 +32,36 @@ pub fn new_move_program_linker<T>() -> LinkerResult<MoveProgramLinker<T>> {
     Ok(linker)
 }
 
-pub fn load_to<T>(instance: &Instance<T, ProgramError>, signer: &MoveSigner) -> u32 {
-    0
+// we probably gonna need to wrap polkavm instance too
+pub struct MemAllocator {
+    next_available_address: u32,
+}
+
+impl MemAllocator {
+    pub fn init(module: &Module) -> Self {
+        let memory_map = module.memory_map();
+        Self {
+            next_available_address: memory_map.heap_base(),
+        }
+    }
+    // this can be generalized to any arbitrary type &T
+    pub fn load_to<T>(
+        &mut self,
+        instance: &mut Instance<T, ProgramError>,
+        signer: &MoveSigner,
+    ) -> Result<u32, MemoryAccessError> {
+        let size_to_write = size_of::<MoveSigner>();
+        // TODO: add available mem checking
+
+        let slice = unsafe {
+            core::slice::from_raw_parts((signer as *const MoveSigner) as *const u8, size_to_write)
+        };
+
+        let address_to_write = self.next_available_address;
+        instance.write_memory(address_to_write, slice)?;
+
+        self.next_available_address += size_to_write as u32;
+
+        Ok(address_to_write)
+    }
 }
