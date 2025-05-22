@@ -43,7 +43,7 @@ fn build_move_native_lib() -> anyhow::Result<()> {
 
     let move_native_crate =
         std::env::var("MOVE_NATIVE_CRATE").unwrap_or("../../polkavm-move-native".to_string());
-    println!("cargo:rerun-if-changed={move_native_crate}");
+    //println!("cargo:rerun-if-changed={move_native_crate}");
     let move_native_crate = PathBuf::from(move_native_crate).canonicalize()?;
 
     let out_path = PathBuf::from(std::env::var("OUT_DIR")?).join("move-native-lib-build");

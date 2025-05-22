@@ -4,6 +4,10 @@ use polkavm::{CallError, Config, Engine, Instance, Linker, Module, ModuleConfig}
 
 mod common;
 use common::*;
+use polkavm_move_native::{
+    host::{load_to, new_move_program_linker, ProgramError},
+    types::{MoveAddress, MoveSigner, ACCOUNT_ADDRESS_LENGTH},
+};
 use serial_test::serial;
 
 #[test]
@@ -45,16 +49,7 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 
     let module = Module::from_blob(&engine, &module_config, blob)?;
 
-    let mut linker: Linker<_, ProgramError> = Linker::new();
-
-    linker.define_typed("debug_print", |ptr_to_type: u32, ptr_to_data: u32| {
-        info!("debug_print called. type ptr: {ptr_to_type:x} Data ptr: {ptr_to_data:x}");
-        Ok(())
-    })?;
-
-    linker.define_typed("abort", |code: u64| {
-        Result::<(), _>::Err(ProgramError::Abort(code))
-    })?;
+    let linker: Linker<_, ProgramError> = new_move_program_linker()?;
 
     // Link the host functions with the module.
     let instance_pre = linker.instantiate_pre(&module)?;
@@ -74,6 +69,14 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
         result,
         Err(CallError::User(ProgramError::Abort(42)))
     ));
+
+    let move_signer = MoveSigner(MoveAddress([1u8; ACCOUNT_ADDRESS_LENGTH]));
+
+    let result = instance
+        .call_typed_and_get_result::<u64, _>(&mut (), "foo", (load_to(&instance, &move_signer),))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 17);
+
     Ok(())
 }
 

@@ -2270,6 +2270,7 @@ dependencies = [
  "parking_lot",
  "polkavm 0.23.0",
  "polkavm-linker",
+ "polkavm-move-native",
  "regex",
  "semver",
  "serde",
@@ -2861,6 +2862,8 @@ checksum = "12db943742791949005eeee48034f8db30a19ed18d8854cbb4fb811c27261064"
 name = "polkavm-move-native"
 version = "0.1.0"
 dependencies = [
+ "log",
+ "polkavm 0.23.0",
  "polkavm-derive",
 ]
 
