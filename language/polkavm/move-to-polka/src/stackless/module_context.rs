@@ -486,6 +486,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         let mut linkage = linkage;
         let ll_sym_name = fn_env.llvm_symbol_name(tyvec);
         debug!("Declare Move function {ll_sym_name}");
+        debug!("return type: {fn_data:?}");
         let ll_fn = {
             let ll_fnty = {
                 let ll_rty = if let Some(ty) = self.to_llvm_type(&fn_data.result_type, tyvec) {

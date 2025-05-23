@@ -1286,7 +1286,7 @@ impl FunctionType {
         let mut parameter_types: Vec<_> = parameter_types.iter().map(|t| t.0).collect();
         unsafe {
             FunctionType(LLVMFunctionType(
-                return_type.0,
+                LLVMVoidType(),
                 parameter_types.as_mut_ptr(),
                 parameter_types.len() as libc::c_uint,
                 false as LLVMBool,
