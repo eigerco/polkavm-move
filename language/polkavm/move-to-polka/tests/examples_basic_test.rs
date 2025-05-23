@@ -29,6 +29,23 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial] // TODO: find the reason this needs to run serially on macOS
+pub fn test_void_program_execution() -> anyhow::Result<()> {
+    let mut instance = build_instance(
+        "output/void.polkavm",
+        "../examples/basic/sources/void.move",
+        vec![],
+    )?;
+    // Grab the function and call it.
+    info!("Calling into the guest program (high level):");
+    instance
+        .call_typed_and_get_result::<(), ()>(&mut (), "foo", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
 #[serial]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
     initialize_logger();
