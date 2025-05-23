@@ -73,10 +73,12 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
         Err(CallError::User(ProgramError::Abort(42)))
     ));
 
-    let mut move_signer = MoveSigner(MoveAddress([1u8; ACCOUNT_ADDRESS_LENGTH]));
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
     // set markers for debug displaying
-    move_signer.0 .0[0] = 0xab;
-    move_signer.0 .0[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
 
     let signer_address = allocator.load_to(&mut instance, &move_signer)?;
 

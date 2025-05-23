@@ -1,7 +1,7 @@
 use core::alloc::{GlobalAlloc, Layout};
 
-use crate::ALLOC_CODE;
 use super::imports::abort;
+use crate::ALLOC_CODE;
 
 pub struct DummyAlloc;
 
