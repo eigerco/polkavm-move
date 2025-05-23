@@ -110,6 +110,64 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 
 #[test]
 #[serial]
+pub fn test_multi_module_call() -> anyhow::Result<()> {
+    initialize_logger();
+    let move_src = format!("{MOVE_STDLIB_PATH}/sources");
+    let build_options = BuildOptions::new("output/basic.o")
+        .source("../examples/multi_module/sources/modules.move")
+        .dependency(&move_src)
+        .address_mapping("std=0x1")
+        .address_mapping("multi_module=0x7");
+
+    let program_bytes = build_polka_from_move(build_options)?;
+    let blob = parse_to_blob(&program_bytes)?;
+
+    let mut config = Config::from_env()?;
+    config.set_allow_dynamic_paging(true);
+    let engine = Engine::new(&config)?;
+
+    let mut module_config = ModuleConfig::new();
+    module_config.set_strict(true); // enforce module loading fail if not all host functions are provided
+    module_config.set_dynamic_paging(true); // needed if we want to use heap
+
+    let module = Module::from_blob(&engine, &module_config, blob)?;
+
+    let linker: Linker<_, ProgramError> = new_move_program_linker()?;
+
+    // Link the host functions with the module.
+    let instance_pre = linker.instantiate_pre(&module)?;
+
+    // Instantiate the module.
+    let mut instance = instance_pre.instantiate()?;
+    let mut allocator = MemAllocator::init(instance.module());
+
+    // first try to call the void params function
+    // TODO: make it work for void return type too
+    let result = instance
+        .call_typed_and_get_result::<u64, _>(&mut (), "foo_bar", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 42);
+
+    // now set up the signer
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.load_to(&mut instance, &move_signer)?;
+
+    let result = instance
+        .call_typed_and_get_result::<u64, _>(&mut (), "foo", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 17);
+
+    Ok(())
+}
+
+#[test]
+#[serial]
 pub fn test_multi_module_call2() -> anyhow::Result<()> {
     let mut instance = build_instance(
         "output/multi_module_call.polkavm",
