@@ -4,6 +4,10 @@ use polkavm::{CallError, Config, Engine, Instance, Linker, Module, ModuleConfig}
 
 mod common;
 use common::*;
+use polkavm_move_native::{
+    host::{new_move_program_linker, MemAllocator, ProgramError},
+    types::{MoveAddress, MoveSigner, ACCOUNT_ADDRESS_LENGTH},
+};
 use serial_test::serial;
 
 #[test]
@@ -37,30 +41,24 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
     let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
-    let config = Config::from_env()?;
+    let mut config = Config::from_env()?;
+    config.set_allow_dynamic_paging(true);
     let engine = Engine::new(&config)?;
 
     let mut module_config = ModuleConfig::new();
     module_config.set_strict(true); // enforce module loading fail if not all host functions are provided
+    module_config.set_dynamic_paging(true); // needed if we want to use heap
 
     let module = Module::from_blob(&engine, &module_config, blob)?;
 
-    let mut linker: Linker<_, ProgramError> = Linker::new();
-
-    linker.define_typed("debug_print", |ptr_to_type: u32, ptr_to_data: u32| {
-        info!("debug_print called. type ptr: {ptr_to_type:x} Data ptr: {ptr_to_data:x}");
-        Ok(())
-    })?;
-
-    linker.define_typed("abort", |code: u64| {
-        Result::<(), _>::Err(ProgramError::Abort(code))
-    })?;
+    let linker: Linker<_, ProgramError> = new_move_program_linker()?;
 
     // Link the host functions with the module.
     let instance_pre = linker.instantiate_pre(&module)?;
 
     // Instantiate the module.
     let mut instance = instance_pre.instantiate()?;
+    let mut allocator = MemAllocator::init(instance.module());
 
     // Grab the function and call it.
     let result = instance
@@ -74,6 +72,21 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
         result,
         Err(CallError::User(ProgramError::Abort(42)))
     ));
+
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.load_to(&mut instance, &move_signer)?;
+
+    let result = instance
+        .call_typed_and_get_result::<u64, _>(&mut (), "foo", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 17);
+
     Ok(())
 }
 

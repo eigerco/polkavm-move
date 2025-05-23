@@ -57,9 +57,3 @@ pub fn build_polka_from_move(options: BuildOptions) -> anyhow::Result<Vec<u8>> {
     let data = std::fs::read(output_file)?;
     Ok(data)
 }
-
-#[derive(Debug)]
-pub enum ProgramError {
-    // move abort called with code
-    Abort(u64),
-}

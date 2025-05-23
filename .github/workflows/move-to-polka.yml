@@ -81,7 +81,9 @@ jobs:
 
       - name: Enable unprivileged user namespaces
         if: matrix.os == 'ubuntu-latest'
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo sysctl -w vm.unprivileged_userfaultfd=1
 
       - name: Run tests
         env:

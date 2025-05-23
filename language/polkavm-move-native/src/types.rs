@@ -15,7 +15,7 @@ pub struct MoveUntypedVector {
     pub capacity: u64, // in typed elements, not u8
     pub length: u64,   // in typed elements, not u8
 }
-// pub const MOVE_UNTYPED_VEC_DESC_SIZE: u64 = core::mem::size_of::<MoveUntypedVector>() as u64;
+pub const MOVE_UNTYPED_VEC_DESC_SIZE: u64 = core::mem::size_of::<MoveUntypedVector>() as u64;
 
 /// A Move vector of bytes.
 ///
@@ -56,7 +56,7 @@ pub struct MoveType {
     pub type_desc: TypeDesc,
     pub type_info: *const TypeInfo,
 }
-// pub const MOVE_TYPE_DESC_SIZE: u64 = core::mem::size_of::<MoveType>() as u64;
+pub const MOVE_TYPE_DESC_SIZE: u64 = core::mem::size_of::<MoveType>() as u64;
 
 /// # Safety
 ///
