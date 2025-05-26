@@ -29,7 +29,6 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial] // TODO: find the reason this needs to run serially on macOS
 pub fn test_void_program_execution() -> anyhow::Result<()> {
     let mut instance = build_instance(
         "output/void.polkavm",
@@ -160,7 +159,7 @@ pub fn test_multi_module_call() -> anyhow::Result<()> {
 
     // first try to call the void params function
     instance
-        .call_typed_and_get_result::<u64, _>(&mut (), "foo_bar", ())
+        .call_typed_and_get_result::<(), _>(&mut (), "foo_bar", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     // now set up the signer
