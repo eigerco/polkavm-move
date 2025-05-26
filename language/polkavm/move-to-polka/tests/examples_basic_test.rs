@@ -45,6 +45,26 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
+pub fn test_arith() -> anyhow::Result<()> {
+    let mut instance = build_instance(
+        "output/arith.polkavm",
+        "../examples/basic/sources/arith.move",
+        vec!["std=0x1"],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "div", (12, 3))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 4);
+
+    let result = instance
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "mul", (12, 3))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 36);
+
+    Ok(())
+}
+
+#[test]
 #[serial]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
     initialize_logger();
