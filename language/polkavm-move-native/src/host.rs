@@ -5,12 +5,19 @@ extern crate std;
 use log::info;
 use polkavm::{Caller, Instance, Linker, MemoryAccessError, Module, RawInstance};
 
-use crate::types::{MoveSigner, MoveType, StaticTypeName, TypeDesc, TypeInfo};
+use crate::{
+    types::{MoveSigner, MoveType, StaticTypeName, TypeDesc},
+    ALLOC_CODE, PANIC_CODE,
+};
 
 #[derive(Debug)]
 pub enum ProgramError {
     // move abort called with code
     Abort(u64),
+    // panics are Rust construct, and are marked with special abort code - it usually means native lib did something weird
+    NativeLibPanic,
+    // there is no allocator available for guest program (Move program to be exact), any calls to malloc result in abort with special code
+    NativeLibAllocatorCall,
     // memory access error when we work inside callbacks and do memory reading
     MemoryAccess(MemoryAccessError),
 }
@@ -37,14 +44,19 @@ pub fn new_move_program_linker() -> LinkerResult<MoveProgramLinker> {
         "debug_print",
         |caller: Caller, ptr_to_type: u32, ptr_to_data: u32| {
             info!("debug_print called. type ptr: {ptr_to_type:x} Data ptr: {ptr_to_data:x}");
-            let move_type: MoveType = load_from(caller.instance, ptr_to_type)?;
-            info!("type info: {:?}", move_type);
+            //let move_type: MoveType = load_from(caller.instance, ptr_to_type)?;
+            //info!("type info: {:?}", move_type);
             Result::<(), ProgramError>::Ok(())
         },
     )?;
 
     linker.define_typed("abort", |code: u64| {
-        Result::<(), _>::Err(ProgramError::Abort(code))
+        let program_error = match code {
+            PANIC_CODE => ProgramError::NativeLibPanic,
+            ALLOC_CODE => ProgramError::NativeLibAllocatorCall,
+            _ => ProgramError::Abort(code),
+        };
+        Result::<(), _>::Err(program_error)
     })?;
     Ok(linker)
 }
