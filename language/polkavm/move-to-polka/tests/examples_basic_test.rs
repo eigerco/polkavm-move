@@ -29,6 +29,7 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 pub fn test_void_program_execution() -> anyhow::Result<()> {
     let mut instance = build_instance(
         "output/void.polkavm",
@@ -45,6 +46,7 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 pub fn test_arith() -> anyhow::Result<()> {
     let mut instance = build_instance(
         "output/arith.polkavm",
