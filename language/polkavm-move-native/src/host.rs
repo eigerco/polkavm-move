@@ -6,7 +6,7 @@ use log::info;
 use polkavm::{Caller, Instance, Linker, MemoryAccessError, Module, RawInstance};
 
 use crate::{
-    types::{MoveSigner, MoveType, StaticTypeName, TypeDesc},
+    types::{MoveSigner, MoveType, TypeDesc},
     ALLOC_CODE, PANIC_CODE,
 };
 
@@ -19,12 +19,12 @@ pub enum ProgramError {
     // there is no allocator available for guest program (Move program to be exact), any calls to malloc result in abort with special code
     NativeLibAllocatorCall,
     // memory access error when we work inside callbacks and do memory reading
-    MemoryAccess(MemoryAccessError),
+    MemoryAccess(std::string::String),
 }
 
 impl From<MemoryAccessError> for ProgramError {
     fn from(value: MemoryAccessError) -> Self {
-        ProgramError::MemoryAccess(value)
+        ProgramError::MemoryAccess(value.to_string())
     }
 }
 
@@ -44,8 +44,10 @@ pub fn new_move_program_linker() -> LinkerResult<MoveProgramLinker> {
         "debug_print",
         |caller: Caller, ptr_to_type: u32, ptr_to_data: u32| {
             info!("debug_print called. type ptr: {ptr_to_type:x} Data ptr: {ptr_to_data:x}");
-            //let move_type: MoveType = load_from(caller.instance, ptr_to_type)?;
-            //info!("type info: {:?}", move_type);
+            let move_type: MoveType = load_from(caller.instance, ptr_to_type)?;
+            info!("type info: {:?}", move_type);
+            let move_value: u64 = load_from(caller.instance, ptr_to_data)?;
+            info!("value: {move_value}");
             Result::<(), ProgramError>::Ok(())
         },
     )?;
@@ -70,7 +72,7 @@ impl MemAllocator {
     pub fn init(module: &Module) -> Self {
         let memory_map = module.memory_map();
         Self {
-            next_available_address: memory_map.heap_base(),
+            next_available_address: memory_map.aux_data_address(),
         }
     }
     // this can be generalized to any arbitrary type &T
@@ -98,18 +100,10 @@ impl MemAllocator {
 fn load_from<T: Sized>(instance: &mut RawInstance, address: u32) -> Result<T, MemoryAccessError> {
     let mut uninit = MaybeUninit::<T>::uninit();
     unsafe {
-        let _dst_bytes: &mut [u8] =
+        let dst_bytes: &mut [u8] =
             core::slice::from_raw_parts_mut(uninit.as_mut_ptr() as *mut u8, size_of::<T>());
-        let mut dst_bytes = [0u8; 1];
-        instance.read_memory_into(address, dst_bytes.as_mut_slice())?;
+        instance.read_memory_into(address, dst_bytes.as_mut())?;
         Ok(uninit.assume_init())
-    }
-}
-
-impl core::fmt::Debug for StaticTypeName {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let str_slice = unsafe { core::slice::from_raw_parts(self.ptr, self.len as usize) };
-        std::string::String::from_utf8_lossy(str_slice).fmt(f)
     }
 }
 
