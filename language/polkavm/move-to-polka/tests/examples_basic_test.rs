@@ -63,6 +63,18 @@ pub fn test_arith() -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     assert_eq!(result, 36);
 
+    // div by zero and overflow should fail
+    let result = instance
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "div", (12, 0))
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_err());
+
+    // overflow on multiplication should fail
+    let result = instance
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "mul", (u64::MAX, 2))
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_err());
+
     Ok(())
 }
 
