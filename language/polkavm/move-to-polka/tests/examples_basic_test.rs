@@ -29,6 +29,22 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
+pub fn test_void_program_execution() -> anyhow::Result<()> {
+    let mut instance = build_instance(
+        "output/void.polkavm",
+        "../examples/basic/sources/void.move",
+        vec![],
+    )?;
+    // Grab the function and call it.
+    info!("Calling into the guest program (high level):");
+    instance
+        .call_typed_and_get_result::<(), ()>(&mut (), "foo", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
 #[serial]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
     initialize_logger();
@@ -142,11 +158,9 @@ pub fn test_multi_module_call() -> anyhow::Result<()> {
     let mut allocator = MemAllocator::init(instance.module());
 
     // first try to call the void params function
-    // TODO: make it work for void return type too
-    let result = instance
-        .call_typed_and_get_result::<u64, _>(&mut (), "foo_bar", ())
+    instance
+        .call_typed_and_get_result::<(), _>(&mut (), "foo_bar", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 42);
 
     // now set up the signer
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];

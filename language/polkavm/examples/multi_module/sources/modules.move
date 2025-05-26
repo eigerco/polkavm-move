@@ -23,9 +23,8 @@ module multi_module::A {
 module multi_module::B {
     use 0x10::debug;
 
-    public entry fun foo_bar(): u64 {
+    public entry fun foo_bar() {
         let val = 42;
         debug::print(&val);
-        val
     }
 }

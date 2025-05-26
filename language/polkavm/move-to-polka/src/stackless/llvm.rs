@@ -1358,7 +1358,10 @@ impl Function {
     pub fn verify(&self, module_cx: &ModuleContext<'_, '_>) {
         use llvm_sys::analysis::*;
         let module_info = module_cx.llvm_module.print_to_str();
-        debug!(target: "function", "Module content:\n{module_info}\n");
+        debug!(target: "verify function", "Module content:");
+        debug!(target: "verify function", "------------------------------");
+        debug!(target: "verify function", "{module_info}");
+        debug!(target: "verify function", "------------------------------");
         unsafe {
             if LLVMVerifyFunction(self.0, LLVMVerifierFailureAction::LLVMPrintMessageAction) == 1 {
                 println!("{} function verifiction failed", &self.get_name());
