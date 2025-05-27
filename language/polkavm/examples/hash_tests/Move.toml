@@ -1,0 +1,9 @@
+[package]
+name = "HashTest"
+version = "1.0.0"
+
+[addresses]
+HashTest = "0xba31"
+
+[dependencies]
+MoveStdlib = { local = "../../../move-stdlib", addr_subst = { "std" = "0x1" } }
