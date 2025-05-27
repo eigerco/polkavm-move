@@ -81,6 +81,7 @@ pub fn test_arith() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
+    std::env::set_var("RUST_LOG", "INFO");
     initialize_logger();
     let move_src = format!("{MOVE_STDLIB_PATH}/sources");
     let build_options = BuildOptions::new("output/basic.polkavm")
@@ -91,15 +92,27 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
     let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
-    let mut config = Config::from_env()?;
-    config.set_allow_dynamic_paging(true);
+    let config = Config::from_env()?;
     let engine = Engine::new(&config)?;
 
     let mut module_config = ModuleConfig::new();
     module_config.set_strict(true); // enforce module loading fail if not all host functions are provided
-    module_config.set_dynamic_paging(true); // needed if we want to use heap
+    module_config.set_aux_data_size(1024 * 4); // 4kbytes for passing data into guest
 
     let module = Module::from_blob(&engine, &module_config, blob)?;
+
+    let memory_map = module.memory_map();
+    info!(
+        "RO: {:X} size {}",
+        memory_map.ro_data_address(),
+        memory_map.ro_data_size()
+    );
+
+    info!(
+        "AUX: {:X} size: {}",
+        memory_map.aux_data_address(),
+        memory_map.aux_data_size()
+    );
 
     let linker: Linker<_, ProgramError> = new_move_program_linker()?;
 
@@ -172,13 +185,12 @@ pub fn test_multi_module_call() -> anyhow::Result<()> {
     let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
-    let mut config = Config::from_env()?;
-    config.set_allow_dynamic_paging(true);
+    let config = Config::from_env()?;
     let engine = Engine::new(&config)?;
 
     let mut module_config = ModuleConfig::new();
     module_config.set_strict(true); // enforce module loading fail if not all host functions are provided
-    module_config.set_dynamic_paging(true); // needed if we want to use heap
+    module_config.set_aux_data_size(4 * 1024);
 
     let module = Module::from_blob(&engine, &module_config, blob)?;
 
