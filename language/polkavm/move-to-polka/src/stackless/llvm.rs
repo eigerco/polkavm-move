@@ -311,7 +311,7 @@ impl Module {
             LLVMSetModuleInlineAsm2(self.0, asm.as_ptr() as *const i8, asm.len());
             let ir_str_ptr = LLVMPrintModuleToString(self.0);
             let ir_str = CStr::from_ptr(ir_str_ptr);
-            println!("Generated LLVM IR:\n{}", ir_str.to_string_lossy());
+            debug!("Generated LLVM IR:\n{}", ir_str.to_string_lossy());
             /*
             File::create(format!("{}.ll", self.2))
                 .unwrap()
@@ -353,16 +353,20 @@ impl Module {
     ) -> Function {
         log::debug!("Adding function {module}:{name}");
         unsafe {
-            let hash = hash_string(format!("{module}::{name}").as_str());
-            let mangled = format!(
-                "_ZN{}{}{}{}17h{}E",
-                module.len(),
-                module,
-                name.len(),
-                name,
-                hash
-            );
-            let function = LLVMAddFunction(self.0, mangled.cstr(), ty.0);
+            let mut symbol = name.to_owned();
+            if module != "native" {
+                let hash = hash_string(format!("{module}::{name}").as_str());
+                let mangled = format!(
+                    "_ZN{}{}{}{}17h{}E",
+                    module.len(),
+                    module,
+                    name.len(),
+                    name,
+                    hash
+                );
+                symbol = mangled;
+            }
+            let function = LLVMAddFunction(self.0, symbol.cstr(), ty.0);
             // TODO(M3: support core Move): it doesnt feel like the right place for polka section generation just on the fly
             // on any function we need to declare. Its looks more like additional pass when finalizing module
             // but we leave this for now to move forward
@@ -374,7 +378,7 @@ impl Module {
                     context,
                     module,
                     name,
-                    mangled.as_str(),
+                    symbol.as_str(),
                     num_args,
                     self.1.clone(),
                 );
@@ -389,22 +393,7 @@ impl Module {
             if !llfn.is_null() {
                 Some(Function(llfn))
             } else {
-                let module = "native";
-                let hash = hash_string(format!("{module}::{name}").as_str());
-                let mangled = format!(
-                    "_ZN{}{}{}{}17h{}E",
-                    module.len(),
-                    module,
-                    name.len(),
-                    name,
-                    hash
-                );
-                let llfn = LLVMGetNamedFunction(self.0, mangled.cstr());
-                if !llfn.is_null() {
-                    Some(Function(llfn))
-                } else {
-                    None
-                }
+                None
             }
         }
     }

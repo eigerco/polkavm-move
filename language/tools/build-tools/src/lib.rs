@@ -118,10 +118,6 @@ impl NativeBuildTools {
         debug!("building move-native runtime for polkavm in {out_path:?}");
         let final_object_file = out_path.join("polkavm_native_final.o");
 
-        if final_object_file.exists() {
-            return Ok(final_object_file);
-        }
-
         let target_json = "riscv32emac-unknown-none-polkavm.json".to_string();
 
         // Using `cargo rustc` to compile move-native as a staticlib.

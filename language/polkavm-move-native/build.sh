@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-
 function build() {
     output_path="output/$1.a"
 
@@ -14,6 +13,8 @@ function build() {
         -Z build-std=core,alloc \
         --target riscv32emac-unknown-none-polkavm.json \
         --release \
+        --features "polkavm" \
+        --verbose \
         -- -C codegen-units=1 -C opt-level=s
 }
 

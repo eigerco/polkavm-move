@@ -75,7 +75,7 @@ fn link_object_files(
     polka_object_file: PathBuf,
     move_native_path: Option<&str>,
 ) -> anyhow::Result<PathBuf> {
-    log::trace!("link_object_files");
+    log::debug!("link_object_files");
 
     let lld = build_tools::Lld::try_init()?;
 
@@ -91,7 +91,7 @@ fn link_object_files(
         move_native
     };
 
-    log::debug!("Native lib available at: {move_native:?}");
+    debug!("Native lib available at: {move_native:?}");
 
     let merged_object = out_path.join("merged.o");
     lld.merge_object_files(
@@ -103,7 +103,7 @@ fn link_object_files(
     let object_bytes = std::fs::read(&merged_object)?;
     let polka_object = load_from_elf_with_polka_linker(&object_bytes)?;
     std::fs::write(&polka_object_file, &polka_object)?;
-    println!(
+    debug!(
         "Polka object file written to: {}",
         polka_object_file.display()
     );
