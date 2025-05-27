@@ -1,5 +1,5 @@
 use crate::{
-    types::{AnyValue, MoveAddress, MoveSigner, MoveType, MoveUntypedVector},
+    types::{AnyValue, MoveAddress, MoveByteVector, MoveSigner, MoveType, MoveUntypedVector},
     vector::{TypedMoveBorrowedRustVec, TypedMoveBorrowedRustVecMut},
 };
 
@@ -12,15 +12,25 @@ unsafe extern "C" fn move_rt_abort(code: u64) {
     imports::abort(code);
 }
 
-#[export_name = "move_rt_vec_empty"]
-unsafe extern "C" fn move_rt_vec_empty() {}
-
-#[export_name = "move_rt_vec_copy"]
-unsafe extern "C" fn move_rt_vec_copy() {}
-
 #[export_name = "move_native_debug_print"]
 unsafe extern "C" fn print(type_x: *const MoveType, x: *const AnyValue) {
     imports::debug_print(type_x, x);
+}
+
+#[export_name = "move_native_hash_sha2_256"]
+unsafe extern "C" fn move_native_hash_sha2_256(
+    t: *const MoveType,
+    bytes: *const MoveByteVector,
+) -> u32 {
+    imports::hash_sha2_256(t, bytes)
+}
+
+#[export_name = "move_native_hash_sha3_256"]
+unsafe extern "C" fn move_native_hash_sha3_256(
+    t: *const MoveType,
+    bytes: *const MoveByteVector,
+) -> u32 {
+    imports::hash_sha3_256(t, bytes)
 }
 
 #[export_name = "move_native_signer_borrow_address"]

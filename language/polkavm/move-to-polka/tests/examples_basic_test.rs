@@ -43,14 +43,30 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
 
 #[test]
 #[serial]
-pub fn test_hash() -> anyhow::Result<()> {
-    let mut instance = build_instance(
+pub fn test_sha2() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
         "output/hash_tests.polkavm",
         "../examples/hash_tests/sources/hash_tests.move",
         vec![],
     )?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(&mut (), "sha2_256_expected_hash", ())
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "sha2_256_expected_hash", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_ok());
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+pub fn test_sha3() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/hash_tests.polkavm",
+        "../examples/hash_tests/sources/hash_tests.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "sha3_256_expected_hash", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(result.is_ok());
 

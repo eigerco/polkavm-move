@@ -23,7 +23,7 @@ pub const MOVE_UNTYPED_VEC_DESC_SIZE: u64 = core::mem::size_of::<MoveUntypedVect
 /// These occur in the API enough to warrant their own type, and there are
 /// dedicated functions to convert them to Rust vectors.
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct MoveByteVector {
     pub ptr: *mut u8,
     pub capacity: u64,
