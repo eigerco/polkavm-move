@@ -83,7 +83,7 @@ pub fn test_arith() -> anyhow::Result<()> {
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
     initialize_logger();
     let move_src = format!("{MOVE_STDLIB_PATH}/sources");
-    let build_options = BuildOptions::new("output/basic.o")
+    let build_options = BuildOptions::new("output/basic.polkavm")
         .source("../examples/basic/sources/basic.move")
         .dependency(&move_src)
         .address_mapping("std=0x1");
@@ -163,7 +163,7 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 pub fn test_multi_module_call() -> anyhow::Result<()> {
     initialize_logger();
     let move_src = format!("{MOVE_STDLIB_PATH}/sources");
-    let build_options = BuildOptions::new("output/basic.o")
+    let build_options = BuildOptions::new("output/modules.polkavm")
         .source("../examples/multi_module/sources/modules.move")
         .dependency(&move_src)
         .address_mapping("std=0x1")
