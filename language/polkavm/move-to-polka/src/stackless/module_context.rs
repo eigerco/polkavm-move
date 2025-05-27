@@ -563,6 +563,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         fn_data: &FunctionData,
         linkage: llvm::LLVMLinkage,
     ) {
+        debug!("Declare native function {}", fn_env.get_full_name_str());
         assert!(fn_env.is_native());
 
         let llcx = &self.llvm_cx;
@@ -840,6 +841,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         val: u64,
     ) {
         let thefn = Self::get_runtime_function_by_name(llvm_cx, llvm_module, rtty_cx, "abort");
+        debug!(target: "runtime", "emit_rtcall_abort_raw({val}): {thefn:?}");
         let param_ty = llvm_cx.int_type(64);
         let const_llval = llvm::Constant::int(param_ty, U256::from(val));
         llvm_builder.build_call_imm(thefn, &[const_llval]);
@@ -871,13 +873,16 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         rtty_cx: &RttyContext,
         rtcall_name: &str,
     ) -> llvm::Function {
+        debug!(target: "runtime", "get_runtime_function_by_name({rtcall_name})");
         let fn_name = format!("move_rt_{rtcall_name}");
         let llfn = llvm_module.get_named_function(&fn_name);
         if let Some(llfn) = llfn {
+            debug!(target: "runtime", "Found existing runtime function {fn_name}");
             llfn
         } else {
             let (llty, attrs) = match rtcall_name {
                 "abort" => {
+                    debug!(target: "runtime", "Declaring abort function {fn_name}");
                     let ret_ty = llvm_cx.void_type();
                     let param_tys = &[llvm_cx.int_type(64)];
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);

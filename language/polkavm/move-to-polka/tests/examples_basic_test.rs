@@ -29,6 +29,7 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
+#[serial]
 pub fn test_void_program_execution() -> anyhow::Result<()> {
     let mut instance = build_instance(
         "output/void.polkavm",
@@ -40,6 +41,39 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
     instance
         .call_typed_and_get_result::<(), ()>(&mut (), "foo", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+pub fn test_arith() -> anyhow::Result<()> {
+    let mut instance = build_instance(
+        "output/arith.polkavm",
+        "../examples/basic/sources/arith.move",
+        vec!["std=0x1"],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "div", (12, 3))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 4);
+
+    let result = instance
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "mul", (12, 3))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 36);
+
+    // div by zero and overflow should fail
+    let result = instance
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "div", (12, 0))
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_err());
+
+    // overflow on multiplication should fail
+    let result = instance
+        .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "mul", (u64::MAX, 2))
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_err());
 
     Ok(())
 }
