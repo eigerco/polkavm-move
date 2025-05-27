@@ -18,8 +18,6 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
         "../examples/basic/sources/morebasic.move",
         Vec::new(),
     )?;
-    // Grab the function and call it.
-    info!("Calling into the guest program (high level):");
     let result = instance
         .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "sum", (1, 10))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -36,11 +34,25 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
         "../examples/basic/sources/void.move",
         vec![],
     )?;
-    // Grab the function and call it.
-    info!("Calling into the guest program (high level):");
     instance
         .call_typed_and_get_result::<(), ()>(&mut (), "foo", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+pub fn test_hash() -> anyhow::Result<()> {
+    let mut instance = build_instance(
+        "output/hash_tests.polkavm",
+        "../examples/hash_tests/sources/hash_tests.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut (), "sha2_256_expected_hash", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_ok());
 
     Ok(())
 }
@@ -51,7 +63,7 @@ pub fn test_arith() -> anyhow::Result<()> {
     let mut instance = build_instance(
         "output/arith.polkavm",
         "../examples/basic/sources/arith.move",
-        vec!["std=0x1"],
+        vec![],
     )?;
     let result = instance
         .call_typed_and_get_result::<u64, (u64, u64)>(&mut (), "div", (12, 3))
@@ -81,46 +93,11 @@ pub fn test_arith() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
-    std::env::set_var("RUST_LOG", "INFO");
-    initialize_logger();
-    let move_src = format!("{MOVE_STDLIB_PATH}/sources");
-    let build_options = BuildOptions::new("output/basic.polkavm")
-        .source("../examples/basic/sources/basic.move")
-        .dependency(&move_src)
-        .address_mapping("std=0x1");
-
-    let program_bytes = build_polka_from_move(build_options)?;
-    let blob = parse_to_blob(&program_bytes)?;
-
-    let config = Config::from_env()?;
-    let engine = Engine::new(&config)?;
-
-    let mut module_config = ModuleConfig::new();
-    module_config.set_strict(true); // enforce module loading fail if not all host functions are provided
-    module_config.set_aux_data_size(1024 * 4); // 4kbytes for passing data into guest
-
-    let module = Module::from_blob(&engine, &module_config, blob)?;
-
-    let memory_map = module.memory_map();
-    info!(
-        "RO: {:X} size {}",
-        memory_map.ro_data_address(),
-        memory_map.ro_data_size()
-    );
-
-    info!(
-        "AUX: {:X} size: {}",
-        memory_map.aux_data_address(),
-        memory_map.aux_data_size()
-    );
-
-    let linker: Linker<_, ProgramError> = new_move_program_linker()?;
-
-    // Link the host functions with the module.
-    let instance_pre = linker.instantiate_pre(&module)?;
-
-    // Instantiate the module.
-    let mut instance = instance_pre.instantiate()?;
+    let mut instance = build_instance(
+        "output/basic.polkavm",
+        "../examples/basic/sources/basic.move",
+        vec![],
+    )?;
     let mut allocator = MemAllocator::init(instance.module());
 
     // Grab the function and call it.
@@ -161,8 +138,6 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
         "../examples/basic/sources/tuple.move",
         Vec::new(),
     )?;
-    // Grab the function and call it.
-    info!("Calling into the guest program (high level):");
     let result = instance
         .call_typed_and_get_result::<u64, (u32, u64)>(&mut (), "add", (10, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -174,33 +149,12 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_multi_module_call() -> anyhow::Result<()> {
-    initialize_logger();
-    let move_src = format!("{MOVE_STDLIB_PATH}/sources");
-    let build_options = BuildOptions::new("output/modules.polkavm")
-        .source("../examples/multi_module/sources/modules.move")
-        .dependency(&move_src)
-        .address_mapping("std=0x1")
-        .address_mapping("multi_module=0x7");
+    let mut instance = build_instance(
+        "output/modules.polkavm",
+        "../examples/multi_module/sources/modules.move",
+        vec!["multi_module=0x7"],
+    )?;
 
-    let program_bytes = build_polka_from_move(build_options)?;
-    let blob = parse_to_blob(&program_bytes)?;
-
-    let config = Config::from_env()?;
-    let engine = Engine::new(&config)?;
-
-    let mut module_config = ModuleConfig::new();
-    module_config.set_strict(true); // enforce module loading fail if not all host functions are provided
-    module_config.set_aux_data_size(4 * 1024);
-
-    let module = Module::from_blob(&engine, &module_config, blob)?;
-
-    let linker: Linker<_, ProgramError> = new_move_program_linker()?;
-
-    // Link the host functions with the module.
-    let instance_pre = linker.instantiate_pre(&module)?;
-
-    // Instantiate the module.
-    let mut instance = instance_pre.instantiate()?;
     let mut allocator = MemAllocator::init(instance.module());
 
     // first try to call the void params function
@@ -235,8 +189,6 @@ pub fn test_multi_module_call2() -> anyhow::Result<()> {
         vec!["multi_module=0x7"],
     )?;
 
-    // Grab the function and call it.
-    info!("Calling into the guest program (high level):");
     let result = instance
         .call_typed_and_get_result::<u32, (u32, u32, u32)>(&mut (), "add_all", (10, 5, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -245,20 +197,47 @@ pub fn test_multi_module_call2() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn build_instance(output: &str, source: &str, mapping: Vec<&str>) -> anyhow::Result<Instance> {
+fn build_instance(
+    output: &str,
+    source: &str,
+    mapping: Vec<&str>,
+) -> anyhow::Result<Instance<(), ProgramError>> {
     initialize_logger();
-    let mut build_options = BuildOptions::new(output).source(source);
+    let move_src = format!("{MOVE_STDLIB_PATH}/sources");
+    let mut build_options = BuildOptions::new(output)
+        .source(source)
+        .dependency(&move_src)
+        .address_mapping("std=0x1");
+    // add additional address mappings if provided
     for m in mapping {
         build_options = build_options.address_mapping(m);
     }
     let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
-    let config = Config::from_env()?;
+    let mut config = Config::from_env()?;
+    config.set_allow_dynamic_paging(true);
     let engine = Engine::new(&config)?;
-    let module = Module::from_blob(&engine, &Default::default(), blob)?;
 
-    let linker: Linker = Linker::new();
+    let mut module_config = ModuleConfig::new();
+    module_config.set_strict(true); // enforce module loading fail if not all host functions are provided
+    module_config.set_aux_data_size(1024 * 4); // 4kbytes for passing data into guest
+
+    let module = Module::from_blob(&engine, &module_config, blob)?;
+    let memory_map = module.memory_map();
+    info!(
+        "RO: {:X} size {}",
+        memory_map.ro_data_address(),
+        memory_map.ro_data_size()
+    );
+
+    info!(
+        "AUX: {:X} size: {}",
+        memory_map.aux_data_address(),
+        memory_map.aux_data_size()
+    );
+
+    let linker: Linker<_, ProgramError> = new_move_program_linker()?;
 
     // Link the host functions with the module.
     let instance_pre = linker.instantiate_pre(&module)?;
