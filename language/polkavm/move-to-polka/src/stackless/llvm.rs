@@ -393,22 +393,7 @@ impl Module {
             if !llfn.is_null() {
                 Some(Function(llfn))
             } else {
-                let module = "native";
-                let hash = hash_string(format!("{module}::{name}").as_str());
-                let mangled = format!(
-                    "_ZN{}{}{}{}17h{}E",
-                    module.len(),
-                    module,
-                    name.len(),
-                    name,
-                    hash
-                );
-                let llfn = LLVMGetNamedFunction(self.0, mangled.cstr());
-                if !llfn.is_null() {
-                    Some(Function(llfn))
-                } else {
-                    None
-                }
+                None
             }
         }
     }
