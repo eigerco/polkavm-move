@@ -18,7 +18,6 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
         "../examples/basic/sources/morebasic.move",
         vec![],
     )?;
-    // Grab the function and call it.
     let result = instance
         .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, "sum", (1, 10))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -35,10 +34,25 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
         "../examples/basic/sources/void.move",
         vec![],
     )?;
-    // Grab the function and call it.
     instance
         .call_typed_and_get_result::<(), ()>(&mut allocator, "foo", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+pub fn test_hash() -> anyhow::Result<()> {
+    let mut instance = build_instance(
+        "output/hash_tests.polkavm",
+        "../examples/hash_tests/sources/hash_tests.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut (), "sha2_256_expected_hash", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_ok());
 
     Ok(())
 }
@@ -121,7 +135,6 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
         "../examples/basic/sources/tuple.move",
         vec![],
     )?;
-    // Grab the function and call it.
     let result = instance
         .call_typed_and_get_result::<u64, (u32, u64)>(&mut allocator, "add", (10, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -205,7 +218,6 @@ pub fn test_multi_module_call2() -> anyhow::Result<()> {
         vec!["multi_module=0x7"],
     )?;
 
-    // Grab the function and call it.
     let result = instance
         .call_typed_and_get_result::<u32, (u32, u32, u32)>(&mut allocator, "add_all", (10, 5, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
