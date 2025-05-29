@@ -41,9 +41,9 @@ pub fn new_move_program_linker() -> LinkerResult<MoveProgramLinker> {
         "debug_print",
         |caller: Caller, ptr_to_type: u32, ptr_to_data: u32| {
             info!("debug_print called. type ptr: {ptr_to_type:x} Data ptr: {ptr_to_data:x}");
-            let move_type: MoveType = load_from(caller.instance, ptr_to_type)?;
+            let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
             info!("type info: {:?}", move_type);
-            let move_value: u64 = load_from(caller.instance, ptr_to_data)?;
+            let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
             info!("value: {move_value}");
             Result::<(), ProgramError>::Ok(())
         },
@@ -80,40 +80,47 @@ impl MemAllocator {
         }
     }
 
+    /// Allocate guest memory in the auxiliary data region.
+    pub fn alloc(&mut self, size: usize, _align: usize) -> Result<u32, MemoryAccessError> {
+        if self.offset as usize + size > self.size {
+            return Err(MemoryAccessError::OutOfRangeAccess {
+                address: self.offset,
+                length: size as u64,
+            });
+        }
+
+        let address = self.base.checked_add(self.offset).ok_or_else(|| {
+            MemoryAccessError::OutOfRangeAccess {
+                address: self.offset,
+                length: size as u64,
+            }
+        })?;
+        self.offset += size as u32;
+
+        Ok(address)
+    }
+
     /// Copy memory host -> guest (aux)
-    pub fn load_to<T: Sized + Copy, U>(
+    pub fn copy_to_guest<T: Sized + Copy, U>(
         &mut self,
         instance: &mut Instance<U, ProgramError>,
         value: &T,
     ) -> Result<u32, MemoryAccessError> {
         let size_to_write = core::mem::size_of::<T>();
-        if self.offset as usize + size_to_write > self.size {
-            return Err(MemoryAccessError::OutOfRangeAccess {
-                address: self.offset,
-                length: size_to_write as u64,
-            });
-        }
+        let address = self.alloc(size_to_write, core::mem::align_of::<T>())?;
 
         // safety: we know we have memory, we just checked
         let slice =
             unsafe { core::slice::from_raw_parts((value as *const T) as *const u8, size_to_write) };
 
-        let address_to_write = self.base.checked_add(self.offset).ok_or_else(|| {
-            MemoryAccessError::OutOfRangeAccess {
-                address: self.offset,
-                length: size_to_write as u64,
-            }
-        })?;
-        instance.write_memory(address_to_write, slice)?;
+        instance.write_memory(address, slice)?;
 
-        self.offset += size_to_write as u32;
-
-        Ok(address_to_write)
+        Ok(address)
     }
 }
 
 /// Copy memory guest (aux) -> host
-fn load_from<T: Sized + Copy>(
+fn copy_from_guest<T: Sized + Copy>(
     instance: &mut RawInstance,
     address: u32,
 ) -> Result<T, MemoryAccessError> {

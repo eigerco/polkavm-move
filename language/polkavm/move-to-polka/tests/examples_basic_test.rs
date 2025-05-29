@@ -143,7 +143,7 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.load_to(&mut instance, &move_signer)?;
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
 
     let result = instance
         .call_typed_and_get_result::<u64, _>(&mut (), "foo", (signer_address,))
@@ -216,7 +216,7 @@ pub fn test_multi_module_call() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.load_to(&mut instance, &move_signer)?;
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
 
     let result = instance
         .call_typed_and_get_result::<u64, _>(&mut (), "foo", (signer_address,))
