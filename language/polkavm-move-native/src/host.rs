@@ -98,7 +98,12 @@ impl MemAllocator {
         let slice =
             unsafe { core::slice::from_raw_parts((value as *const T) as *const u8, size_to_write) };
 
-        let address_to_write = self.base + self.offset;
+        let address_to_write = self.base.checked_add(self.offset).ok_or_else(|| {
+            MemoryAccessError::OutOfRangeAccess {
+                address: self.offset,
+                length: size_to_write as u64,
+            }
+        })?;
         instance.write_memory(address_to_write, slice)?;
 
         self.offset += size_to_write as u32;
