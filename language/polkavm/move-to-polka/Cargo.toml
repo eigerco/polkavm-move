@@ -45,13 +45,13 @@ tempfile = "3.2"
 hex = "0.4"
 which = "7.0.3"
 build-tools = { path = "../../tools/build-tools" }
-
-[dev-dependencies]
 polkavm = "0.23.0"
-serial_test = "3.2.0"
 polkavm-move-native = { path = "../../polkavm-move-native", features = [
     "host",
 ] }
+
+[dev-dependencies]
+serial_test = "3.2.0"
 
 
 [build-dependencies]
