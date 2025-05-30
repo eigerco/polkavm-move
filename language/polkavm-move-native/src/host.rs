@@ -63,7 +63,7 @@ pub fn new_move_program_linker() -> LinkerResult<MoveProgramLinker> {
 // we probably gonna need to wrap polkavm instance too
 pub struct MemAllocator {
     base: u32,
-    size: usize,
+    size: u32,
     offset: u32,
 }
 
@@ -75,27 +75,38 @@ impl MemAllocator {
         let memory_map = module.memory_map();
         Self {
             base: memory_map.aux_data_address(),
-            size: memory_map.aux_data_size() as usize,
+            size: memory_map.aux_data_size(),
             offset: 0,
         }
     }
 
     /// Allocate guest memory in the auxiliary data region.
     pub fn alloc(&mut self, size: usize, _align: usize) -> Result<u32, MemoryAccessError> {
-        if self.offset as usize + size > self.size {
+        if self.offset as usize + size > self.size as usize {
             return Err(MemoryAccessError::OutOfRangeAccess {
                 address: self.offset,
                 length: size as u64,
             });
         }
 
+        // Make sure the size fits in u32
+        let size = u32::try_from(size).map_err(|_| MemoryAccessError::OutOfRangeAccess {
+            address: self.base,
+            length: size as u64,
+        })?;
         let address = self.base.checked_add(self.offset).ok_or_else(|| {
             MemoryAccessError::OutOfRangeAccess {
                 address: self.offset,
                 length: size as u64,
             }
         })?;
-        self.offset += size as u32;
+        self.offset =
+            self.offset
+                .checked_add(size)
+                .ok_or_else(|| MemoryAccessError::OutOfRangeAccess {
+                    address: self.offset,
+                    length: size as u64,
+                })?;
 
         Ok(address)
     }
