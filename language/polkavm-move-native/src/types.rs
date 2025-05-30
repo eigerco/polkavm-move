@@ -81,15 +81,6 @@ pub struct StaticTypeName {
     pub len: u64,
 }
 
-impl StaticTypeName {
-    pub unsafe fn as_ascii_str(&self) -> &str {
-        core::str::from_utf8_unchecked(core::slice::from_raw_parts(
-            self.ptr,
-            usize::try_from(self.len).expect("overflow"),
-        ))
-    }
-}
-
 unsafe impl Sync for StaticTypeName {}
 
 pub type StaticName = StaticTypeName;
