@@ -1,7 +1,7 @@
-pub mod common;
-
-use common::{build_polka_from_move, parse_to_blob, BuildOptions};
-use move_to_polka::initialize_logger;
+use move_to_polka::{
+    initialize_logger,
+    linker::{build_polka_from_move, parse_to_blob, BuildOptions},
+};
 use polkavm::{Config, Engine, Linker, Module};
 
 #[test]

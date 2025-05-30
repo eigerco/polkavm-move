@@ -9,3 +9,8 @@ extern "C" {
 extern "C" {
     pub(crate) fn debug_print(t: *const MoveType, v: *const AnyValue);
 }
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub fn guest_alloc(size: usize, align: usize) -> u32;
+}
