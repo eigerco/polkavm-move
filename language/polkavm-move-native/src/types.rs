@@ -50,7 +50,10 @@ pub struct MoveSignerVector {
 /// # Safety
 ///
 /// The pointer must be to static memory and never mutated.
+///
+/// NOTE: The `type_info` pointer is only valid in guest memory.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct MoveType {
     pub name: StaticTypeName,
     pub type_desc: TypeDesc,
@@ -58,10 +61,23 @@ pub struct MoveType {
 }
 pub const MOVE_TYPE_DESC_SIZE: u64 = core::mem::size_of::<MoveType>() as u64;
 
+// Needed to make the MoveType, which contains raw pointers,
+// Sync, so that it can be stored in statics for test cases.
+unsafe impl Sync for MoveType {}
+
+impl core::fmt::Debug for MoveType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("MoveType")
+            .field("type", &self.type_desc)
+            .finish()
+    }
+}
+
 /// # Safety
 ///
 /// The pointer must be to static memory and never mutated.
 #[repr(C)]
+#[derive(Clone, Copy, Debug)]
 pub struct StaticTypeName {
     pub ptr: *const u8,
     pub len: u64,
@@ -78,6 +94,7 @@ pub static DUMMY_TYPE_NAME: StaticTypeName = StaticTypeName {
 };
 
 #[repr(u64)]
+#[derive(Clone, Copy, Debug)]
 pub enum TypeDesc {
     Bool = 1,
     U8 = 2,
@@ -152,6 +169,7 @@ pub struct ReferenceTypeInfo {
 pub struct AnyValue(u8);
 
 #[repr(transparent)]
+#[derive(Copy, Clone)]
 pub struct MoveSigner(pub MoveAddress);
 
 pub const ACCOUNT_ADDRESS_LENGTH: usize = 32;
@@ -163,6 +181,7 @@ pub const ACCOUNT_ADDRESS_LENGTH: usize = 32;
 ///
 /// Bytes are in little-endian order.
 #[repr(transparent)]
+#[derive(Copy, Clone)]
 pub struct MoveAddress(pub [u8; ACCOUNT_ADDRESS_LENGTH]);
 
 // Defined in std::type_name; not a primitive.

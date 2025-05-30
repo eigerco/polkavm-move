@@ -5,10 +5,7 @@ extern crate std;
 use log::info;
 use polkavm::{Caller, Instance, Linker, MemoryAccessError, Module, RawInstance};
 
-use crate::{
-    types::{MoveSigner, MoveType, TypeDesc},
-    ALLOC_CODE, PANIC_CODE,
-};
+use crate::{types::MoveType, ALLOC_CODE, PANIC_CODE};
 
 #[derive(Debug)]
 pub enum ProgramError {
@@ -44,9 +41,9 @@ pub fn new_move_program_linker() -> LinkerResult<MoveProgramLinker> {
         "debug_print",
         |caller: Caller, ptr_to_type: u32, ptr_to_data: u32| {
             info!("debug_print called. type ptr: {ptr_to_type:x} Data ptr: {ptr_to_data:x}");
-            let move_type: MoveType = load_from(caller.instance, ptr_to_type)?;
+            let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
             info!("type info: {:?}", move_type);
-            let move_value: u64 = load_from(caller.instance, ptr_to_data)?;
+            let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
             info!("value: {move_value}");
             Result::<(), ProgramError>::Ok(())
         },
@@ -65,72 +62,84 @@ pub fn new_move_program_linker() -> LinkerResult<MoveProgramLinker> {
 
 // we probably gonna need to wrap polkavm instance too
 pub struct MemAllocator {
-    next_available_address: u32,
+    base: u32,
+    size: u32,
+    offset: u32,
 }
 
 impl MemAllocator {
+    /// Initialize the memory allocator with the module's auxiliary data memory map.
+    /// This must be called after the module is loaded and before any memory operations.
+    /// Guest memory is allocated in the auxiliary data memory region defined in the module.
     pub fn init(module: &Module) -> Self {
         let memory_map = module.memory_map();
         Self {
-            next_available_address: memory_map.aux_data_address(),
+            base: memory_map.aux_data_address(),
+            size: memory_map.aux_data_size(),
+            offset: 0,
         }
     }
-    // this can be generalized to any arbitrary type &T
-    pub fn load_to<T>(
+
+    /// Allocate guest memory in the auxiliary data region.
+    pub fn alloc(&mut self, size: usize, _align: usize) -> Result<u32, MemoryAccessError> {
+        if self.offset as usize + size > self.size as usize {
+            return Err(MemoryAccessError::OutOfRangeAccess {
+                address: self.offset,
+                length: size as u64,
+            });
+        }
+
+        // Make sure the size fits in u32
+        let size = u32::try_from(size).map_err(|_| MemoryAccessError::OutOfRangeAccess {
+            address: self.base,
+            length: size as u64,
+        })?;
+        let address = self.base.checked_add(self.offset).ok_or_else(|| {
+            MemoryAccessError::OutOfRangeAccess {
+                address: self.offset,
+                length: size as u64,
+            }
+        })?;
+        self.offset =
+            self.offset
+                .checked_add(size)
+                .ok_or_else(|| MemoryAccessError::OutOfRangeAccess {
+                    address: self.offset,
+                    length: size as u64,
+                })?;
+
+        Ok(address)
+    }
+
+    /// Copy memory host -> guest (aux)
+    pub fn copy_to_guest<T: Sized + Copy, U>(
         &mut self,
-        instance: &mut Instance<T, ProgramError>,
-        signer: &MoveSigner,
+        instance: &mut Instance<U, ProgramError>,
+        value: &T,
     ) -> Result<u32, MemoryAccessError> {
-        let size_to_write = size_of::<MoveSigner>();
-        // TODO: add available mem checking
+        let size_to_write = core::mem::size_of::<T>();
+        let address = self.alloc(size_to_write, core::mem::align_of::<T>())?;
 
-        let slice = unsafe {
-            core::slice::from_raw_parts((signer as *const MoveSigner) as *const u8, size_to_write)
-        };
+        // safety: we know we have memory, we just checked
+        let slice =
+            unsafe { core::slice::from_raw_parts((value as *const T) as *const u8, size_to_write) };
 
-        let address_to_write = self.next_available_address;
-        instance.write_memory(address_to_write, slice)?;
+        instance.write_memory(address, slice)?;
 
-        self.next_available_address += size_to_write as u32;
-
-        Ok(address_to_write)
+        Ok(address)
     }
 }
 
-fn load_from<T: Sized>(instance: &mut RawInstance, address: u32) -> Result<T, MemoryAccessError> {
+/// Copy memory guest (aux) -> host
+fn copy_from_guest<T: Sized + Copy>(
+    instance: &mut RawInstance,
+    address: u32,
+) -> Result<T, MemoryAccessError> {
     let mut uninit = MaybeUninit::<T>::uninit();
     unsafe {
         let dst_bytes: &mut [u8] =
             core::slice::from_raw_parts_mut(uninit.as_mut_ptr() as *mut u8, size_of::<T>());
         instance.read_memory_into(address, dst_bytes.as_mut())?;
         Ok(uninit.assume_init())
-    }
-}
-
-impl core::fmt::Debug for MoveType {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("MoveType")
-            //.field("name", &self.name)
-            .field("type", &self.type_desc)
-            .finish()
-    }
-}
-
-impl core::fmt::Debug for TypeDesc {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::Bool => write!(f, "Bool"),
-            Self::U8 => write!(f, "U8"),
-            Self::U16 => write!(f, "U16"),
-            Self::U32 => write!(f, "U32"),
-            Self::U64 => write!(f, "U64"),
-            Self::U128 => write!(f, "U128"),
-            Self::U256 => write!(f, "U256"),
-            Self::Address => write!(f, "Address"),
-            Self::Signer => write!(f, "Signer"),
-            Self::Vector => write!(f, "Vector"),
-            Self::Struct => write!(f, "Struct"),
-            Self::Reference => write!(f, "Reference"),
-        }
     }
 }
