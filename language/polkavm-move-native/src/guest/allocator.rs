@@ -1,15 +1,17 @@
 use core::alloc::{GlobalAlloc, Layout};
 
-use super::imports::abort;
-use crate::ALLOC_CODE;
+use super::imports::guest_alloc;
 
 pub struct DummyAlloc;
 
 unsafe impl GlobalAlloc for DummyAlloc {
-    unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
-        abort(ALLOC_CODE);
-        // unreachable
-        core::hint::unreachable_unchecked()
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let address = guest_alloc(layout.size(), layout.align());
+        if address == 0 {
+            core::ptr::null_mut()
+        } else {
+            address as *mut u8
+        }
     }
 
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {

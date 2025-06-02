@@ -1,11 +1,8 @@
-use core::mem::MaybeUninit;
-
 extern crate std;
 
-use log::info;
-use polkavm::{Caller, Instance, Linker, MemoryAccessError, Module, RawInstance};
-
-use crate::{types::MoveType, ALLOC_CODE, PANIC_CODE};
+use core::mem::MaybeUninit;
+use log::debug;
+use polkavm::{Instance, MemoryAccessError, Module, RawInstance};
 
 #[derive(Debug)]
 pub enum ProgramError {
@@ -23,41 +20,6 @@ impl From<MemoryAccessError> for ProgramError {
     fn from(value: MemoryAccessError) -> Self {
         ProgramError::MemoryAccess(value.to_string())
     }
-}
-
-pub type PolkaError = polkavm::Error;
-pub type LinkerResult<T> = Result<T, PolkaError>;
-
-pub type MoveProgramLinker = Linker<(), ProgramError>;
-
-// creates new polkavm linker with native functions prepared for move program
-// all native functions declared by move std must defined here
-pub fn new_move_program_linker() -> LinkerResult<MoveProgramLinker> {
-    let mut linker: MoveProgramLinker = Linker::new();
-
-    // additional "native" function used by move program and also exposed by host
-    // it is just for testing/debuging only
-    linker.define_typed(
-        "debug_print",
-        |caller: Caller, ptr_to_type: u32, ptr_to_data: u32| {
-            info!("debug_print called. type ptr: {ptr_to_type:x} Data ptr: {ptr_to_data:x}");
-            let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
-            info!("type info: {:?}", move_type);
-            let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
-            info!("value: {move_value}");
-            Result::<(), ProgramError>::Ok(())
-        },
-    )?;
-
-    linker.define_typed("abort", |code: u64| {
-        let program_error = match code {
-            PANIC_CODE => ProgramError::NativeLibPanic,
-            ALLOC_CODE => ProgramError::NativeLibAllocatorCall,
-            _ => ProgramError::Abort(code),
-        };
-        Result::<(), _>::Err(program_error)
-    })?;
-    Ok(linker)
 }
 
 // we probably gonna need to wrap polkavm instance too
@@ -82,6 +44,10 @@ impl MemAllocator {
 
     /// Allocate guest memory in the auxiliary data region.
     pub fn alloc(&mut self, size: usize, _align: usize) -> Result<u32, MemoryAccessError> {
+        debug!(
+            "Allocating {} bytes in guest memory at offset {}",
+            size, self.offset
+        );
         if self.offset as usize + size > self.size as usize {
             return Err(MemoryAccessError::OutOfRangeAccess {
                 address: self.offset,
@@ -94,19 +60,19 @@ impl MemAllocator {
             address: self.base,
             length: size as u64,
         })?;
-        let address = self.base.checked_add(self.offset).ok_or_else(|| {
+        let address = self.base.checked_add(self.offset).ok_or({
             MemoryAccessError::OutOfRangeAccess {
                 address: self.offset,
                 length: size as u64,
             }
         })?;
-        self.offset =
-            self.offset
-                .checked_add(size)
-                .ok_or_else(|| MemoryAccessError::OutOfRangeAccess {
-                    address: self.offset,
-                    length: size as u64,
-                })?;
+        self.offset = self
+            .offset
+            .checked_add(size)
+            .ok_or(MemoryAccessError::OutOfRangeAccess {
+                address: self.offset,
+                length: size as u64,
+            })?;
 
         Ok(address)
     }
@@ -117,6 +83,10 @@ impl MemAllocator {
         instance: &mut Instance<U, ProgramError>,
         value: &T,
     ) -> Result<u32, MemoryAccessError> {
+        debug!(
+            "Copying value of type {} to guest memory",
+            core::any::type_name::<T>()
+        );
         let size_to_write = core::mem::size_of::<T>();
         let address = self.alloc(size_to_write, core::mem::align_of::<T>())?;
 
@@ -131,10 +101,15 @@ impl MemAllocator {
 }
 
 /// Copy memory guest (aux) -> host
-fn copy_from_guest<T: Sized + Copy>(
+pub fn copy_from_guest<T: Sized + Copy>(
     instance: &mut RawInstance,
     address: u32,
 ) -> Result<T, MemoryAccessError> {
+    debug!(
+        "Copying value of type {} from guest memory at address {:X}",
+        core::any::type_name::<T>(),
+        address
+    );
     let mut uninit = MaybeUninit::<T>::uninit();
     unsafe {
         let dst_bytes: &mut [u8] =
