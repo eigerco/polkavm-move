@@ -1,7 +1,9 @@
 use crate::{options::Options, run_to_polka};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
-use log::info;
-use polkavm::{Caller, Config, Engine, Instance, Linker, Module, ModuleConfig, ProgramBlob};
+use log::{debug, info};
+use polkavm::{
+    Caller, Config, Engine, Instance, Linker, MemoryAccessError, Module, ModuleConfig, ProgramBlob,
+};
 use polkavm_move_native::{
     host::{copy_from_guest, MemAllocator, ProgramError},
     types::MoveType,
@@ -79,24 +81,28 @@ pub type LinkerResult<T> = Result<T, PolkaError>;
 
 pub type MoveProgramLinker = Linker<MemAllocator, ProgramError>;
 
-// creates new polkavm linker with native functions prepared for move program
-// all native functions declared by move std must defined here
+/// creates new polkavm instance with native functions prepared for move program
+/// all native functions declared by move std must defined here
 pub fn new_move_program(
     build_options: BuildOptions,
 ) -> Result<(Instance<MemAllocator, ProgramError>, MemAllocator), anyhow::Error> {
+    const AUX_DATA_SIZE: u32 = 4 * 1024;
+
     let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
-    let config = Config::from_env()?;
+    let mut config = Config::from_env()?;
+    config.set_allow_dynamic_paging(true);
     let engine = Engine::new(&config)?;
 
     let mut module_config = ModuleConfig::new();
     module_config.set_strict(true); // enforce module loading fail if not all host functions are provided
-    module_config.set_aux_data_size(4 * 1024);
+    module_config.set_aux_data_size(AUX_DATA_SIZE);
+    module_config.set_dynamic_paging(true);
 
     let module = Module::from_blob(&engine, &module_config, blob)?;
     // Create a memory allocator for the module.
-    let allocator = MemAllocator::init(&module);
+    let allocator = MemAllocator::init(&module.memory_map());
     let memory_map = module.memory_map();
     info!(
         "RO: {:X} size {}",
@@ -116,11 +122,13 @@ pub fn new_move_program(
     linker.define_typed(
         "debug_print",
         |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_data: u32| {
-            info!("debug_print called. type ptr: {ptr_to_type:x} Data ptr: {ptr_to_data:x}");
-            let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
-            info!("type info: {move_type:?}");
+            let mut move_type_string = "Unknown".to_string();
+            let move_type: Result<MoveType, MemoryAccessError> = copy_from_guest(caller.instance, ptr_to_type);
+            if let Ok(move_type) = move_type {
+                move_type_string = move_type.to_string();
+            }
             let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
-            info!("value: {move_value}");
+            info!("debug_print called. type ptr: 0x{ptr_to_type:x} Data ptr: 0x{ptr_to_data:x}, type: {move_type_string:?}, value: {move_value}");
             Result::<(), ProgramError>::Ok(())
         },
     )?;
@@ -137,6 +145,7 @@ pub fn new_move_program(
     linker.define_typed(
         "guest_alloc",
         |caller: Caller<MemAllocator>, size: u64, align: u64| {
+            debug!("guest_alloc called with size: {size}, align: {align}");
             let allocator = caller.user_data;
             let address = allocator.alloc(size.try_into().unwrap(), align.try_into().unwrap());
             Result::<u32, ProgramError>::Ok(address.expect("Failed to allocate memory"))
@@ -147,6 +156,11 @@ pub fn new_move_program(
     let instance_pre = linker.instantiate_pre(&module)?;
 
     // Instantiate the module.
-    let instance = instance_pre.instantiate()?;
+    let mut instance = instance_pre.instantiate()?;
+    // Initialize the memory block for auxiliary data.
+    instance.write_memory(
+        memory_map.aux_data_address(),
+        &[0u8; AUX_DATA_SIZE as usize],
+    )?;
     Ok((instance, allocator))
 }

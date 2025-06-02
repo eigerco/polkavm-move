@@ -402,13 +402,22 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             curr_fn_env.llvm_symbol_name(&curr_type_vec)
         };
 
+        if curr_fn_env.is_inline() {
+            // Inline functions are not declared here, but their code is expanded inline by the move compiler.
+            // if we declare them here, we will end up with missing compiled module
+            debug!("function: {fn_name} is inline - no need to declare");
+            return;
+        }
+
         debug!("Checking if {fn_name} exists in current module");
         if self.fn_decls.contains_key(&fn_name) {
             debug!("{fn_name} Exists. Skipping");
             return;
         }
 
+        debug!("Declaring function {fn_name}",);
         let fn_data = StacklessBytecodeGenerator::new(curr_fn_env).generate_function();
+        debug!("Generated function {fn_name}",);
 
         // If the current function is either a native function or a concrete Move function,
         // we have all the information needed to declare a corresponding single function.
