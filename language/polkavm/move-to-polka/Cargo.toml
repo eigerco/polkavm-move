@@ -8,6 +8,15 @@ publish = false
 edition = "2021"
 
 [dependencies]
+polkavm = "0.24.0"
+polkavm-linker = "0.24.0"
+# polkavm = { path = "../../../../polkavm/crates/polkavm/" }
+# polkavm-linker = { path = "../../../../polkavm/crates/polkavm-linker/" }
+polkavm-move-native = { path = "../../polkavm-move-native", features = [
+    "host",
+] }
+build-tools = { path = "../../tools/build-tools" }
+
 anyhow = "1.0.52"
 atty = "0.2.14"
 blake3 = "1.5"
@@ -43,12 +52,6 @@ serde_json = "1.0.64"
 tempfile = "3.2"
 hex = "0.4"
 which = "7.0.3"
-build-tools = { path = "../../tools/build-tools" }
-polkavm = "0.24.0"
-polkavm-linker = "0.24.0"
-polkavm-move-native = { path = "../../polkavm-move-native", features = [
-    "host",
-] }
 
 [dev-dependencies]
 serial_test = "3.2.0"
