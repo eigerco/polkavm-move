@@ -5,6 +5,7 @@
 use crate::{types::*, vector::TypedMoveBorrowedRustVec};
 use core::slice;
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn walk_fields<'mv>(
     info: &'mv StructTypeInfo,
     struct_ref: &'mv AnyValue,
@@ -21,6 +22,7 @@ pub unsafe fn walk_fields<'mv>(
     })
 }
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn walk_fields_mut<'mv>(
     info: &'mv StructTypeInfo,
     struct_ref: *mut AnyValue,
@@ -36,6 +38,7 @@ pub unsafe fn walk_fields_mut<'mv>(
     })
 }
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn destroy(info: &StructTypeInfo, struct_ref: *mut AnyValue) {
     // nb: destroying from back to front. Move doesn't
     // have side-effecting dtors so drop order probably doesn't matter.
@@ -78,6 +81,7 @@ pub unsafe fn destroy(info: &StructTypeInfo, struct_ref: *mut AnyValue) {
     }
 }
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn cmp_eq(type_ve: &MoveType, s1: &AnyValue, s2: &AnyValue) -> bool {
     use crate::conv::{borrow_move_value_as_rust_value, BorrowedTypedMoveValue as BTMV};
 

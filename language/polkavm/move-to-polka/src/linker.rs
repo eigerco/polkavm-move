@@ -102,7 +102,7 @@ pub fn new_move_program(
 
     let module = Module::from_blob(&engine, &module_config, blob)?;
     // Create a memory allocator for the module.
-    let allocator = MemAllocator::init(&module.memory_map());
+    let allocator = MemAllocator::init(module.memory_map());
     let memory_map = module.memory_map();
     info!(
         "RO: {:X} size {}",

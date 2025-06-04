@@ -41,6 +41,7 @@ pub enum BorrowedTypedMoveValue<'mv> {
     // todo
 }
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn borrow_move_value_as_rust_value<'mv>(
     type_: &MoveType,
     value: &'mv AnyValue,
@@ -99,6 +100,7 @@ pub enum RawBorrowedTypedMoveValue {
     Reference(MoveType, *mut MoveUntypedReference),
 }
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn raw_borrow_move_value_as_rust_value(
     type_: &MoveType,
     value: *mut AnyValue,

@@ -94,6 +94,7 @@ pub struct StaticTypeName {
     pub len: u64,
 }
 
+#[allow(clippy::missing_safety_doc)]
 impl StaticTypeName {
     pub unsafe fn as_ascii_str(&self) -> &str {
         core::str::from_utf8_unchecked(core::slice::from_raw_parts(

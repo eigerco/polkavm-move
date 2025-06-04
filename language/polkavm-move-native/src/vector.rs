@@ -243,6 +243,7 @@ impl MoveUntypedVector {
         }
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn into_rust_vec<T>(self) -> Vec<T> {
         Vec::from_raw_parts(
             self.ptr as *mut T,
@@ -263,6 +264,7 @@ impl MoveUntypedVector {
 }
 
 impl MoveByteVector {
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn as_rust_vec<'mv>(&'mv self) -> MoveBorrowedRustVec<'mv, u8> {
         assert_eq!(
             mem::size_of::<MoveByteVector>(),
@@ -277,6 +279,7 @@ impl MoveByteVector {
         MoveBorrowedRustVec::new(mv)
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn into_rust_vec(self) -> Vec<u8> {
         let ret = MoveUntypedVector {
             ptr: self.ptr,
@@ -297,6 +300,7 @@ impl MoveByteVector {
 }
 
 impl<T> MoveBorrowedRustVec<'_, T> {
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn new(mv: &MoveUntypedVector) -> MoveBorrowedRustVec<'_, T> {
         let rv = Vec::from_raw_parts(
             mv.ptr as *mut T,
@@ -311,6 +315,7 @@ impl<T> MoveBorrowedRustVec<'_, T> {
 }
 
 impl<T> MoveBorrowedRustVecMut<'_, T> {
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn new(mv: &mut MoveUntypedVector) -> MoveBorrowedRustVecMut<'_, T> {
         let rv = Vec::from_raw_parts(
             mv.ptr as *mut T,
@@ -379,6 +384,7 @@ impl<T> DerefMut for MoveBorrowedRustVecMut<'_, T> {
 impl<'mv> TypedMoveBorrowedRustVec<'mv> {
     // Forced inlining dramatically reduces instruction counts on tests ¯\_(ツ)_/¯
     #[inline(always)]
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn new(
         type_: &'mv MoveType,
         mv: &'mv MoveUntypedVector,
@@ -411,6 +417,7 @@ impl<'mv> TypedMoveBorrowedRustVec<'mv> {
 impl<'mv> TypedMoveBorrowedRustVecMut<'mv> {
     // Forced inlining dramatically reduces instruction counts on tests ¯\_(ツ)_/¯
     #[inline(always)]
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn new(
         type_: &'mv MoveType,
         mv: &'mv mut MoveUntypedVector,
@@ -445,6 +452,7 @@ impl<'mv> TypedMoveBorrowedRustVecMut<'mv> {
 }
 
 impl<'mv> MoveBorrowedRustVecOfStruct<'mv> {
+    #[allow(clippy::missing_safety_doc)]
     unsafe fn new(
         ty: &'mv MoveType,
         mv: &'mv MoveUntypedVector,
@@ -459,6 +467,7 @@ impl<'mv> MoveBorrowedRustVecOfStruct<'mv> {
 }
 
 impl<'mv> MoveBorrowedRustVecOfStructMut<'mv> {
+    #[allow(clippy::missing_safety_doc)]
     unsafe fn new(
         ty: &'mv MoveType,
         mv: &'mv mut MoveUntypedVector,
@@ -472,6 +481,7 @@ impl<'mv> MoveBorrowedRustVecOfStructMut<'mv> {
 }
 
 impl<'mv> TypedMoveBorrowedRustVec<'mv> {
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> u64 {
         let len = match self {
             TypedMoveBorrowedRustVec::Bool(v) => v.len(),
@@ -586,6 +596,7 @@ impl<'mv> TypedMoveBorrowedRustVec<'mv> {
 }
 
 impl TypedMoveBorrowedRustVecMut<'_> {
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> u64 {
         let len = match self {
             TypedMoveBorrowedRustVecMut::Bool(v) => v.len(),
@@ -607,6 +618,7 @@ impl TypedMoveBorrowedRustVecMut<'_> {
         u64::try_from(len).expect("u64")
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn push_back(&mut self, e: *mut AnyValue) {
         match self {
             TypedMoveBorrowedRustVecMut::Bool(ref mut v) => v.push(ptr::read(e as *const bool)),
@@ -672,6 +684,7 @@ impl TypedMoveBorrowedRustVecMut<'_> {
         }
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn pop_back(&mut self, r: *mut AnyValue) {
         let msg = "popping from empty vec";
         match self {
@@ -776,6 +789,7 @@ impl TypedMoveBorrowedRustVecMut<'_> {
     }
 
     // Safety: src must have same type.
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn copy_from(&mut self, srcv: &TypedMoveBorrowedRustVec) {
         let src_len = srcv.len();
         let dst_len = self.len();
@@ -796,6 +810,7 @@ impl TypedMoveBorrowedRustVecMut<'_> {
 }
 
 impl<'mv> MoveBorrowedRustVecOfStruct<'mv> {
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.inner.length.try_into().expect("overflow")
     }
@@ -804,6 +819,7 @@ impl<'mv> MoveBorrowedRustVecOfStruct<'mv> {
         self.full_type
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn iter(&self) -> impl Iterator<Item = &AnyValue> {
         let struct_size = usize::try_from(self.type_.size).expect("overflow");
         let vec_len = usize::try_from(self.inner.length).expect("overflow");
@@ -816,6 +832,7 @@ impl<'mv> MoveBorrowedRustVecOfStruct<'mv> {
         })
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn get(&self, i: usize) -> &'mv AnyValue {
         let struct_size = usize::try_from(self.type_.size).expect("overflow");
         let vec_len = usize::try_from(self.inner.length).expect("overflow");
@@ -833,6 +850,7 @@ impl<'mv> MoveBorrowedRustVecOfStruct<'mv> {
 }
 
 impl MoveBorrowedRustVecOfStructMut<'_> {
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn get_mut(&mut self, i: usize) -> *mut AnyValue {
         let struct_size = usize::try_from(self.type_.size).expect("overflow");
         let vec_len = usize::try_from(self.inner.length).expect("overflow");
@@ -849,6 +867,7 @@ impl MoveBorrowedRustVecOfStructMut<'_> {
     }
 
     /// Get a pointer to a possibly-uninitialized element.
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn get_mut_unchecked_raw(&mut self, i: usize) -> *mut AnyValue {
         let struct_size = usize::try_from(self.type_.size).expect("overflow");
         let vec_capacity = usize::try_from(self.inner.capacity).expect("overflow");
@@ -864,6 +883,7 @@ impl MoveBorrowedRustVecOfStructMut<'_> {
         element_ptr as *mut AnyValue
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn set_length(&mut self, len: usize) {
         let vec_capacity = usize::try_from(self.inner.capacity).expect("overflow");
 
@@ -875,6 +895,7 @@ impl MoveBorrowedRustVecOfStructMut<'_> {
         self.inner.length = len;
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn push(&mut self, ptr: *mut AnyValue) {
         self.maybe_grow();
 
@@ -897,6 +918,7 @@ impl MoveBorrowedRustVecOfStructMut<'_> {
         self.inner.length = self.inner.length.checked_add(1).expect("overflow");
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn maybe_grow(&mut self) {
         let vec_len = usize::try_from(self.inner.length).expect("overflow");
         let vec_cap = usize::try_from(self.inner.capacity).expect("overflow");
@@ -914,6 +936,7 @@ impl MoveBorrowedRustVecOfStructMut<'_> {
     ///
     /// It always produces a power-of-two capacity.
     #[cold]
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn grow_amortized(&mut self) {
         let struct_size = usize::try_from(self.type_.size).expect("overflow");
         let vec_len = usize::try_from(self.inner.length).expect("overflow");
@@ -936,6 +959,7 @@ impl MoveBorrowedRustVecOfStructMut<'_> {
         self.reserve_exact(new_cap);
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn reserve_exact(&mut self, new_cap: usize) {
         let struct_size = usize::try_from(self.type_.size).expect("overflow");
         let struct_align = usize::try_from(self.type_.alignment).expect("overflow");
@@ -970,6 +994,7 @@ impl MoveBorrowedRustVecOfStructMut<'_> {
         }
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn pop_into(&mut self, ptr: *mut AnyValue) {
         let struct_size = usize::try_from(self.type_.size).expect("overflow");
         let vec_len = usize::try_from(self.inner.length).expect("overflow");
@@ -987,6 +1012,7 @@ impl MoveBorrowedRustVecOfStructMut<'_> {
         self.inner.length = self.inner.length.checked_sub(1).expect("overflow");
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn swap(&mut self, i: usize, j: usize) {
         let struct_size = usize::try_from(self.type_.size).expect("overflow");
         let vec_len = usize::try_from(self.inner.length).expect("overflow");

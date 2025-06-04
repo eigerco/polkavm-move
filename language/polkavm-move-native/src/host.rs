@@ -82,8 +82,7 @@ impl MemAllocator {
         self.offset = new_offset;
 
         debug!(
-            "Allocated {} bytes at aligned address: 0x{:#X} (offset: {})",
-            size, address, aligned_offset
+            "Allocated {size} bytes at aligned address: 0x{address:#X} (offset: {aligned_offset})"
         );
 
         Ok(address)
