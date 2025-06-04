@@ -124,6 +124,7 @@ pub fn new_move_program(
         |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_data: u32| {
             let mut move_type_string = "Unknown".to_string();
             let move_type: Result<MoveType, MemoryAccessError> = copy_from_guest(caller.instance, ptr_to_type);
+            // for some reason, the type is stored in RO memory, which we can't read when dynamic paging is enabled
             if let Ok(move_type) = move_type {
                 move_type_string = move_type.to_string();
             }
