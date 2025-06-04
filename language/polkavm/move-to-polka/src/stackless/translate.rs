@@ -1524,6 +1524,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             | Operation::OpaqueCallEnd(_, _, _)
             | Operation::Uninit
             | Operation::Havoc(_)
+            | Operation::Drop
             | Operation::Stop => {}
             _ => todo!("{op:?}"),
         }

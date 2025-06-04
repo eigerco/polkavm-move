@@ -132,6 +132,23 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 
 #[test]
 #[serial]
+pub fn test_vector() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/vector.polkavm",
+        "../examples/basic/sources/vector.move",
+        vec![],
+    )?;
+    // Grab the function and call it.
+    let result = instance
+        .call_typed_and_get_result::<u64, ()>(&mut allocator, "foo", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 2);
+
+    Ok(())
+}
+
+#[test]
+#[serial]
 pub fn test_multi_module_call() -> anyhow::Result<()> {
     let (mut instance, mut allocator) = build_instance(
         "output/modules.polkavm",

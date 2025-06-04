@@ -8,8 +8,10 @@ crate-type = ["rlib"]
 
 [dependencies]
 log = { version = "0.4.14", optional = true }
-polkavm-derive = { optional = true, version = "0.23.0" }
-polkavm = { optional = true, version = "0.23.0" }
+polkavm-derive = { optional = true, version = "0.24.0" }
+polkavm = { optional = true, version = "0.24.0" }
+# polkavm = { path = "../../../polkavm/crates/polkavm/", optional = true }
+# polkavm-derive = { path = "../../../polkavm/crates/polkavm-derive/", optional = true }
 
 [features]
 polkavm = ["dep:polkavm-derive"]

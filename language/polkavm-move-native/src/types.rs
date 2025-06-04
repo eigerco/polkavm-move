@@ -10,6 +10,7 @@
 /// [`move_native_vec_empty`] and [`move_native_vec_destroy_empty`] native
 /// calls.
 #[repr(C)]
+#[derive(Debug)]
 pub struct MoveUntypedVector {
     pub ptr: *mut u8,  // Safety: must be correctly aligned per type
     pub capacity: u64, // in typed elements, not u8
@@ -22,6 +23,7 @@ pub const MOVE_UNTYPED_VEC_DESC_SIZE: u64 = core::mem::size_of::<MoveUntypedVect
 /// These occur in the API enough to warrant their own type, and there are
 /// dedicated functions to convert them to Rust vectors.
 #[repr(C)]
+#[derive(Debug)]
 pub struct MoveByteVector {
     pub ptr: *mut u8,
     pub capacity: u64,
@@ -33,6 +35,7 @@ pub struct MoveByteVector {
 /// This type occurs in the native API, but it will probably be removed, in
 /// favor of just using `MoveUntypedVector`.
 #[repr(C)]
+#[derive(Debug)]
 pub struct MoveSignerVector {
     pub ptr: *mut MoveSigner,
     pub capacity: u64,
@@ -73,6 +76,14 @@ impl core::fmt::Debug for MoveType {
     }
 }
 
+impl core::fmt::Display for MoveType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("MoveType")
+            .field("type", &self.type_desc)
+            .finish()
+    }
+}
+
 /// # Safety
 ///
 /// The pointer must be to static memory and never mutated.
@@ -81,6 +92,16 @@ impl core::fmt::Debug for MoveType {
 pub struct StaticTypeName {
     pub ptr: *const u8,
     pub len: u64,
+}
+
+#[allow(clippy::missing_safety_doc)]
+impl StaticTypeName {
+    pub unsafe fn as_ascii_str(&self) -> &str {
+        core::str::from_utf8_unchecked(core::slice::from_raw_parts(
+            self.ptr,
+            usize::try_from(self.len).expect("overflow"),
+        ))
+    }
 }
 
 unsafe impl Sync for StaticTypeName {}
@@ -94,7 +115,7 @@ pub static DUMMY_TYPE_NAME: StaticTypeName = StaticTypeName {
 };
 
 #[repr(u64)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TypeDesc {
     Bool = 1,
     U8 = 2,
@@ -124,7 +145,6 @@ pub union TypeInfo {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-
 pub struct VectorTypeInfo {
     pub element_type: &'static MoveType,
 }
@@ -135,8 +155,7 @@ pub struct VectorTypeInfo {
 /// pointed to by `field_array_ptr` should not be mutated, or `Sync` will be
 /// violated.
 #[repr(C)]
-#[derive(Copy, Clone)]
-
+#[derive(Copy, Clone, Debug)]
 pub struct StructTypeInfo {
     /// Pointer to an array of field infos.
     ///
@@ -151,6 +170,7 @@ pub struct StructTypeInfo {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone, Debug)]
 pub struct StructFieldInfo {
     pub type_: MoveType,
     /// Offset in bytes within the struct.
@@ -159,17 +179,17 @@ pub struct StructFieldInfo {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
-
+#[derive(Copy, Clone, Debug)]
 pub struct ReferenceTypeInfo {
     pub element_type: &'static MoveType,
 }
 
 #[repr(transparent)]
+#[derive(Copy, Clone, Default)]
 pub struct AnyValue(u8);
 
 #[repr(transparent)]
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub struct MoveSigner(pub MoveAddress);
 
 pub const ACCOUNT_ADDRESS_LENGTH: usize = 32;
@@ -181,7 +201,7 @@ pub const ACCOUNT_ADDRESS_LENGTH: usize = 32;
 ///
 /// Bytes are in little-endian order.
 #[repr(transparent)]
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub struct MoveAddress(pub [u8; ACCOUNT_ADDRESS_LENGTH]);
 
 // Defined in std::type_name; not a primitive.
@@ -202,7 +222,9 @@ pub struct MoveAsciiString {
 
 // todo this would be more correct with a lifetime attached
 #[repr(transparent)]
+#[derive(Debug)]
 pub struct MoveUntypedReference(pub *const AnyValue);
 
 #[repr(transparent)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct U256(pub [u128; 2]);
