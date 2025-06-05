@@ -230,19 +230,15 @@ fn get_env_from_bytecode(options: &Options) -> anyhow::Result<GlobalEnv> {
 pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> {
     use crate::stackless::{extensions::ModuleEnvExt, *};
 
-    debug!("compile");
     let tgt_platform = TargetPlatform::PVM;
     tgt_platform.initialize_llvm();
-    debug!("llvm init");
     let lltarget = Target::from_triple(tgt_platform.triple())?;
-    debug!("target");
     let llmachine = lltarget.create_target_machine(
         tgt_platform.triple(),
         tgt_platform.llvm_cpu(),
         tgt_platform.llvm_features(),
         &options.opt_level,
     );
-    debug!("Target machine");
     let global_cx = GlobalContext::new(global_env, tgt_platform, &llmachine);
     let output_file_path = options.output.clone();
     let file_stem = Path::new(&output_file_path).file_stem().unwrap();

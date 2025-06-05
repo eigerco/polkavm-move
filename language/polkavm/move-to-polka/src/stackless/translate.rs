@@ -38,7 +38,7 @@ use crate::{
 };
 use codespan::Location;
 use llvm_sys::core::LLVMGetModuleContext;
-use log::debug;
+use log::{debug, trace};
 use move_core_types::{
     account_address::{self, AccountAddress},
     u256::U256,
@@ -122,7 +122,7 @@ impl<'up> GlobalContext<'up> {
         // build (e.g,, duplicate panic_impl). Also, in the "solana" config, the crate requires
         // feature(default_alloc_error_handler) which is rejected by the Move-blessed Rust.
 
-        debug!(target: "globalenv", "{env:#?}");
+        trace!(target: "globalenv", "{env:#?}");
 
         GlobalContext {
             env,
@@ -222,7 +222,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             .iter()
             .map(|nd| (*nd, g_env.get_node_type(*nd)))
             .collect();
-        debug!(target: "nodes", "\n{:#?}", &map_node_to_type);
+        trace!(target: "nodes", "\n{:#?}", &map_node_to_type);
 
         // Write the control flow graph to a .dot file for viewing.
         let options = &self.module_cx.options;
@@ -1650,9 +1650,9 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             })
             .collect::<Vec<_>>();
 
-        let ll_fn = self
-            .module_cx
-            .lookup_move_fn_decl(mod_id.qualified_inst(fun_id, types.to_vec()));
+        let qiid = mod_id.qualified_inst(fun_id, types.to_vec());
+        let ll_fn = self.module_cx.lookup_move_fn_decl(qiid.clone());
+        debug!(target: "****", "translate_fun_call qiid {qiid:?} ll_fn {:#?}", ll_fn.get_name());
 
         let fn_name = ll_fn.get_name();
         let fn_ll_ret_type = ll_fn.llvm_return_type();

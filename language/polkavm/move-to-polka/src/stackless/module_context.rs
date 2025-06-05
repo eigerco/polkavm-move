@@ -409,7 +409,10 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             return;
         }
 
-        debug!("Checking if {fn_name} exists in current module");
+        debug!(
+            "Checking if {fn_name} exists in current module {:?}",
+            mod_env.get_name()
+        );
         if self.fn_decls.contains_key(&fn_name) {
             debug!("{fn_name} Exists. Skipping");
             return;
