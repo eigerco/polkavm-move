@@ -146,7 +146,6 @@ pub fn new_move_program(
                     }
                     TypeDesc::Vector => {
                         let vec: MoveByteVector = copy_from_guest(caller.instance, ptr_to_data)?;
-                        let allocator = caller.user_data;
                         let instance = caller.instance;
                         let len = vec.length as usize;
                         let bytes = copy_bytes_from_guest(instance, vec.ptr as u32, len)?;
@@ -223,6 +222,15 @@ pub fn new_move_program(
             Result::<u32, ProgramError>::Ok(address)
         },
     )?;
+
+    linker.define_typed("get_vec", |caller: Caller<MemAllocator>| {
+        debug!("get_vec called");
+        let vec = [1, 2, 3, 4, 5];
+        let allocator = caller.user_data;
+        let instance = caller.instance;
+        let address = to_move_byte_vector(instance, allocator, vec.to_vec())?;
+        Result::<u32, ProgramError>::Ok(address)
+    })?;
 
     // Link the host functions with the module.
     let instance_pre = linker.instantiate_pre(&module)?;
