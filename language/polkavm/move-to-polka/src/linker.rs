@@ -146,7 +146,11 @@ pub fn new_move_program(
                     }
                     TypeDesc::Vector => {
                         let vec: MoveByteVector = copy_from_guest(caller.instance, ptr_to_data)?;
-                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {vec:?}");
+                        let allocator = caller.user_data;
+                        let instance = caller.instance;
+                        let len = vec.length as usize;
+                        let bytes = copy_bytes_from_guest(instance, vec.ptr as u32, len)?;
+                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {vec:?}, bytes: {bytes:?}");
                     }
                     _ => {
                         let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
