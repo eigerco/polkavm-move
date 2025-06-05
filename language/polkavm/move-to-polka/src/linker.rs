@@ -157,7 +157,7 @@ pub fn new_move_program(
                     }
                 }
             } else {
-                let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
+                let move_value: u32 = copy_from_guest(caller.instance, ptr_to_data)?;
                 info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
             }
             Result::<(), ProgramError>::Ok(())
