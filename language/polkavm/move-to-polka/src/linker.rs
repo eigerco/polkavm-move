@@ -7,7 +7,7 @@ use polkavm::{
 };
 use polkavm_move_native::{
     host::{copy_bytes_from_guest, copy_from_guest, MemAllocator, ProgramError},
-    types::{MoveByteVector, MoveType, TypeDesc},
+    types::{MoveByteVector, MoveType, MoveUntypedVector, TypeDesc},
     ALLOC_CODE, PANIC_CODE,
 };
 use sha2::Digest;
@@ -130,12 +130,23 @@ pub fn new_move_program(
             if let Ok(move_type) = move_type {
                 move_type_string = move_type.to_string();
                 match move_type.type_desc {
-                    TypeDesc::U8 |
+                    TypeDesc::Bool |
+                    TypeDesc::U8 => {
+                        let move_value: u8 = copy_from_guest(caller.instance, ptr_to_data)?;
+                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                    }
                     TypeDesc::U16 |
-                    TypeDesc::U32 |
+                    TypeDesc::U32 => {
+                        let move_value: u32 = copy_from_guest(caller.instance, ptr_to_data)?;
+                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                    }
                     TypeDesc::U64 => {
                         let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
                         info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                    }
+                    TypeDesc::Vector => {
+                        let vec: MoveByteVector = copy_from_guest(caller.instance, ptr_to_data)?;
+                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {vec:?}");
                     }
                     _ => {
                         let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
