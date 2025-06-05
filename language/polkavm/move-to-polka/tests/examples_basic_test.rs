@@ -273,6 +273,8 @@ pub fn test_struct() -> anyhow::Result<()> {
         .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, "create_counter", (10, 32))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     assert_eq!(result, 42);
+
+    Ok(())
 }
 
 pub fn test_vector_isempty() -> anyhow::Result<()> {
