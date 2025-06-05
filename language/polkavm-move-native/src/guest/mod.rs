@@ -2,6 +2,7 @@ use crate::{
     types::{AnyValue, MoveAddress, MoveByteVector, MoveSigner, MoveType, MoveUntypedVector},
     vector::{TypedMoveBorrowedRustVec, TypedMoveBorrowedRustVecMut},
 };
+use core::str;
 
 mod allocator;
 mod imports;
@@ -148,4 +149,49 @@ unsafe extern "C" fn destroy_empty(type_ve: &MoveType, v: MoveUntypedVector) {
 #[export_name = "move_native_vector_swap"]
 unsafe extern "C" fn swap(type_ve: &MoveType, v: &mut MoveUntypedVector, i: u64, j: u64) {
     TypedMoveBorrowedRustVecMut::new(type_ve, v).swap(i, j)
+}
+
+#[export_name = "move_native_string_internal_check_utf8"]
+pub unsafe extern "C" fn internal_check_utf8(v: &MoveByteVector) -> bool {
+    let rust_vec = v.as_rust_vec();
+    let res = str::from_utf8(&rust_vec);
+
+    res.is_ok()
+}
+
+#[export_name = "move_native_string_internal_is_char_boundary"]
+pub unsafe extern "C" fn internal_is_char_boundary(v: &MoveByteVector, i: u64) -> bool {
+    let rust_vec = v.as_rust_vec();
+    let i = usize::try_from(i).expect("usize");
+
+    let rust_str = str::from_utf8(&rust_vec).expect("invalid utf8");
+    rust_str.is_char_boundary(i)
+}
+
+#[export_name = "move_native_string_internal_sub_string"]
+pub unsafe extern "C" fn internal_sub_string(v: &MoveByteVector, i: u64, j: u64) -> MoveByteVector {
+    let rust_vec = v.as_rust_vec();
+    let i = usize::try_from(i).expect("usize");
+    let j = usize::try_from(j).expect("usize");
+
+    let rust_str = str::from_utf8(&rust_vec).expect("invalid utf8");
+
+    let sub_rust_vec = &rust_str.as_bytes()[i..j];
+    MoveByteVector::from_rust_vec(sub_rust_vec.into())
+}
+
+#[export_name = "move_native_string_internal_index_of"]
+pub unsafe extern "C" fn internal_index_of(s: &MoveByteVector, r: &MoveByteVector) -> u64 {
+    let s_rust_vec = s.as_rust_vec();
+    let s_rust_str = str::from_utf8(&s_rust_vec).expect("invalid utf8");
+    let r_rust_vec = r.as_rust_vec();
+    let r_rust_str = str::from_utf8(&r_rust_vec).expect("invalid utf8");
+
+    let res = s_rust_str.find(r_rust_str);
+
+    u64::try_from(match res {
+        Some(i) => i,
+        None => s_rust_str.len(),
+    })
+    .expect("u64")
 }
