@@ -119,10 +119,7 @@ impl MemAllocator {
         let size = bytes.len();
         let align = core::mem::align_of::<u8>(); // usually 1, but explicit for clarity
 
-        debug!(
-            "Copying {} bytes to guest memory with alignment {}",
-            size, align
-        );
+        debug!("Copying {size} bytes to guest memory with alignment {align}");
 
         let address = self.alloc(size, align)?;
 
@@ -162,10 +159,7 @@ pub fn copy_bytes_from_guest(
     address: u32,
     length: usize,
 ) -> Result<std::vec::Vec<u8>, MemoryAccessError> {
-    debug!(
-        "Copying {} bytes from guest memory at address 0x{:X}",
-        length, address
-    );
+    debug!("Copying {length} bytes from guest memory at address 0x{address:X}");
     let mut uninit: std::boxed::Box<[MaybeUninit<u8>]> = std::boxed::Box::new_uninit_slice(length);
 
     // Step 2: let `read_memory_into` initialize it

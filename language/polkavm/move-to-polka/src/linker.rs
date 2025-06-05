@@ -7,7 +7,7 @@ use polkavm::{
 };
 use polkavm_move_native::{
     host::{copy_bytes_from_guest, copy_from_guest, MemAllocator, ProgramError},
-    types::{MoveByteVector, MoveType, MoveUntypedVector, TypeDesc},
+    types::{MoveByteVector, MoveType, TypeDesc},
     ALLOC_CODE, PANIC_CODE,
 };
 use sha2::Digest;
@@ -190,12 +190,11 @@ pub fn new_move_program(
             let allocator = caller.user_data;
             let instance = caller.instance;
             let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
-            debug!("bytes: {:?}", bytes);
+            debug!("bytes: {bytes:?}");
             let digest = sha2::Sha256::digest(&bytes);
             debug!(
-                "hash_sha2_256 called with {} bytes, digest: {:X?}",
+                "hash_sha2_256 called with {} bytes, digest: {digest:X?}",
                 bytes.len(),
-                digest
             );
             let address = to_move_byte_vector(instance, allocator, digest.to_vec())?;
             debug!("Allocated address for digest: 0x{address:X}");
@@ -210,12 +209,11 @@ pub fn new_move_program(
             let allocator = caller.user_data;
             let instance = caller.instance;
             let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
-            debug!("bytes: {:?}", bytes);
+            debug!("bytes: {bytes:?}");
             let digest = sha3::Sha3_256::digest(&bytes);
             debug!(
-                "hash_sha3_256 called with {} bytes, digest: {:X?}",
+                "hash_sha3_256 called with {} bytes, digest: {digest:X?}",
                 bytes.len(),
-                digest
             );
             let address = to_move_byte_vector(instance, allocator, digest.to_vec())?;
             debug!("Allocated address for digest: 0x{address:X}");
@@ -250,7 +248,7 @@ fn from_move_byte_vector(
     ptr_to_buf: u32,
 ) -> Result<Vec<u8>, ProgramError> {
     let move_byte_vec: MoveByteVector = copy_from_guest(instance, ptr_to_buf)?;
-    debug!("move_byte_vec: {:?}", move_byte_vec);
+    debug!("move_byte_vec: {move_byte_vec:?}");
     let len = move_byte_vec.length as usize;
     let bytes = copy_bytes_from_guest(instance, move_byte_vec.ptr as u32, len)?;
     Ok(bytes)
@@ -269,6 +267,6 @@ fn to_move_byte_vector(
         capacity: len as u64,
         length: len as u64,
     };
-    debug!("move_byte_vec: {:?}", move_byte_vec);
+    debug!("move_byte_vec: {move_byte_vec:?}");
     Ok(allocator.copy_to_guest(instance, &move_byte_vec)?)
 }
