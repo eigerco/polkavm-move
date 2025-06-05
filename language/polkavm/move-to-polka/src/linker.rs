@@ -3,12 +3,14 @@ use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use log::{debug, info};
 use polkavm::{
     Caller, Config, Engine, Instance, Linker, MemoryAccessError, Module, ModuleConfig, ProgramBlob,
+    RawInstance,
 };
 use polkavm_move_native::{
-    host::{copy_from_guest, MemAllocator, ProgramError},
-    types::MoveType,
+    host::{copy_bytes_from_guest, copy_from_guest, MemAllocator, ProgramError},
+    types::{MoveByteVector, MoveType, TypeDesc},
     ALLOC_CODE, PANIC_CODE,
 };
+use sha2::Digest;
 
 pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
 
@@ -127,9 +129,37 @@ pub fn new_move_program(
             // for some reason, the type is stored in RO memory, which we can't read when dynamic paging is enabled
             if let Ok(move_type) = move_type {
                 move_type_string = move_type.to_string();
+                match move_type.type_desc {
+                    TypeDesc::Bool |
+                    TypeDesc::U8 => {
+                        let move_value: u8 = copy_from_guest(caller.instance, ptr_to_data)?;
+                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                    }
+                    TypeDesc::U16 |
+                    TypeDesc::U32 => {
+                        let move_value: u32 = copy_from_guest(caller.instance, ptr_to_data)?;
+                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                    }
+                    TypeDesc::U64 => {
+                        let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
+                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                    }
+                    TypeDesc::Vector => {
+                        let vec: MoveByteVector = copy_from_guest(caller.instance, ptr_to_data)?;
+                        let instance = caller.instance;
+                        let len = vec.length as usize;
+                        let bytes = copy_bytes_from_guest(instance, vec.ptr as u32, len)?;
+                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {vec:?}, bytes: {bytes:?}");
+                    }
+                    _ => {
+                        let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
+                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value:x}");
+                    }
+                }
+            } else {
+                let move_value: u32 = copy_from_guest(caller.instance, ptr_to_data)?;
+                info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
             }
-            let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
-            info!("debug_print called. type ptr: 0x{ptr_to_type:x} Data ptr: 0x{ptr_to_data:x}, type: {move_type_string:?}, value: {move_value}");
             Result::<(), ProgramError>::Ok(())
         },
     )?;
@@ -153,6 +183,53 @@ pub fn new_move_program(
         },
     )?;
 
+    linker.define_typed(
+        "hash_sha2_256",
+        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_buf: u32| {
+            debug!("hash_sha2_256 called with type: 0x{ptr_to_type:X}, ptr: 0x{ptr_to_buf:X}");
+            let allocator = caller.user_data;
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
+            debug!("bytes: {bytes:?}");
+            let digest = sha2::Sha256::digest(&bytes);
+            debug!(
+                "hash_sha2_256 called with {} bytes, digest: {digest:X?}",
+                bytes.len(),
+            );
+            let address = to_move_byte_vector(instance, allocator, digest.to_vec())?;
+            debug!("Allocated address for digest: 0x{address:X}");
+            Result::<u32, ProgramError>::Ok(address)
+        },
+    )?;
+
+    linker.define_typed(
+        "hash_sha3_256",
+        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_buf: u32| {
+            debug!("hash_sha3_256 called with type: 0x{ptr_to_type:X}, ptr: 0x{ptr_to_buf:X}");
+            let allocator = caller.user_data;
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
+            debug!("bytes: {bytes:?}");
+            let digest = sha3::Sha3_256::digest(&bytes);
+            debug!(
+                "hash_sha3_256 called with {} bytes, digest: {digest:X?}",
+                bytes.len(),
+            );
+            let address = to_move_byte_vector(instance, allocator, digest.to_vec())?;
+            debug!("Allocated address for digest: 0x{address:X}");
+            Result::<u32, ProgramError>::Ok(address)
+        },
+    )?;
+
+    linker.define_typed("get_vec", |caller: Caller<MemAllocator>| {
+        debug!("get_vec called");
+        let vec = [1, 2, 3, 4, 5];
+        let allocator = caller.user_data;
+        let instance = caller.instance;
+        let address = to_move_byte_vector(instance, allocator, vec.to_vec())?;
+        Result::<u32, ProgramError>::Ok(address)
+    })?;
+
     // Link the host functions with the module.
     let instance_pre = linker.instantiate_pre(&module)?;
 
@@ -164,4 +241,32 @@ pub fn new_move_program(
         &[0u8; AUX_DATA_SIZE as usize],
     )?;
     Ok((instance, allocator))
+}
+
+fn from_move_byte_vector(
+    instance: &mut RawInstance,
+    ptr_to_buf: u32,
+) -> Result<Vec<u8>, ProgramError> {
+    let move_byte_vec: MoveByteVector = copy_from_guest(instance, ptr_to_buf)?;
+    debug!("move_byte_vec: {move_byte_vec:?}");
+    let len = move_byte_vec.length as usize;
+    let bytes = copy_bytes_from_guest(instance, move_byte_vec.ptr as u32, len)?;
+    Ok(bytes)
+}
+
+fn to_move_byte_vector(
+    instance: &mut RawInstance,
+    allocator: &mut MemAllocator,
+    bytes: Vec<u8>,
+) -> Result<u32, ProgramError> {
+    let len = bytes.len();
+    let data_ptr = allocator.copy_bytes_to_guest(instance, bytes.as_slice())?;
+    debug!("Data copied to guest memory at address: 0x{data_ptr:X}, length: {len}",);
+    let move_byte_vec = MoveByteVector {
+        ptr: data_ptr as *mut u8,
+        capacity: len as u64,
+        length: len as u64,
+    };
+    debug!("move_byte_vec: {move_byte_vec:?}");
+    Ok(allocator.copy_to_guest(instance, &move_byte_vec)?)
 }

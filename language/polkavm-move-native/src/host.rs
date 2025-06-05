@@ -2,7 +2,7 @@ extern crate std;
 
 use core::mem::MaybeUninit;
 use log::debug;
-use polkavm::{Instance, MemoryAccessError, MemoryMap, RawInstance};
+use polkavm::{MemoryAccessError, MemoryMap, RawInstance};
 
 #[derive(Debug)]
 pub enum ProgramError {
@@ -89,9 +89,9 @@ impl MemAllocator {
     }
 
     /// Copy memory host -> guest (aux)
-    pub fn copy_to_guest<T: Sized + Copy, U>(
+    pub fn copy_to_guest<T: Sized + Copy>(
         &mut self,
-        instance: &mut Instance<U, ProgramError>,
+        instance: &mut RawInstance,
         value: &T,
     ) -> Result<u32, MemoryAccessError> {
         debug!(
@@ -106,6 +106,24 @@ impl MemAllocator {
             unsafe { core::slice::from_raw_parts((value as *const T) as *const u8, size_to_write) };
 
         instance.write_memory(address, slice)?;
+
+        Ok(address)
+    }
+
+    /// Copy a byte slice (host -> guest aux memory)
+    pub fn copy_bytes_to_guest(
+        &mut self,
+        instance: &mut RawInstance,
+        bytes: &[u8],
+    ) -> Result<u32, MemoryAccessError> {
+        let size = bytes.len();
+        let align = core::mem::align_of::<u8>(); // usually 1, but explicit for clarity
+
+        debug!("Copying {size} bytes to guest memory with alignment {align}");
+
+        let address = self.alloc(size, align)?;
+
+        instance.write_memory(address, bytes)?;
 
         Ok(address)
     }
@@ -125,7 +143,28 @@ pub fn copy_from_guest<T: Sized + Copy>(
     unsafe {
         let dst_bytes: &mut [u8] =
             core::slice::from_raw_parts_mut(uninit.as_mut_ptr() as *mut u8, size_of::<T>());
+        debug!(
+            "Reading {} bytes from guest memory at address 0x{:X}",
+            size_of::<T>(),
+            address
+        );
         instance.read_memory_into(address, dst_bytes.as_mut())?;
         Ok(uninit.assume_init())
     }
+}
+
+/// Copy memory guest (aux) -> host into a Vec<u8>
+pub fn copy_bytes_from_guest(
+    instance: &mut RawInstance,
+    address: u32,
+    length: usize,
+) -> Result<std::vec::Vec<u8>, MemoryAccessError> {
+    debug!("Copying {length} bytes from guest memory at address 0x{address:X}");
+    let mut uninit: std::boxed::Box<[MaybeUninit<u8>]> = std::boxed::Box::new_uninit_slice(length);
+
+    // Step 2: let `read_memory_into` initialize it
+    let initialized: &mut [u8] = instance.read_memory_into(address, &mut *uninit)?;
+
+    // Step 3: create a Vec<u8> from the slice
+    Ok(initialized.to_vec())
 }

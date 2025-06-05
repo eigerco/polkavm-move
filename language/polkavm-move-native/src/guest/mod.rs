@@ -1,5 +1,5 @@
 use crate::{
-    types::{AnyValue, MoveAddress, MoveSigner, MoveType, MoveUntypedVector},
+    types::{AnyValue, MoveAddress, MoveByteVector, MoveSigner, MoveType, MoveUntypedVector},
     vector::{TypedMoveBorrowedRustVec, TypedMoveBorrowedRustVecMut},
 };
 
@@ -15,6 +15,33 @@ unsafe extern "C" fn move_rt_abort(code: u64) {
 #[export_name = "move_native_debug_print"]
 unsafe extern "C" fn print(type_x: *const MoveType, x: *const AnyValue) {
     imports::debug_print(type_x, x);
+}
+
+#[export_name = "move_native_nat_get_vec"]
+unsafe extern "C" fn get_vec() -> MoveByteVector {
+    let address = imports::get_vec();
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
+}
+
+#[export_name = "move_native_hash_sha2_256"]
+unsafe extern "C" fn move_native_hash_sha2_256(
+    t: *const MoveType,
+    bytes: *const MoveByteVector,
+) -> *const MoveByteVector {
+    let address = imports::hash_sha2_256(t, bytes);
+    let mv_ptr = address as *const MoveByteVector;
+    mv_ptr
+}
+
+#[export_name = "move_native_hash_sha3_256"]
+unsafe extern "C" fn move_native_hash_sha3_256(
+    t: *const MoveType,
+    bytes: *const MoveByteVector,
+) -> MoveByteVector {
+    let address = imports::hash_sha3_256(t, bytes);
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
 }
 
 #[export_name = "move_native_signer_borrow_address"]

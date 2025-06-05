@@ -245,6 +245,7 @@ impl MoveUntypedVector {
 
     #[allow(clippy::missing_safety_doc)]
     pub unsafe fn into_rust_vec<T>(self) -> Vec<T> {
+        assert!(self.ptr as usize != 0);
         Vec::from_raw_parts(
             self.ptr as *mut T,
             usize::try_from(self.length).expect("overflow"),
@@ -252,9 +253,9 @@ impl MoveUntypedVector {
         )
     }
 
-    pub fn from_rust_vec<T>(mut rv: Vec<T>) -> MoveUntypedVector {
+    pub fn from_rust_vec<T>(rv: Vec<T>) -> MoveUntypedVector {
         let mv = MoveUntypedVector {
-            ptr: rv.as_mut_ptr() as *mut u8,
+            ptr: core::ptr::null_mut::<u8>(),
             capacity: u64::try_from(rv.capacity()).expect("overflow"),
             length: u64::try_from(rv.len()).expect("overflow"),
         };

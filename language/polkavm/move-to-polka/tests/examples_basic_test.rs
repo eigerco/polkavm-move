@@ -18,7 +18,6 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
         "../examples/basic/sources/morebasic.move",
         vec![],
     )?;
-    // Grab the function and call it.
     let result = instance
         .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, "sum", (1, 10))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -35,10 +34,126 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
         "../examples/basic/sources/void.move",
         vec![],
     )?;
-    // Grab the function and call it.
     instance
         .call_typed_and_get_result::<(), ()>(&mut allocator, "foo", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+pub fn test_get_vec() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/native.polkavm",
+        "../examples/basic/sources/native.move",
+        vec![],
+    )?;
+    instance
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "native_get_vec", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+pub fn test_rv_bool() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/returns.polkavm",
+        "../examples/basic/sources/returns.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<u32, ()>(&mut allocator, "rv_bool_false", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 0);
+    let result = instance
+        .call_typed_and_get_result::<u32, ()>(&mut allocator, "rv_bool_true", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 1);
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+pub fn test_rv_u16() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/returns.polkavm",
+        "../examples/basic/sources/returns.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<u32, ()>(&mut allocator, "rv_u16", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 19);
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+pub fn test_rv_u32() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/returns.polkavm",
+        "../examples/basic/sources/returns.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<u32, ()>(&mut allocator, "rv_u32", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 19);
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+pub fn test_rv_u8() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/returns.polkavm",
+        "../examples/basic/sources/returns.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<i32, ()>(&mut allocator, "rv_u8", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 19);
+
+    Ok(())
+}
+
+#[test]
+#[ignore] // TODO: fix returning MoveByteVector from native code
+#[serial]
+pub fn test_sha2() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/hash_tests.polkavm",
+        "../examples/hash_tests/sources/hash_tests.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "sha2_256_expected_hash", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_ok());
+
+    Ok(())
+}
+
+#[test]
+#[ignore] // TODO: fix returning MoveByteVector from native code
+#[serial]
+pub fn test_sha3() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/hash_tests.polkavm",
+        "../examples/hash_tests/sources/hash_tests.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "sha3_256_expected_hash", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_ok());
 
     Ok(())
 }
@@ -121,7 +236,6 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
         "../examples/basic/sources/tuple.move",
         vec![],
     )?;
-    // Grab the function and call it.
     let result = instance
         .call_typed_and_get_result::<u64, (u32, u64)>(&mut allocator, "add", (10, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -132,15 +246,14 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 
 #[test]
 #[serial]
-pub fn test_vector() -> anyhow::Result<()> {
+pub fn test_vector_new() -> anyhow::Result<()> {
     let (mut instance, mut allocator) = build_instance(
         "output/vector.polkavm",
         "../examples/basic/sources/vector.move",
         vec![],
     )?;
-    // Grab the function and call it.
     let result = instance
-        .call_typed_and_get_result::<u64, ()>(&mut allocator, "foo", ())
+        .call_typed_and_get_result::<u64, ()>(&mut allocator, "vecnew", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     assert_eq!(result, 2);
 
@@ -160,6 +273,36 @@ pub fn test_struct() -> anyhow::Result<()> {
         .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, "create_counter", (10, 32))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     assert_eq!(result, 42);
+
+    Ok(())
+}
+
+pub fn test_vector_isempty() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/vector.polkavm",
+        "../examples/basic/sources/vector.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<i32, ()>(&mut allocator, "vecisempty", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 0);
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+pub fn test_vector_cmp() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/vector.polkavm",
+        "../examples/basic/sources/vector.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<u32, ()>(&mut allocator, "veccmp", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    assert_eq!(result, 1);
 
     Ok(())
 }
@@ -205,7 +348,6 @@ pub fn test_multi_module_call2() -> anyhow::Result<()> {
         vec!["multi_module=0x7"],
     )?;
 
-    // Grab the function and call it.
     let result = instance
         .call_typed_and_get_result::<u32, (u32, u32, u32)>(&mut allocator, "add_all", (10, 5, 5))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
