@@ -7,8 +7,7 @@ use crate::{
     stackless::{
         dwarf::{DIBuilder, UnresolvedPrintLogLevel},
         extensions::*,
-        llvm,
-        llvm::TargetMachine,
+        llvm::{self, TargetMachine},
         rttydesc::RttyContext,
         FunctionContext, RtCall, TargetPlatform,
     },
@@ -418,7 +417,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             "Checking if {fn_name} exists in current module {:?}",
             mod_env.get_id()
         );
-        if self.fn_decls.contains_key(&fn_name) {
+        if self.fn_decls.contains_key(&curr_fn_env.get_full_name_str()) {
             debug!("{fn_name} Exists. Skipping");
             return;
         }
@@ -562,7 +561,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
         ll_fn.as_gv().set_linkage(linkage);
         debug!("Adding declared {ll_sym_name} to current module");
-        self.fn_decls.insert(ll_sym_name, ll_fn);
+        self.fn_decls.insert(fn_env.get_full_name_str(), ll_fn);
     }
 
     /// Declare native functions.
@@ -628,7 +627,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
         ll_fn.as_gv().set_linkage(linkage);
 
-        self.fn_decls.insert(ll_native_sym_name, ll_fn);
+        self.fn_decls.insert(fn_env.get_full_name_str(), ll_fn);
     }
 
     pub fn lookup_move_fn_decl(&self, qiid: mm::QualifiedInstId<mm::FunId>) -> llvm::Function {
@@ -637,12 +636,13 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             .env
             .get_module(qiid.module_id)
             .into_function(qiid.id);
-        let sname = fn_env.llvm_symbol_name(&qiid.inst);
         debug!(
             "Looking up move fn decl: {} in module {}",
             fn_env.get_full_name_str(),
             fn_env.module_env.get_full_name_str()
         );
+        let sname = fn_env.get_full_name_str();
+        debug!("Looking up move fn decl: {sname}");
         let decl = self.fn_decls.get(&sname);
         assert!(decl.is_some(), "move fn decl not found: {sname}");
         *decl.unwrap()
@@ -650,7 +650,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
     pub fn lookup_native_fn_decl(&self, qid: mm::QualifiedId<mm::FunId>) -> llvm::Function {
         let fn_env = self.env.env.get_module(qid.module_id).into_function(qid.id);
-        let sname = fn_env.llvm_native_fn_symbol_name();
+        let sname = fn_env.get_full_name_str();
         let decl = self.fn_decls.get(&sname);
         assert!(decl.is_some(), "native fn decl not found: {sname}");
         *decl.unwrap()
