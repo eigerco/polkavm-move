@@ -99,9 +99,15 @@ fn link_object_files(
         &merged_object,
         true,
     )?;
+    debug!("Merged object file created at: {}", merged_object.display());
 
     let object_bytes = std::fs::read(&merged_object)?;
+    debug!(
+        "Read merged object file bytes, size: {}",
+        object_bytes.len()
+    );
     let polka_object = load_from_elf_with_polka_linker(&object_bytes)?;
+    debug!("Polka object created, size: {}", polka_object.len());
     std::fs::write(&polka_object_file, &polka_object)?;
     debug!(
         "Polka object file written to: {}",

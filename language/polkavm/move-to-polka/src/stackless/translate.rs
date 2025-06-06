@@ -359,6 +359,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         let builder = &self.module_cx.llvm_builder;
         let builder_di = &self.module_cx.llvm_di_builder;
         let instr_dbg = builder_di.create_instruction(instr, self);
+        debug!(target: "functions", "translating instruction {instr:?}");
 
         match instr {
             sbc::Bytecode::Assign(_, dst, src, sbc::AssignKind::Move) => {
@@ -1185,10 +1186,11 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         let emitter_nop: CheckEmitterFn = (|_, _| (), EmitterFnKind::PreCheck);
         let builder = &self.module_cx.llvm_builder;
         let di_builder = &self.module_cx.llvm_di_builder;
+        debug!(target: "dwarf", "translate_call op {op:#?} dst {dst:#?} src {src:#?}");
         match op {
             Operation::Function(mod_id, fun_id, types) => {
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
-                let fn_name = &self.env.get_name_str();
+                let fn_name = &self.env.get_full_name_str();
                 debug!(target: "dwarf", "translate_call function {fn_name} op {:#?} dst {:#?} src {:#?} types {:#?}",
                     op, dst, src, &types);
                 self.translate_fun_call(*mod_id, *fun_id, &types, dst, src, instr, instr_dbg);
@@ -1613,6 +1615,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         instr: &sbc::Bytecode,
         instr_dbg: super::dwarf::PublicInstruction<'_>,
     ) {
+        debug!(target: "functions", "@@@@@@@@@@@@ translate_fun_call {} mod_id {mod_id:?} types {types:?} dst {dst:?} src {src:?}", self.env.get_full_name_str());
         // Handle native function calls specially.
         {
             let global_env = &self.env.module_env.env;
@@ -1636,7 +1639,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let llty = loc_dst.llty;
                 let llval = loc_dst.llval;
                 let dst_name = llval.get_name();
-                debug!(target: "dwarf", "translate_fun_call {dst_name} mty {mty_info} llty {llty:#?} loc_dst {loc_dst:#?}");
+                debug!(target: "functions", "translate_fun_call {dst_name} mty {mty_info} llty {llty:#?} loc_dst {loc_dst:#?}");
                 loc_dst
             })
             .collect::<Vec<_>>();
@@ -1645,19 +1648,19 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             .iter()
             .map(|i| {
                 let loc_src = &self.locals[*i];
-                debug!(target: "dwarf", "translate_fun_call {loc_src:#?}");
+                debug!(target: "functions", "translate_fun_call {loc_src:#?}");
                 loc_src
             })
             .collect::<Vec<_>>();
 
         let qiid = mod_id.qualified_inst(fun_id, types.to_vec());
         let ll_fn = self.module_cx.lookup_move_fn_decl(qiid.clone());
-        debug!(target: "****", "translate_fun_call qiid {qiid:?} ll_fn {:#?}", ll_fn.get_name());
+        debug!(target: "functions", "translate_fun_call qiid {qiid:?} ll_fn {:#?}", ll_fn.get_name());
 
         let fn_name = ll_fn.get_name();
         let fn_ll_ret_type = ll_fn.llvm_return_type();
         let info = fn_ll_ret_type.print_to_str();
-        debug!(target: "dwarf", "translate_fun_call function name {fn_name} {info}");
+        debug!(target: "functions", "translate_fun_call function name {fn_name} {info}");
 
         let src = src_locals
             .iter()

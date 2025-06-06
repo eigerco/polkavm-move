@@ -50,6 +50,11 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         self.llvm_module.set_source_file_name(filename);
         self.llvm_module.set_target(self.target.triple());
         self.llvm_module.set_data_layout(self.target_machine);
+        debug!(
+            "Translating module {} id {:?}",
+            self.env.get_full_name_str(),
+            self.env.get_id()
+        );
 
         self.declare_structs();
         // self.llvm_module.declare_known_functions();
@@ -411,7 +416,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
         debug!(
             "Checking if {fn_name} exists in current module {:?}",
-            mod_env.get_name()
+            mod_env.get_id()
         );
         if self.fn_decls.contains_key(&fn_name) {
             debug!("{fn_name} Exists. Skipping");
@@ -497,7 +502,10 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
     ) {
         let mut linkage = linkage;
         let ll_sym_name = fn_env.llvm_symbol_name(tyvec);
-        debug!("Declare Move function {ll_sym_name}");
+        debug!(
+            "Declare Move function {ll_sym_name} in {}",
+            fn_env.get_full_name_str()
+        );
         let ll_fn = {
             let ll_fnty = {
                 let ll_rty = if let Some(ty) = self.to_llvm_type(&fn_data.result_type, tyvec) {
@@ -630,6 +638,11 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             .get_module(qiid.module_id)
             .into_function(qiid.id);
         let sname = fn_env.llvm_symbol_name(&qiid.inst);
+        debug!(
+            "Looking up move fn decl: {} in module {}",
+            fn_env.get_full_name_str(),
+            fn_env.module_env.get_full_name_str()
+        );
         let decl = self.fn_decls.get(&sname);
         assert!(decl.is_some(), "move fn decl not found: {sname}");
         *decl.unwrap()
