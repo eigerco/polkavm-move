@@ -57,7 +57,6 @@ pub fn test_get_vec() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore] // TODO: fix string::append
 #[serial]
 pub fn test_string() -> anyhow::Result<()> {
     let (mut instance, mut allocator) = build_instance(

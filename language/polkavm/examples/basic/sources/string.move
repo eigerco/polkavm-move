@@ -10,6 +10,7 @@ module 0xa000::basic {
         let rv = b"Hello, PolkaVM!";
         let str = string::utf8(rv);
         debug::print(&rv);
+        debug::print(&str);
     }
 
 }

@@ -18,6 +18,9 @@ module 0xa000::basic {
         vector::push_back(&mut v, 7u8);
         vector::push_back(&mut v, 8u8);
         vector::push_back(&mut v, 9u8);
+        let other = vector::empty<u8>();
+        vector::push_back(&mut other, 10u8);
+        vector::append(&mut v, other);
         debug::print(&v);
         let e = vector::borrow(&mut v, 2);
         let b = (*e as u64);
