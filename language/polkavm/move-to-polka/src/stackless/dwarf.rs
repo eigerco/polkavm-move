@@ -608,7 +608,7 @@ impl<'up> DIBuilder<'up> {
         }
     }
 
-    pub fn global_ctx(&self) -> Option<&GlobalContext> {
+    pub fn global_ctx(&self) -> Option<&GlobalContext<'_>> {
         self.0.as_ref().map(|x| x.g_ctx)
     }
 
@@ -640,7 +640,7 @@ impl<'up> DIBuilder<'up> {
         self.0.as_ref().map(|x| x.producer.clone())
     }
 
-    fn core(&self) -> &DIBuilderCore {
+    fn core(&self) -> &DIBuilderCore<'_> {
         self.0.as_ref().unwrap()
     }
 
