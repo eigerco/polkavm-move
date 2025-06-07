@@ -1615,7 +1615,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         instr: &sbc::Bytecode,
         instr_dbg: super::dwarf::PublicInstruction<'_>,
     ) {
-        debug!(target: "functions", "@@@@@@@@@@@@ translate_fun_call {} mod_id {mod_id:?} types {types:?} dst {dst:?} src {src:?}", self.env.get_full_name_str());
+        debug!(target: "functions", "translate_fun_call {} mod_id {mod_id:?} types {types:?} dst {dst:?} src {src:?}", self.env.get_full_name_str());
         // Handle native function calls specially.
         {
             let global_env = &self.env.module_env.env;
