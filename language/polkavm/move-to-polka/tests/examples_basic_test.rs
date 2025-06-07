@@ -1,7 +1,4 @@
-use move_to_polka::{
-    initialize_logger,
-    linker::{new_move_program, BuildOptions},
-};
+use move_to_polka::{initialize_logger, linker::new_move_program};
 use polkavm::{CallError, Instance};
 
 use polkavm_move_native::{
@@ -378,15 +375,5 @@ fn build_instance(
     mapping: Vec<&str>,
 ) -> anyhow::Result<(Instance<MemAllocator, ProgramError>, MemAllocator)> {
     initialize_logger();
-    pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
-    let move_src = format!("{MOVE_STDLIB_PATH}/sources");
-    let mut build_options = BuildOptions::new(output)
-        .dependency(&move_src)
-        .source(source)
-        .address_mapping("std=0x1");
-
-    for m in mapping {
-        build_options = build_options.address_mapping(m);
-    }
-    new_move_program(build_options)
+    new_move_program(output, source, mapping)
 }
