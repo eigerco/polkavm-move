@@ -43,6 +43,24 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
 
 #[test]
 #[serial]
+pub fn test_error() -> anyhow::Result<()> {
+    let (mut instance, mut allocator) = build_instance(
+        "output/error.polkavm",
+        "../examples/basic/sources/error.move",
+        vec![],
+    )?;
+    let result = instance
+        .call_typed_and_get_result::<u64, ()>(&mut allocator, "error", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    // error numbers are category << 16 + the reason code (42 in this case)
+    let expected = (6 << 16) + 42;
+    assert_eq!(result, expected);
+
+    Ok(())
+}
+
+#[test]
+#[serial]
 pub fn test_get_vec() -> anyhow::Result<()> {
     let (mut instance, mut allocator) = build_instance(
         "output/native.polkavm",
