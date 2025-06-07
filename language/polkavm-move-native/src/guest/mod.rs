@@ -26,21 +26,15 @@ unsafe extern "C" fn get_vec() -> MoveByteVector {
 }
 
 #[export_name = "move_native_hash_sha2_256"]
-unsafe extern "C" fn move_native_hash_sha2_256(
-    t: *const MoveType,
-    bytes: *const MoveByteVector,
-) -> *const MoveByteVector {
-    let address = imports::hash_sha2_256(t, bytes);
+unsafe extern "C" fn move_native_hash_sha2_256(bytes: *const MoveByteVector) -> MoveByteVector {
+    let address = imports::hash_sha2_256(bytes);
     let mv_ptr = address as *const MoveByteVector;
-    mv_ptr
+    *mv_ptr
 }
 
 #[export_name = "move_native_hash_sha3_256"]
-unsafe extern "C" fn move_native_hash_sha3_256(
-    t: *const MoveType,
-    bytes: *const MoveByteVector,
-) -> MoveByteVector {
-    let address = imports::hash_sha3_256(t, bytes);
+unsafe extern "C" fn move_native_hash_sha3_256(bytes: *const MoveByteVector) -> MoveByteVector {
+    let address = imports::hash_sha3_256(bytes);
     let mv_ptr = address as *const MoveByteVector;
     *mv_ptr
 }

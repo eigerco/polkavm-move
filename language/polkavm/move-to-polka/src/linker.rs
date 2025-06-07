@@ -185,8 +185,8 @@ pub fn new_move_program(
 
     linker.define_typed(
         "hash_sha2_256",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_buf: u32| {
-            debug!("hash_sha2_256 called with type: 0x{ptr_to_type:X}, ptr: 0x{ptr_to_buf:X}");
+        |caller: Caller<MemAllocator>, ptr_to_buf: u32| {
+            debug!("hash_sha2_256 called with type: ptr: 0x{ptr_to_buf:X}");
             let allocator = caller.user_data;
             let instance = caller.instance;
             let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
@@ -204,8 +204,8 @@ pub fn new_move_program(
 
     linker.define_typed(
         "hash_sha3_256",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_buf: u32| {
-            debug!("hash_sha3_256 called with type: 0x{ptr_to_type:X}, ptr: 0x{ptr_to_buf:X}");
+        |caller: Caller<MemAllocator>, ptr_to_buf: u32| {
+            debug!("hash_sha3_256 called with type: ptr: 0x{ptr_to_buf:X}");
             let allocator = caller.user_data;
             let instance = caller.instance;
             let bytes = from_move_byte_vector(instance, ptr_to_buf)?;

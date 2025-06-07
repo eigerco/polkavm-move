@@ -16,7 +16,7 @@ module 0xa002::hash_tests {
         let digest = hash::sha2_256(input);
         debug::print(&digest);
         let digest_len = vector::length(&digest);
-        //assert!(digest_len == 24, 0);
+        assert!(digest_len == 32, 0);
         debug::print(&digest_len);
         let expected_output = x"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
         assert!(digest == expected_output, 0);
