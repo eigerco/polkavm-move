@@ -221,15 +221,6 @@ pub fn new_move_program(
         },
     )?;
 
-    linker.define_typed("get_vec", |caller: Caller<MemAllocator>| {
-        debug!("get_vec called");
-        let vec = [1, 2, 3, 4, 5];
-        let allocator = caller.user_data;
-        let instance = caller.instance;
-        let address = to_move_byte_vector(instance, allocator, vec.to_vec())?;
-        Result::<u32, ProgramError>::Ok(address)
-    })?;
-
     // Link the host functions with the module.
     let instance_pre = linker.instantiate_pre(&module)?;
 

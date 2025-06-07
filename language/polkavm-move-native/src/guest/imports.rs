@@ -24,8 +24,3 @@ extern "C" {
 extern "C" {
     pub(crate) fn hash_sha3_256(v: *const MoveByteVector) -> u32;
 }
-
-#[polkavm_derive::polkavm_import]
-extern "C" {
-    pub(crate) fn get_vec() -> u32;
-}

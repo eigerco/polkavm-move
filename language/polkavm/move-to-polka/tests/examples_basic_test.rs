@@ -61,21 +61,6 @@ pub fn test_error() -> anyhow::Result<()> {
 
 #[test]
 #[serial]
-pub fn test_get_vec() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
-        "output/native.polkavm",
-        "../examples/basic/sources/native.move",
-        vec![],
-    )?;
-    instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "native_get_vec", ())
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-
-    Ok(())
-}
-
-#[test]
-#[serial]
 pub fn test_string() -> anyhow::Result<()> {
     let (mut instance, mut allocator) = build_instance(
         "output/string.polkavm",
