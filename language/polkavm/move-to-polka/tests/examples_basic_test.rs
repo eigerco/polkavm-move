@@ -1,8 +1,8 @@
 use move_to_polka::{initialize_logger, linker::new_move_program};
-use polkavm::{CallError, Instance};
+use polkavm::CallError;
 
 use polkavm_move_native::{
-    host::{MemAllocator, ProgramError},
+    host::ProgramError,
     types::{MoveAddress, MoveSigner, ACCOUNT_ADDRESS_LENGTH},
 };
 use serial_test::serial;
@@ -10,7 +10,8 @@ use serial_test::serial;
 #[test]
 #[serial] // TODO: find the reason this needs to run serially on macOS
 pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/morebasic.polkavm",
         "../examples/basic/sources/morebasic.move",
         vec![],
@@ -26,7 +27,8 @@ pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_void_program_execution() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/void.polkavm",
         "../examples/basic/sources/void.move",
         vec![],
@@ -41,7 +43,8 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_error() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/error.polkavm",
         "../examples/basic/sources/error.move",
         vec![],
@@ -59,7 +62,8 @@ pub fn test_error() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_string() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/string.polkavm",
         "../examples/basic/sources/string.move",
         vec![],
@@ -74,7 +78,8 @@ pub fn test_string() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_rv_bool() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/returns.polkavm",
         "../examples/basic/sources/returns.move",
         vec![],
@@ -94,7 +99,8 @@ pub fn test_rv_bool() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_rv_u16() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/returns.polkavm",
         "../examples/basic/sources/returns.move",
         vec![],
@@ -110,7 +116,8 @@ pub fn test_rv_u16() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_rv_u32() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/returns.polkavm",
         "../examples/basic/sources/returns.move",
         vec![],
@@ -126,7 +133,8 @@ pub fn test_rv_u32() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_rv_u8() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/returns.polkavm",
         "../examples/basic/sources/returns.move",
         vec![],
@@ -142,7 +150,8 @@ pub fn test_rv_u8() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_sha2() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/hash_tests.polkavm",
         "../examples/hash_tests/sources/hash_tests.move",
         vec![],
@@ -158,7 +167,8 @@ pub fn test_sha2() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_sha3() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/hash_tests.polkavm",
         "../examples/hash_tests/sources/hash_tests.move",
         vec![],
@@ -174,7 +184,8 @@ pub fn test_sha3() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_arith() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/arith.polkavm",
         "../examples/basic/sources/arith.move",
         vec![],
@@ -207,7 +218,8 @@ pub fn test_arith() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/basic.polkavm",
         "../examples/basic/sources/basic.move",
         vec![],
@@ -244,7 +256,8 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_tuple_implementation() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/tuple.polkavm",
         "../examples/basic/sources/tuple.move",
         vec![],
@@ -260,7 +273,8 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_vector_new() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/vector.polkavm",
         "../examples/basic/sources/vector.move",
         vec![],
@@ -276,7 +290,8 @@ pub fn test_vector_new() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_struct() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/vector.polkavm",
         "../examples/basic/sources/struct.move",
         vec![],
@@ -291,7 +306,8 @@ pub fn test_struct() -> anyhow::Result<()> {
 }
 
 pub fn test_vector_isempty() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/vector.polkavm",
         "../examples/basic/sources/vector.move",
         vec![],
@@ -307,7 +323,8 @@ pub fn test_vector_isempty() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_vector_cmp() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/vector.polkavm",
         "../examples/basic/sources/vector.move",
         vec![],
@@ -323,7 +340,8 @@ pub fn test_vector_cmp() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_multi_module_call() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/modules.polkavm",
         "../examples/multi_module/sources/modules.move",
         vec!["multi_module=0x7"],
@@ -355,7 +373,8 @@ pub fn test_multi_module_call() -> anyhow::Result<()> {
 #[test]
 #[serial]
 pub fn test_multi_module_call2() -> anyhow::Result<()> {
-    let (mut instance, mut allocator) = build_instance(
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
         "output/multi_module_call.polkavm",
         "../examples/multi_module/sources/modules2.move",
         vec!["multi_module=0x7"],
@@ -367,13 +386,4 @@ pub fn test_multi_module_call2() -> anyhow::Result<()> {
     assert_eq!(result, 20);
 
     Ok(())
-}
-
-fn build_instance(
-    output: &str,
-    source: &str,
-    mapping: Vec<&str>,
-) -> anyhow::Result<(Instance<MemAllocator, ProgramError>, MemAllocator)> {
-    initialize_logger();
-    new_move_program(output, source, mapping)
 }
