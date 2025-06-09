@@ -1,5 +1,8 @@
 use crate::{
-    types::{AnyValue, MoveAddress, MoveByteVector, MoveSigner, MoveType, MoveUntypedVector},
+    types::{
+        AnyValue, MoveAddress, MoveAsciiString, MoveByteVector, MoveSigner, MoveType,
+        MoveUntypedVector,
+    },
     vector::{TypedMoveBorrowedRustVec, TypedMoveBorrowedRustVecMut},
 };
 use core::str;
@@ -156,13 +159,17 @@ pub unsafe extern "C" fn internal_is_char_boundary(v: &MoveByteVector, i: u64) -
 }
 
 #[export_name = "move_native_string_internal_sub_string"]
-pub unsafe extern "C" fn internal_sub_string(v: &MoveByteVector, i: u64, j: u64) -> MoveByteVector {
+pub unsafe extern "C" fn internal_sub_string(
+    s: &MoveAsciiString,
+    i: u64,
+    j: u64,
+) -> MoveByteVector {
+    let v = &s.bytes;
     let rust_vec = v.as_rust_vec();
     let i = usize::try_from(i).expect("usize");
     let j = usize::try_from(j).expect("usize");
 
     let rust_str = str::from_utf8(&rust_vec).expect("invalid utf8");
-
     let sub_rust_vec = &rust_str.as_bytes()[i..j];
     MoveByteVector::from_rust_vec(sub_rust_vec.into())
 }
@@ -181,4 +188,9 @@ pub unsafe extern "C" fn internal_index_of(s: &MoveByteVector, r: &MoveByteVecto
         None => s_rust_str.len(),
     })
     .expect("u64")
+}
+
+#[export_name = "move_native_bcs_to_bytes"]
+pub unsafe extern "C" fn to_bytes(type_v: &MoveType, v: &AnyValue) -> MoveByteVector {
+    crate::serialization::serialize(type_v, v)
 }
