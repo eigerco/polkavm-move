@@ -1706,20 +1706,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "llvm-sys"
-version = "201.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bb947e8b79254ca10d496d0798a9ba1287dcf68e50a92b016fec1cc45bef447"
-dependencies = [
- "anyhow",
- "cc",
- "lazy_static",
- "libc",
- "regex-lite",
- "semver",
-]
-
-[[package]]
 name = "lock_api"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2177,7 +2163,7 @@ dependencies = [
  "env_logger",
  "extension-trait",
  "libc",
- "llvm-sys 191.0.0",
+ "llvm-sys",
  "log",
  "move-binary-format",
  "move-bytecode-source-map",
@@ -2414,7 +2400,7 @@ dependencies = [
  "hex",
  "itertools 0.14.0",
  "libc",
- "llvm-sys 201.0.1",
+ "llvm-sys",
  "log",
  "move-binary-format",
  "move-bytecode-source-map",

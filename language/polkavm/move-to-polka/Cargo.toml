@@ -30,7 +30,7 @@ env_logger = { version = "0.11", features = ["color"] }
 extension-trait = "1.0.1"
 itertools = "0.14"
 libc = "0.2"
-llvm-sys = "201.0"
+llvm-sys = "191.0"
 log = "0.4.14"
 move-binary-format = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-binary-format" }
 move-bytecode-source-map = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-bytecode-source-map" }
