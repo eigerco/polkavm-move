@@ -22,6 +22,7 @@ atty = "0.2.14"
 blake3 = "1.5"
 bs58 = "0.5.0"
 clap = { version = "4.5", features = ["derive"] }
+# we can not upgrade the next 2 until aptos-move updates
 codespan = "0.11.1"
 codespan-reporting = "0.11.1"
 anstyle = "1.0"
@@ -29,7 +30,7 @@ env_logger = { version = "0.11", features = ["color"] }
 extension-trait = "1.0.1"
 itertools = "0.14"
 libc = "0.2"
-llvm-sys = "191.0"
+llvm-sys = "201.0"
 log = "0.4.14"
 move-binary-format = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-binary-format" }
 move-bytecode-source-map = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-bytecode-source-map" }
@@ -38,7 +39,6 @@ move-compiler = { git = "https://github.com/move-language/move-on-aptos.git", pa
 move-core-types = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-core-types" }
 move-ir-types = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-ir-types" }
 move-model = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-model" }
-move-native = { path = "../../move-native" }
 move-stackless-bytecode = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-stackless-bytecode" }
 move-symbol-pool = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-symbol-pool" }
 num = "0.4.0"
@@ -53,7 +53,7 @@ sha2 = "0.10"
 sha3 = "0.10"
 tempfile = "3.2"
 hex = "0.4"
-which = "7.0.3"
+which = "8.0"
 
 [dev-dependencies]
 serial_test = "3.2.0"
@@ -61,7 +61,7 @@ serial_test = "3.2.0"
 
 [build-dependencies]
 move-stdlib = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-stdlib" }
-cargo_metadata = "0.19"
+cargo_metadata = "0.20"
 thiserror = "2.0"
 build-tools = { path = "../../tools/build-tools" }
 anyhow = "1.0.98"

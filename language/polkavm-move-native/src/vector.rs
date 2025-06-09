@@ -1,3 +1,66 @@
+// Copyright (c) The Diem Core Contributors
+// Copyright (c) The Move Contributors
+// SPDX-License-Identifier: Apache-2.0
+
+//! Operations on Move vectors.
+//!
+//! Move vectors are temporarily converted to Rust `Vec`s,
+//! then operated on by calling the standard `Vec` methods.
+//!
+//! This module provides the types and encapsulation to do
+//! such operations as ergonomically and safely as reasonable.
+//!
+//!
+//! # Vector support types
+//!
+//! [`MoveUntypedVector`] is the main the vector
+//! type exposed to the compiler, with known layout.
+//! It is always paired with a [`MoveType`] that describes its elements.
+//! It is defined in the [`rt_types`] module, with public fields,
+//! and so all operations on it are unsafe.
+//!
+//! It is created with [`MoveUntypedVector::empty`] and
+//! destroyed with [`MoveUntypedVector::destroy_empty`].
+//! It is almost always immediately converted to one of the types below.
+//!
+//! [`MoveByteVector`] is the same as `MoveUntypedVector` but is understood
+//! to always contain bytes.
+//!
+//! This module defines additional types that encapsulate the previous,
+//! adding some additional type safety:
+//!
+//! - [`MoveBorrowedRustVec`] / [`MoveBorrowedRustVecMut`] - these temporarily
+//!   treat a `MoveUntypedVector` or `MoveByteVector` as a Rust `Vec`. They
+//!   are created with `new` constructors.
+//! - [`TypedMoveBorrowedRustVec`] / [`TypedMoveBorrowedRustVecMut`] - enums
+//!   that pair a `MoveUntypedVector` with `MoveType`, handling all possible
+//!   cases of Move types, sometimes safely. Most uses of Move vectors in the runtime
+//!   operate on these types.
+//! - [`MoveBorrowedRustVecOfStruct`] / [`MoveBorrowedRustVecOfStructMut`] - types
+//!   that unsafely implement vector operations for vectors
+//!   of Move structs. These are further encapsulated in the `TypedMoveBorrowedRustVec`
+//!   struct case and don't typically need to be used directly.
+//!
+//!
+//! # Safety
+//!
+//! This module is the safety boundary for all vector types except for `MoveUntypedVector`
+//! and `MoveByteVector`. Once constructed unsafely, methods on types like
+//! `TypedMoveBorrowedRustVec` can sometimes be declared safe, though doing so requires
+//! careful understanding of what they are doing. Making these methods safe is an
+//! ongoing project.
+//!
+//!
+//! # Module organization
+//!
+//! This module is organized thusly:
+//!
+//! - type definitions
+//! - constructors, destructors, conversions, and deref impls
+//! - additional operations
+//! - Debug impls
+
+
 extern crate alloc;
 use crate::{
     conv::{borrow_move_value_as_rust_value, invalid_mut},

@@ -17,11 +17,11 @@ use log::debug;
 use move_binary_format::file_format::SignatureToken;
 use move_core_types::u256::U256;
 use move_model::{model as mm, ty as mty};
-use move_native::shared::{MOVE_TYPE_DESC_SIZE, MOVE_UNTYPED_VEC_DESC_SIZE};
 use move_stackless_bytecode::{
     function_target::FunctionData, stackless_bytecode as sbc,
     stackless_bytecode_generator::StacklessBytecodeGenerator,
 };
+use polkavm_move_native::types::{MOVE_TYPE_DESC_SIZE, MOVE_UNTYPED_VEC_DESC_SIZE};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub struct ModuleContext<'mm: 'up, 'up> {

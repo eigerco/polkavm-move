@@ -56,7 +56,7 @@ pub struct MoveSignerVector {
 ///
 /// NOTE: The `type_info` pointer is only valid in guest memory.
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 pub struct MoveType {
     pub name: StaticTypeName,
     pub type_desc: TypeDesc,
@@ -88,7 +88,7 @@ impl core::fmt::Display for MoveType {
 ///
 /// The pointer must be to static memory and never mutated.
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct StaticTypeName {
     pub ptr: *const u8,
     pub len: u64,
@@ -133,6 +133,7 @@ pub enum TypeDesc {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub union TypeInfo {
     pub nothing: u8, // if no type info is needed
     pub vector: VectorTypeInfo,
@@ -169,6 +170,7 @@ pub struct StructTypeInfo {
     pub alignment: u64,
 }
 
+unsafe impl Sync for StructTypeInfo {}
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct StructFieldInfo {
@@ -189,7 +191,7 @@ pub struct ReferenceTypeInfo {
 pub struct AnyValue(u8);
 
 #[repr(transparent)]
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq, borsh::BorshSerialize, borsh::BorshDeserialize)]
 pub struct MoveSigner(pub MoveAddress);
 
 pub const ACCOUNT_ADDRESS_LENGTH: usize = 32;
@@ -201,8 +203,18 @@ pub const ACCOUNT_ADDRESS_LENGTH: usize = 32;
 ///
 /// Bytes are in little-endian order.
 #[repr(transparent)]
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, borsh::BorshSerialize, borsh::BorshDeserialize)]
 pub struct MoveAddress(pub [u8; ACCOUNT_ADDRESS_LENGTH]);
+
+impl core::fmt::Debug for MoveAddress {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("@")?;
+        for byte in self.0.iter().rev() {
+            f.write_fmt(core::format_args!("{byte:02X?}"))?;
+        }
+        Ok(())
+    }
+}
 
 // Defined in std::type_name; not a primitive.
 //
@@ -225,6 +237,14 @@ pub struct MoveAsciiString {
 #[derive(Debug)]
 pub struct MoveUntypedReference(pub *const AnyValue);
 
+#[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Copy, Clone, PartialEq)]
 #[repr(transparent)]
-#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct U256(pub [u128; 2]);
+
+impl core::fmt::Debug for U256 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // Printing is not trivial. Defer to ethnum::U256.
+        let v = ethnum::U256(self.0);
+        v.fmt(f)
+    }
+}

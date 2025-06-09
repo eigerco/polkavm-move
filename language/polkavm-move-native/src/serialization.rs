@@ -2,7 +2,9 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{conv::*, rt_types::*, vector::*};
+extern crate alloc;
+
+use crate::{conv::*, types::*, vector::*};
 use alloc::vec::Vec;
 use borsh::{BorshDeserialize, BorshSerialize};
 use core::ptr;
@@ -15,6 +17,7 @@ fn borsh_from_slice<T: BorshDeserialize>(buf: &mut &[u8]) -> T {
     BorshDeserialize::deserialize(buf).expect("deserialization failure")
 }
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn serialize(type_v: &MoveType, v: &AnyValue) -> MoveByteVector {
     let mut buf = Vec::new();
     serialize_to_buf(type_v, v, &mut buf);
@@ -63,6 +66,7 @@ unsafe fn serialize_to_buf(type_v: &MoveType, v: &AnyValue, buf: &mut Vec<u8>) {
     };
 }
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn deserialize(type_v: &MoveType, bytes: &MoveByteVector, v: *mut AnyValue) {
     let bytes = bytes.as_rust_vec();
     let bytes = &mut &bytes[..];

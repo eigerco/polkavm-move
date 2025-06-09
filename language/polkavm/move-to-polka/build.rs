@@ -19,7 +19,7 @@ fn fetch_move_stdlib() -> anyhow::Result<()> {
         .packages
         .iter()
         .find(|p| {
-            p.name == "move-stdlib"
+            p.name.as_str() == "move-stdlib"
                 && p.source
                     .as_ref()
                     .map(|s| s.repr.starts_with(git_prefix))

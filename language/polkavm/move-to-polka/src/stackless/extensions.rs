@@ -9,7 +9,7 @@ use extension_trait::extension_trait;
 use move_binary_format::file_format::SignatureToken;
 use move_core_types::account_address;
 use move_model::{model as mm, ty as mty};
-use move_native::shared::MOVE_UNTYPED_VEC_DESC_SIZE;
+use polkavm_move_native::types::MOVE_UNTYPED_VEC_DESC_SIZE;
 
 #[extension_trait]
 pub impl ModuleEnvExt for mm::ModuleEnv<'_> {

@@ -16,7 +16,7 @@ use crate::stackless::{
 use log::{debug, Level};
 use move_core_types::{account_address, u256::U256};
 use move_model::{ast as mast, model as mm, ty as mty};
-use move_native::shared::TypeDesc;
+use polkavm_move_native::types::TypeDesc;
 
 static TD_NAME: &str = "__move_rt_type";
 static TD_TYPE_NAME_NAME: &str = "__move_rt_type_name";

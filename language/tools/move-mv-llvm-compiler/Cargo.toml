@@ -23,7 +23,6 @@ rand = "0.9"
 move-coverage = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-coverage" }
 move-cli = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-cli" }
 move-package = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-package" }
-move-native = { path = "../../move-native" }
 move-binary-format = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-binary-format" }
 move-bytecode-verifier = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-bytecode-verifier" }
 move-bytecode-source-map = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-bytecode-source-map" }

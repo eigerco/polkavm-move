@@ -2,6 +2,12 @@
 name = "polkavm-move-native"
 version = "0.1.0"
 edition = "2021"
+authors = ["Diem Association <opensource@diem.com>"]
+description = "Runtime calls for LLVM-compiled Move"
+repository = "https://github.com/diem/diem"
+homepage = "https://diem.com"
+license = "Apache-2.0"
+publish = false
 
 [lib]
 crate-type = ["rlib"]
@@ -10,6 +16,8 @@ crate-type = ["rlib"]
 log = { version = "0.4.14", optional = true }
 polkavm-derive = { optional = true, version = "0.24.0" }
 polkavm = { optional = true, version = "0.24.0" }
+borsh = { version = "0.10.3", default-features = false }
+ethnum = { version = "1.5", default-features = false }
 # polkavm = { path = "../../../polkavm/crates/polkavm/", optional = true }
 # polkavm-derive = { path = "../../../polkavm/crates/polkavm-derive/", optional = true }
 
