@@ -2416,7 +2416,7 @@ dependencies = [
  "num-traits",
  "once_cell",
  "parking_lot",
- "polkavm 0.24.0",
+ "polkavm",
  "polkavm-linker",
  "polkavm-move-native",
  "regex",
@@ -2902,37 +2902,15 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "polkavm"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3cf2f23f95c001ca921f4d83bd3046d1a8b1f806a4956e00dd7673fb33d2ccf"
-dependencies = [
- "libc",
- "log",
- "polkavm-assembler 0.22.0",
- "polkavm-common 0.22.0",
- "polkavm-linux-raw 0.22.0",
-]
-
-[[package]]
-name = "polkavm"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2a01db119bb3a86572c0641ba6e7c9786fbd2ac89c25b43b688c4e353787526"
 dependencies = [
  "libc",
  "log",
- "polkavm-assembler 0.24.0",
- "polkavm-common 0.24.0",
- "polkavm-linux-raw 0.24.0",
-]
-
-[[package]]
-name = "polkavm-assembler"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e530d54b22d621152cbb67fa9049c5855e4786cb60d6b8b2eaa4e2c40f0620a1"
-dependencies = [
- "log",
+ "polkavm-assembler",
+ "polkavm-common",
+ "polkavm-linux-raw",
 ]
 
 [[package]]
@@ -2946,22 +2924,12 @@ dependencies = [
 
 [[package]]
 name = "polkavm-common"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "538810ffdaa629113b9f436f43ba487a6cceacc04a769ac3cdcd32fcf87351cd"
-dependencies = [
- "log",
- "polkavm-assembler 0.22.0",
-]
-
-[[package]]
-name = "polkavm-common"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d91ed9e5af472f729fcf3b3c1cf17508ddbb3505259dd6e2ee0fb5a29e105d22"
 dependencies = [
  "log",
- "polkavm-assembler 0.24.0",
+ "polkavm-assembler",
 ]
 
 [[package]]
@@ -2979,7 +2947,7 @@ version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5a21844afdfcc10c92b9ef288ccb926211af27478d1730fcd55e4aec710179d"
 dependencies = [
- "polkavm-common 0.24.0",
+ "polkavm-common",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -3006,16 +2974,10 @@ dependencies = [
  "hashbrown 0.14.5",
  "log",
  "object",
- "polkavm-common 0.24.0",
+ "polkavm-common",
  "regalloc2",
  "rustc-demangle",
 ]
-
-[[package]]
-name = "polkavm-linux-raw"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ac57506bd8659941c878934b5b5ec541d054347ad0cf40156b5cca630d7bdf0"
 
 [[package]]
 name = "polkavm-linux-raw"
@@ -3030,7 +2992,7 @@ dependencies = [
  "borsh",
  "ethnum",
  "log",
- "polkavm 0.24.0",
+ "polkavm",
  "polkavm-derive",
 ]
 
@@ -3040,7 +3002,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "polkavm 0.22.0",
+ "move-to-polka",
+ "polkavm",
  "tracing",
  "tracing-subscriber",
 ]

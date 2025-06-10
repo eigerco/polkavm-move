@@ -90,7 +90,6 @@ pub fn new_move_program(
     source: &str,
     mapping: Vec<&str>,
 ) -> Result<(Instance<MemAllocator, ProgramError>, MemAllocator), anyhow::Error> {
-    const AUX_DATA_SIZE: u32 = 4 * 1024;
     pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
 
     let move_src = format!("{MOVE_STDLIB_PATH}/sources");
@@ -106,16 +105,24 @@ pub fn new_move_program(
     let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
 
+    create_instance(blob)
+}
+
+pub fn create_instance(
+    blob: ProgramBlob,
+) -> Result<(Instance<MemAllocator, ProgramError>, MemAllocator), anyhow::Error> {
+    const AUX_DATA_SIZE: u32 = 4 * 1024;
     let mut config = Config::from_env()?;
     config.set_allow_dynamic_paging(true);
     let engine = Engine::new(&config)?;
 
     let mut module_config = ModuleConfig::new();
-    module_config.set_strict(true); // enforce module loading fail if not all host functions are provided
+    module_config.set_strict(true);
+    // enforce module loading fail if not all host functions are provided
     module_config.set_aux_data_size(AUX_DATA_SIZE);
     module_config.set_dynamic_paging(true);
 
-    let module = Module::from_blob(&engine, &module_config, blob)?;
+    let module = Module::from_blob(&engine, &module_config, blob.clone())?;
     // Create a memory allocator for the module.
     let allocator = MemAllocator::init(module.memory_map());
     let memory_map = module.memory_map();
@@ -245,10 +252,22 @@ pub fn new_move_program(
 
     // Instantiate the module.
     let mut instance = instance_pre.instantiate()?;
-    // Initialize the memory block for auxiliary data.
-    instance.write_memory(
-        memory_map.aux_data_address(),
-        &[0u8; AUX_DATA_SIZE as usize],
+    // zero stack
+    let stack_size = module.memory_map().stack_size();
+    instance.zero_memory(module.memory_map().stack_address_low(), stack_size)?;
+    // zero RW data
+    instance.zero_memory(
+        module.memory_map().rw_data_address(),
+        module.memory_map().rw_data_size(),
+    )?;
+    // write RO data to memory.
+    let blob = blob.clone();
+    let data = blob.ro_data();
+    instance.write_memory(module.memory_map().ro_data_address(), data)?;
+    // zero aux data
+    instance.zero_memory(
+        module.memory_map().aux_data_address(),
+        module.memory_map().aux_data_size(),
     )?;
     Ok((instance, allocator))
 }
