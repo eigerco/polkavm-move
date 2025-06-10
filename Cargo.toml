@@ -2,11 +2,10 @@
 resolver = "2"
 
 members = [
-    "language/polkavm-move-native",
-    "language/polkavm/move-to-polka",
-    "language/tools/move-mv-llvm-compiler",
-    "language/tools/polkavm-wrapper",
-    "language/tools/build-tools",
+    "crates/polkavm-move-native",
+    "crates/move-to-polka",
+    "crates/polkavm-wrapper",
+    "crates/build-tools",
 ]
 
 # NOTE: default-members is the complete list of binaries that form the "production Move codebase". These members should
@@ -15,10 +14,10 @@ members = [
 #
 # For more, see the "Conditional compilation for tests" section in documentation/coding_guidelines.md.
 default-members = [
-    # "language/move-native",
-    "language/polkavm/move-to-polka",
-    "language/tools/polkavm-wrapper",
-    "language/tools/build-tools",
+    "crates/polkavm-move-native",
+    "crates/move-to-polka",
+    "crates/polkavm-wrapper",
+    "crates/build-tools",
 ]
 
 # Dependencies that should be kept in sync through the whole workspace

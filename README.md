@@ -79,13 +79,13 @@ The main crates for this repo are:
 Install `move-to-polka` binary:
 
 ```bash
-cargo install --path language/polkavm/move-to-polka
+cargo install --path crates/move-to-polka
 ```
 
 Compile the given move source file into a PolkaVM module (`output.polkavm` by default):
 
 ```bash
-move-to-polka language/polkavm/examples/basic/sources/morebasic.move
+move-to-polka examples/basic/sources/morebasic.move
 ```
 
 Given that we now support stdlib and many native functions, using `move-to-polka` directly on the command line is a bit convoluted. We suggest to use the `polkavm-wrapper` below.
@@ -95,24 +95,25 @@ Given that we now support stdlib and many native functions, using `move-to-polka
 Install `polkavm-wrapper` binary:
 
 ```bash
-cargo install --path language/tools/polkavm-wrapper
+cargo install --path crates/polkavm-wrapper
 ```
 
 The `polkavm-wrapper` can now compile the given Move module and link with the Move stdlib and all native functions.
 
 ```bash
-polkavm-wrapper -s language/polkavm/examples/basic/sources/vector.move -e vecnew
+polkavm-wrapper -s examples/basic/sources/vector.move -e vecnew
 ```
 
 The expected output:
 
 ```bash
-2025-06-10T22:00:37.573997Z  INFO move_to_polka::linker: RO: 10000 size 8192
-2025-06-10T22:00:37.574023Z  INFO move_to_polka::linker: AUX: FFFE0000 size: 4096
-2025-06-10T22:00:37.574391Z  INFO polkavm_wrapper: Calling entry point vecnew at PC 1056 with args: []
-2025-06-10T22:00:37.575017Z  INFO move_to_polka::linker: debug_print called. type ptr: 0x10080 Data ptr: 0xFFFCFFC0, type: "MoveType { type: Vector }", value: MoveByteVector { ptr: 0xfffe0008, capacity: 16, length: 11 }, bytes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-2025-06-10T22:00:37.575066Z  INFO move_to_polka::linker: debug_print called. type ptr: 0x100B0 Data ptr: 0xFFFCFFF0, type: "MoveType { type: U64 }", value: 2
-2025-06-10T22:00:37.575075Z  INFO polkavm_wrapper: Result: 2
+2025-06-10T22:24:29.519797Z  INFO polkavm_wrapper: Compiled Move source to PolkaVM bytecode at /tmp/output.polkavm
+2025-06-10T22:24:29.730200Z  INFO move_to_polka::linker: RO: 10000 size 8192
+2025-06-10T22:24:29.730215Z  INFO move_to_polka::linker: AUX: FFFE0000 size: 4096
+2025-06-10T22:24:29.730565Z  INFO polkavm_wrapper: Calling entry point vecnew at PC 1056 with args: []
+2025-06-10T22:24:29.731210Z  INFO move_to_polka::linker: debug_print called. type ptr: 0x10080 Data ptr: 0xFFFCFFC0, type: "MoveType { type: Vector }", value: MoveByteVector { ptr: 0xfffe0008, capacity: 16, length: 11 }, bytes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+2025-06-10T22:24:29.731256Z  INFO move_to_polka::linker: debug_print called. type ptr: 0x100B0 Data ptr: 0xFFFCFFF0, type: "MoveType { type: U64 }", value: 2
+2025-06-10T22:24:29.731265Z  INFO polkavm_wrapper: Result: 2
 ```
 
 ### Known limitations:

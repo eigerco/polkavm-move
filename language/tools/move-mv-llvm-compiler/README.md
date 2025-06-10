@@ -1,1 +1,0 @@
-A tool from solana labs Move -> Solana compiler, left just for reference
