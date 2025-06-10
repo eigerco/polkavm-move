@@ -60,7 +60,6 @@
 //! - additional operations
 //! - Debug impls
 
-
 extern crate alloc;
 use crate::{
     conv::{borrow_move_value_as_rust_value, invalid_mut},
@@ -316,9 +315,9 @@ impl MoveUntypedVector {
         )
     }
 
-    pub fn from_rust_vec<T>(rv: Vec<T>) -> MoveUntypedVector {
+    pub fn from_rust_vec<T>(mut rv: Vec<T>) -> MoveUntypedVector {
         let mv = MoveUntypedVector {
-            ptr: core::ptr::null_mut::<u8>(),
+            ptr: rv.as_mut_ptr() as *mut u8,
             capacity: u64::try_from(rv.capacity()).expect("overflow"),
             length: u64::try_from(rv.len()).expect("overflow"),
         };

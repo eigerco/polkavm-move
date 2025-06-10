@@ -191,8 +191,14 @@ pub fn new_move_program(
         |caller: Caller<MemAllocator>, size: u64, align: u64| {
             debug!("guest_alloc called with size: {size}, align: {align}");
             let allocator = caller.user_data;
-            let address = allocator.alloc(size.try_into().unwrap(), align.try_into().unwrap());
-            Result::<u32, ProgramError>::Ok(address.expect("Failed to allocate memory"))
+            let address = allocator
+                .alloc(
+                    size.try_into().unwrap(),
+                    align.try_into().expect("failed to allocate"),
+                )
+                .unwrap();
+            debug!("guest_alloc allocated address: 0x{address:X}");
+            Result::<u32, ProgramError>::Ok(address)
         },
     )?;
 
