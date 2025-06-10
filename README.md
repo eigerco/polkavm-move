@@ -76,7 +76,7 @@ The main crates for this repo are:
 
 ### `move-to-polka` installation and usage
 
-Install `move-to-polka` binary accessible from the terminal:
+Install `move-to-polka` binary:
 
 ```bash
 cargo install --path language/polkavm/move-to-polka
@@ -88,37 +88,38 @@ Compile the given move source file into a PolkaVM module (`output.polkavm` by de
 move-to-polka language/polkavm/examples/basic/sources/morebasic.move
 ```
 
+Given that we now support stdlib and many native functions, using `move-to-polka` directly on the command line is a bit convoluted. We suggest to use the `polkavm-wrapper` below.
+
 ### `polkavm-wrapper` installation and usage
 
-Install `polkavm-wrapper` binary accessible from a terminal:
+Install `polkavm-wrapper` binary:
 
 ```bash
 cargo install --path language/tools/polkavm-wrapper
 ```
 
-Call the previously compiled module's entry function `sum` with the given args:
+The `polkavm-wrapper` can now compile the given Move module and link with the Move stdlib and all native functions.
 
 ```bash
-polkavm-wrapper -m output.polkavm -e sum -p 100 10
+polkavm-wrapper -s language/polkavm/examples/basic/sources/vector.move -e vecnew
 ```
 
 The expected output:
 
 ```bash
-2025-05-06T06:55:13.223390Z  INFO polkavm_wrapper: Reading output.polkavm module
-2025-05-06T06:55:13.223708Z  INFO polkavm_wrapper: 64bit module?: false
-2025-05-06T06:55:13.223712Z  INFO polkavm_wrapper: Calling sum with args [100, 10]
-2025-05-06T06:55:13.223791Z  INFO polkavm_wrapper: VM finished
-2025-05-06T06:55:13.223793Z  INFO polkavm_wrapper: Result = 110
+2025-06-10T22:00:37.573997Z  INFO move_to_polka::linker: RO: 10000 size 8192
+2025-06-10T22:00:37.574023Z  INFO move_to_polka::linker: AUX: FFFE0000 size: 4096
+2025-06-10T22:00:37.574391Z  INFO polkavm_wrapper: Calling entry point vecnew at PC 1056 with args: []
+2025-06-10T22:00:37.575017Z  INFO move_to_polka::linker: debug_print called. type ptr: 0x10080 Data ptr: 0xFFFCFFC0, type: "MoveType { type: Vector }", value: MoveByteVector { ptr: 0xfffe0008, capacity: 16, length: 11 }, bytes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+2025-06-10T22:00:37.575066Z  INFO move_to_polka::linker: debug_print called. type ptr: 0x100B0 Data ptr: 0xFFFCFFF0, type: "MoveType { type: U64 }", value: 2
+2025-06-10T22:00:37.575075Z  INFO polkavm_wrapper: Result: 2
 ```
 
 ### Known limitations:
 
-- No multi-module support, only SINGLE move module compilation is supported. An error will be generated if two modules in a single file are detected.
 - Move project layout is not supported yet, only single Move file -> PolkaVM module compilation.
-- No native function support yet (meaning that module compiles, but the polka linking phase will fail even with basic operations like division because it will emit abort native function call as part of the post-check).
-- No `move-stdlib` yet (requires multi-module support).
-- `polkavm-wrapper` assumes that all entry function args are `u64` (and therefore passed through two RISC-V 32-bit registers) and the return value is also `u64` (returned through two RISC-V 32-bit registers). This limitation can be lifted later when more complex data, such as args support, is added.
+- `polkavm-wrapper` can only call functions with maximum two u64 arguments and assumes the entrypoint returns u64 too. This is due to the generic API of the PolkaVM
+  which makes it hard or impossible to handle dynamically with a CLI (as the argument types and return types need to be known at compile time).
 
 ## History
 
