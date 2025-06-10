@@ -386,7 +386,7 @@ dependencies = [
  "anyhow",
  "itertools 0.14.0",
  "log",
- "which 7.0.3",
+ "which",
 ]
 
 [[package]]
@@ -2129,7 +2129,7 @@ dependencies = [
  "sha3 0.10.8",
  "tempfile",
  "thiserror 2.0.12",
- "which 8.0.0",
+ "which",
 ]
 
 [[package]]
@@ -3908,18 +3908,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a05d73b933a847d6cccdda8f838a22ff101ad9bf93e33684f39c1f5f0eece3d"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "which"
-version = "7.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24d643ce3fd3e5b54854602a080f34fb10ab75e0b813ee32d00ca2b44fa74762"
-dependencies = [
- "either",
- "env_home",
- "rustix",
- "winsafe",
 ]
 
 [[package]]

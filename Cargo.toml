@@ -22,7 +22,9 @@ default-members = [
 
 # Dependencies that should be kept in sync through the whole workspace
 [workspace.dependencies]
-bcs = "0.1.4"
+bcs = "0.1"
+polkavm = "0.24.0"
+polkavm-linker = "0.24.0"
 
 
 [profile.bench]
@@ -30,10 +32,3 @@ debug = true
 
 [profile.dev]
 debug = true
-
-# use release settings to reduce memory pressure in the linking step in CI
-[profile.ci]
-inherits = "test"
-debug = 0           # for saving disk space during linking
-incremental = false
-codegen-units = 16

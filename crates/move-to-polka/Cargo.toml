@@ -8,10 +8,8 @@ publish = false
 edition = "2021"
 
 [dependencies]
-polkavm = "0.24.0"
-polkavm-linker = "0.24.0"
-# polkavm = { path = "../../../../polkavm/crates/polkavm/" }
-# polkavm-linker = { path = "../../../../polkavm/crates/polkavm-linker/" }
+polkavm = { workspace = true }
+polkavm-linker = { workspace = true }
 polkavm-move-native = { path = "../polkavm-move-native", features = ["host"] }
 build-tools = { path = "../build-tools" }
 
@@ -28,6 +26,7 @@ env_logger = { version = "0.11", features = ["color"] }
 extension-trait = "1.0.1"
 itertools = "0.14"
 libc = "0.2"
+# we can not upgrade llvm as ubuntu does not have a newer version
 llvm-sys = "191.0"
 log = "0.4.14"
 move-binary-format = { git = "https://github.com/move-language/move-on-aptos.git", package = "move-binary-format" }
