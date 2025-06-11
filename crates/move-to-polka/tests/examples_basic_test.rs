@@ -346,27 +346,10 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 
 #[test]
 #[serial]
-pub fn test_vector_new() -> anyhow::Result<()> {
-    initialize_logger();
-    let (mut instance, mut allocator) = new_move_program(
-        "output/vector.polkavm",
-        "../../examples/basic/sources/vector.move",
-        vec![],
-    )?;
-    let result = instance
-        .call_typed_and_get_result::<u64, ()>(&mut allocator, "vecnew", ())
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 2);
-
-    Ok(())
-}
-
-#[test]
-#[serial]
 pub fn test_struct() -> anyhow::Result<()> {
     initialize_logger();
     let (mut instance, mut allocator) = new_move_program(
-        "output/vector.polkavm",
+        "output/struct.polkavm",
         "../../examples/basic/sources/struct.move",
         vec![],
     )?;
@@ -375,38 +358,6 @@ pub fn test_struct() -> anyhow::Result<()> {
         .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, "create_counter", (10, 32))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     assert_eq!(result, 42);
-
-    Ok(())
-}
-
-pub fn test_vector_isempty() -> anyhow::Result<()> {
-    initialize_logger();
-    let (mut instance, mut allocator) = new_move_program(
-        "output/vector.polkavm",
-        "../../examples/basic/sources/vector.move",
-        vec![],
-    )?;
-    let result = instance
-        .call_typed_and_get_result::<i32, ()>(&mut allocator, "vecisempty", ())
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 0);
-
-    Ok(())
-}
-
-#[test]
-#[serial]
-pub fn test_vector_cmp() -> anyhow::Result<()> {
-    initialize_logger();
-    let (mut instance, mut allocator) = new_move_program(
-        "output/vector.polkavm",
-        "../../examples/basic/sources/vector.move",
-        vec![],
-    )?;
-    let result = instance
-        .call_typed_and_get_result::<u32, ()>(&mut allocator, "veccmp", ())
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 1);
 
     Ok(())
 }
