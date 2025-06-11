@@ -14,7 +14,7 @@ use anyhow::Context;
 use codespan_reporting::{diagnostic::Severity, term::termcolor::WriteColor};
 use itertools::Itertools;
 use linker::load_from_elf_with_polka_linker;
-use log::{debug, Level};
+use log::{debug, Level, LevelFilter};
 use move_binary_format::{
     binary_views::BinaryIndexedView, file_format::CompiledScript, CompiledModule,
 };
@@ -45,6 +45,7 @@ pub fn initialize_logger() {
     LOGGER_INIT.call_once(|| {
         use anstyle::{AnsiColor, Color};
         env_logger::Builder::new()
+            .filter_level(LevelFilter::Info)
             .parse_default_env()
             .format(|formatter, record| {
                 let level = record.level();

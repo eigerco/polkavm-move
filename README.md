@@ -88,8 +88,6 @@ Compile the given move source file into a PolkaVM module (`output.polkavm` by de
 move-to-polka examples/basic/sources/morebasic.move
 ```
 
-Given that we now support stdlib and many native functions, using `move-to-polka` directly on the command line is a bit convoluted. We suggest to use the `polkavm-wrapper` below.
-
 ### `polkavm-wrapper` installation and usage
 
 Install `polkavm-wrapper` binary:
@@ -98,7 +96,13 @@ Install `polkavm-wrapper` binary:
 cargo install --path crates/polkavm-wrapper
 ```
 
-The `polkavm-wrapper` can now compile the given Move module and link with the Move stdlib and all native functions.
+You can now run the compiled module:
+
+```bash
+polkavm-wrapper -m output.polkavm -e vecnew
+```
+
+The `polkavm-wrapper` can now also compile the given Move source and link with the Move stdlib and all native functions in one go.
 
 ```bash
 polkavm-wrapper -s examples/basic/sources/vector.move -e vecnew

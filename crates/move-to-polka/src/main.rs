@@ -5,17 +5,38 @@
 #![forbid(unsafe_code)]
 
 use clap::Parser;
-use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
-use move_to_polka::{initialize_logger, options::Options, run_to_polka};
+use log::{debug, info};
+use move_to_polka::{
+    initialize_logger,
+    linker::{create_colored_stdout, BuildOptions},
+    run_to_polka,
+};
+
+#[derive(Debug, Parser)]
+#[clap(author, version, about)]
+struct Args {
+    // path to Move source to compile
+    pub source: String,
+    #[arg(short, long, default_value = "output.polkavm")]
+    // output file name
+    pub output: String,
+}
 
 fn main() -> anyhow::Result<()> {
     initialize_logger();
-    let options = Options::parse();
-    let color = if atty::is(atty::Stream::Stderr) && atty::is(atty::Stream::Stdout) {
-        ColorChoice::Auto
-    } else {
-        ColorChoice::Never
-    };
-    let mut error_writer = StandardStream::stderr(color);
-    run_to_polka(&mut error_writer, options)
+    let options = Args::parse();
+    let source = options.source.as_str();
+    let output = options.output.as_str();
+    info!("Compiling Move source: {source} to {output}");
+    pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
+    debug!("Using Move standard library path: {MOVE_STDLIB_PATH}");
+
+    let move_src = format!("{MOVE_STDLIB_PATH}/sources");
+    let options = BuildOptions::new(output)
+        .dependency(&move_src)
+        .source(source)
+        .address_mapping("std=0x1")
+        .build();
+    let mut color_writer = create_colored_stdout();
+    run_to_polka(&mut color_writer, options)
 }

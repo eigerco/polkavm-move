@@ -1,6 +1,6 @@
 use crate::{options::Options, run_to_polka};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
-use log::{debug, info};
+use log::debug;
 use polkavm::{
     Caller, Config, Engine, Instance, Linker, MemoryAccessError, Module, ModuleConfig, ProgramBlob,
     RawInstance,
@@ -54,6 +54,10 @@ impl BuildOptions {
     pub fn dependency(mut self, dependency_path: &str) -> Self {
         self.options.dependencies.push(dependency_path.to_string());
         self
+    }
+
+    pub fn build(self) -> Options {
+        self.options
     }
 }
 
@@ -126,13 +130,13 @@ pub fn create_instance(
     // Create a memory allocator for the module.
     let allocator = MemAllocator::init(module.memory_map());
     let memory_map = module.memory_map();
-    info!(
+    debug!(
         "RO: {:X} size {}",
         memory_map.ro_data_address(),
         memory_map.ro_data_size()
     );
 
-    info!(
+    debug!(
         "AUX: {:X} size: {}",
         memory_map.aux_data_address(),
         memory_map.aux_data_size()
@@ -153,32 +157,32 @@ pub fn create_instance(
                     TypeDesc::Bool |
                     TypeDesc::U8 => {
                         let move_value: u8 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
                     }
                     TypeDesc::U16 |
                     TypeDesc::U32 => {
                         let move_value: u32 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
                     }
                     TypeDesc::U64 => {
                         let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
                     }
                     TypeDesc::Vector => {
                         let vec: MoveByteVector = copy_from_guest(caller.instance, ptr_to_data)?;
                         let instance = caller.instance;
                         let len = vec.length as usize;
                         let bytes = copy_bytes_from_guest(instance, vec.ptr as u32, len)?;
-                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {vec:?}, bytes: {bytes:?}");
+                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {vec:?}, bytes: {bytes:?}");
                     }
                     _ => {
                         let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value:x}");
+                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value:x}");
                     }
                 }
             } else {
                 let move_value: u32 = copy_from_guest(caller.instance, ptr_to_data)?;
-                info!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
             }
             Result::<(), ProgramError>::Ok(())
         },
