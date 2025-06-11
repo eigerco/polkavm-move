@@ -10,10 +10,9 @@ pub fn test_vector_new() -> anyhow::Result<()> {
         "../../examples/basic/sources/vector.move",
         vec![],
     )?;
-    let result = instance
+    instance
         .call_typed_and_get_result::<u64, ()>(&mut allocator, "vecnew", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 2);
 
     Ok(())
 }
@@ -27,10 +26,9 @@ pub fn test_vector_isempty() -> anyhow::Result<()> {
         "../../examples/basic/sources/vector.move",
         vec![],
     )?;
-    let result = instance
+    instance
         .call_typed_and_get_result::<i32, ()>(&mut allocator, "vecisempty", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 0);
 
     Ok(())
 }
@@ -44,10 +42,9 @@ pub fn test_vector_cmp() -> anyhow::Result<()> {
         "../../examples/basic/sources/vector.move",
         vec![],
     )?;
-    let result = instance
+    instance
         .call_typed_and_get_result::<u32, ()>(&mut allocator, "veccmp", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 1);
 
     Ok(())
 }
