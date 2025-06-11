@@ -53,6 +53,16 @@ module 0xa000::basic {
     public entry fun singleton() {
         let v = vector::singleton<u8>(42);
         assert!(vector::length(&v) == 1, 0);
+        let first = vector::borrow_mut(&mut v, 0);
+        *first = 43u8;
+        assert!(*vector::borrow(&v, 0) == 43u8, 0);
+    }
+
+    public entry fun popback() {
+        let v = x"616263";
+        let last = vector::pop_back(&mut v);
+        assert!(vector::length(&v) == 2, 0);
+        assert!(last == 99u8, 0);
     }
 
     public entry fun reverse() {

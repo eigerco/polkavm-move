@@ -70,6 +70,22 @@ pub fn test_vector_singleton() -> anyhow::Result<()> {
 
 #[test]
 #[serial]
+pub fn test_vector_popback() -> anyhow::Result<()> {
+    initialize_logger();
+    let (mut instance, mut allocator) = new_move_program(
+        "output/vector.polkavm",
+        "../../examples/basic/sources/vector.move",
+        vec![],
+    )?;
+    instance
+        .call_typed_and_get_result::<u32, ()>(&mut allocator, "popback", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
 pub fn test_vector_reverse() -> anyhow::Result<()> {
     initialize_logger();
     let (mut instance, mut allocator) = new_move_program(
