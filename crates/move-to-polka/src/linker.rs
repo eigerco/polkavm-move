@@ -174,6 +174,10 @@ pub fn create_instance(
                         let len = vec.length as usize;
                         let bytes = copy_bytes_from_guest(instance, vec.ptr as u32, len)?;
                         debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {vec:?}, bytes: {bytes:?}");
+                        let s = String::from_utf8(bytes);
+                        if let Ok(s) = s {
+                            debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {s}");
+                        }
                     }
                     _ => {
                         let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
