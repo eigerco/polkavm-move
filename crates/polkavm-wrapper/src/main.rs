@@ -43,7 +43,7 @@ fn main() -> anyhow::Result<()> {
         info!("Compiled Move source to PolkaVM bytecode at {}", output);
         new_move_program(output, source.as_str(), vec![])?
     } else {
-        let program_bytes = std::fs::read(args.module.unwrap())?;
+        let program_bytes = std::fs::read(args.module.unwrap())?; // clap guarantees that module is provided
         let blob =
             ProgramBlob::parse(program_bytes.into()).map_err(|e| anyhow::anyhow!("{e:?}"))?;
         create_instance(blob)?
