@@ -50,4 +50,79 @@ module 0xa000::basic {
         eq
     }
 
+    public entry fun singleton() {
+        let v = vector::singleton<u8>(42);
+        assert!(vector::length(&v) == 1, 0);
+    }
+
+    public entry fun reverse() {
+        let v = x"616263";
+        vector::reverse(&mut v);
+        assert!(vector::length(&v) == 3, 0);
+        assert!(*vector::borrow(&v, 0) == 99u8, 0);
+    }
+
+    public entry fun contains() {
+        let v = x"616263";
+        assert!(!vector::contains(&v, &3u8), 0);
+        assert!(vector::contains(&v, &97u8), 0);
+    }
+
+    public entry fun swapremove() {
+        let v1 = x"616263";
+        let e = vector::swap_remove(&mut v1, 1);
+        assert!(e == 98u8, 0);
+        let v2 = x"6163";
+        assert!(v1 == v2, 0);
+    }
+
+    public entry fun remove() {
+        let v1 = x"616263";
+        let e = vector::remove(&mut v1, 1);
+        assert!(e == 98u8, 0);
+        let v2 = x"6163";
+        assert!(v1 == v2, 0);
+    }
+
+    public entry fun indexof() {
+        let v = x"616263";
+        let (b, i) = vector::index_of(&v, &3u8);
+        assert!(!b, 0);
+        assert!(i == 0, 0);
+        let (b, i) = vector::index_of(&v, &97u8);
+        assert!(b, 0);
+        assert!(i == 0, 0);
+        let (b, i) = vector::index_of(&v, &98u8);
+        assert!(b, 0);
+        assert!(i == 1, 0);
+    }
+
+    public entry fun foreach() {
+        let v = x"616263";
+        vector::for_each(v, |e| debug::print(&e));
+    }
+
+    public entry fun foreachref() {
+        let v = x"818283";
+        vector::for_each_ref(&v, |e| debug::print(e));
+    }
+
+    public entry fun fold() {
+        let v = x"010203";
+        let sum = 0u8;
+        sum = vector::fold(v, sum, |sum, e| sum + e);
+        assert!(sum == 6u8, 0);
+    }
+
+    public entry fun map() {
+        let v = x"010203";
+        let v2 = vector::map(v, |e| e * 2);
+        assert!(*vector::borrow(&v2, 2) == 6u8, 0);
+    }
+
+    public entry fun filter() {
+        let v = x"0102030405060708090a0b0c0d0e0f";
+        let v2 = vector::filter(v, |e| *e > 5);
+        assert!(*vector::borrow(&v2, 0) == 6u8, 0);
+    }
 }
