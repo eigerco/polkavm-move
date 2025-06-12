@@ -94,22 +94,26 @@ pub fn new_move_program(
     source: &str,
     mapping: Vec<&str>,
 ) -> Result<(Instance<MemAllocator, ProgramError>, MemAllocator), anyhow::Error> {
-    pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
+    create_instance(create_blob(output, source, mapping)?)
+}
 
+pub fn create_blob(
+    output: &str,
+    source: &str,
+    mapping: Vec<&str>,
+) -> Result<ProgramBlob, anyhow::Error> {
+    pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
     let move_src = format!("{MOVE_STDLIB_PATH}/sources");
     let mut build_options = BuildOptions::new(output)
         .dependency(&move_src)
         .source(source)
         .address_mapping("std=0x1");
-
     for m in mapping {
         build_options = build_options.address_mapping(m);
     }
-
     let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
-
-    create_instance(blob)
+    Ok(blob)
 }
 
 pub fn create_instance(
