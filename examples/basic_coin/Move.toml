@@ -1,0 +1,9 @@
+[package]
+name = "basic_coin"
+version = "1.0.0"
+
+[dependencies]
+MoveStdlib = { local = "../../../move-stdlib", addr_subst = { "std" = "0x1" } }
+
+[addresses]
+CafeAccount = "0xCAFE"
