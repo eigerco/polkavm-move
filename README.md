@@ -117,6 +117,7 @@ The expected output is in both cases similar to:
 
 ### Known limitations:
 
+- Move v2.x is not supported yet
 - Move project layout is not supported yet, only single Move file -> PolkaVM module compilation.
 - `polkavm-wrapper` can only call functions with maximum two u64 arguments and assumes the entrypoint returns u64 too. This is due to the generic API of the PolkaVM
   which makes it hard or impossible to handle dynamically with a CLI (as the argument types and return types need to be known at compile time).
