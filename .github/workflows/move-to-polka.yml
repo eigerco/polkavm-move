@@ -12,7 +12,7 @@ on:
 
 jobs:
   build-and-test:
-    name: Build and Test move-to-polka
+    name: move-to-polka
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
