@@ -23,11 +23,6 @@ jobs:
     env:
       cache_version: 1
 
-    defaults:
-      run:
-        # Set the working directory for all steps (so we only build move-to-polka)
-        working-directory: crates/move-to-polka
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
