@@ -327,7 +327,6 @@ pub fn format_vm_error(e: &VMError) -> String {
         major_status = e.major_status(),
         sub_status = e.sub_status(),
         location_string = location_string,
-        // TODO(M3: testing) maybe include source map info?
         indices = e.indices(),
         offsets = e.offsets(),
     )

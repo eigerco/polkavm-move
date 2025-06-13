@@ -593,7 +593,7 @@ fn compile_source_unit(
         Err(diags) => {
             if let Some(pcd) = pre_compiled_deps {
                 for (file_name, text) in &pcd.files {
-                    // TODO(M3: support core Move) This is bad. Rethink this when errors are redone
+                    // TODO Rethink this when errors are redone
                     if !files.contains_key(file_name) {
                         files.insert(*file_name, text.clone());
                     }

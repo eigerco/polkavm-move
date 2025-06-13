@@ -367,7 +367,7 @@ impl Module {
                 symbol = mangled;
             }
             let function = LLVMAddFunction(self.0, symbol.cstr(), ty.0);
-            // TODO(M3: support core Move): it doesnt feel like the right place for polka section generation just on the fly
+            // TODO: it doesnt feel like the right place for polka section generation just on the fly
             // on any function we need to declare. Its looks more like additional pass when finalizing module
             // but we leave this for now to move forward
             if polka_export {

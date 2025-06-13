@@ -86,7 +86,6 @@ fn link_object_files(
         // if passed explicitly through args - use that
         PathBuf::from(move_native)
     } else {
-        // TODO(tadas) check file already exists and skip this
         let move_native = out_path.join("move_native.o");
         std::fs::write(&move_native, native_lib_content)?;
         move_native
