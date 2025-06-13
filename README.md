@@ -27,7 +27,7 @@ dnf install llvm-devel
 
 ```bash
 # MacOS
-brew install llvm@19
+brew install llvm lld
 ```
 
 Even though LLVM itself is written in C++, we use Rust, especially [llvm-sys](https://crates.io/crates/llvm-sys).
