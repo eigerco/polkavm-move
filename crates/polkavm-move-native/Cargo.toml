@@ -16,7 +16,7 @@ crate-type = ["rlib"]
 log = { version = "0.4.14", optional = true }
 polkavm-derive = { optional = true, version = "0.24.0" }
 polkavm = { optional = true, version = "0.24.0" }
-borsh = { version = "0.10.3", default-features = false }
+borsh = { version = "1.5", default-features = false, features = ["derive"] }
 ethnum = { version = "1.5", default-features = false }
 
 [features]

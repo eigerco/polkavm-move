@@ -1,3 +1,5 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+
 /// A Move vector with an untyped buffer.
 ///
 /// Used in the API for generic vector arguments.
@@ -191,7 +193,7 @@ pub struct ReferenceTypeInfo {
 pub struct AnyValue(u8);
 
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug, PartialEq, borsh::BorshSerialize, borsh::BorshDeserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, BorshSerialize, BorshDeserialize)]
 pub struct MoveSigner(pub MoveAddress);
 
 pub const ACCOUNT_ADDRESS_LENGTH: usize = 32;
@@ -203,7 +205,7 @@ pub const ACCOUNT_ADDRESS_LENGTH: usize = 32;
 ///
 /// Bytes are in little-endian order.
 #[repr(transparent)]
-#[derive(Copy, Clone, PartialEq, borsh::BorshSerialize, borsh::BorshDeserialize)]
+#[derive(Copy, Clone, PartialEq, BorshSerialize, BorshDeserialize)]
 pub struct MoveAddress(pub [u8; ACCOUNT_ADDRESS_LENGTH]);
 
 impl core::fmt::Debug for MoveAddress {
@@ -237,7 +239,7 @@ pub struct MoveAsciiString {
 #[derive(Debug)]
 pub struct MoveUntypedReference(pub *const AnyValue);
 
-#[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Copy, Clone, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq)]
 #[repr(transparent)]
 pub struct U256(pub [u128; 2]);
 
