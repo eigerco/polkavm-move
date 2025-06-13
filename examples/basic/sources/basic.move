@@ -6,17 +6,11 @@ module 0xa000::basic {
     use 0x10::debug;
     use std::signer;
 
-    public entry fun bar(): u64 {
-        let rv = 19;
-        debug::print(&rv);
-        rv
-    }
-
-    public entry fun foo(account: &signer): u64 {
+    public entry fun foo(account: &signer) {
         let rv = 17;
         debug::print(&rv);
-        debug::print(&signer::address_of(account));
-        rv
+        let address = signer::address_of(account);
+        debug::print(&address);
     }
 
     public entry fun abort_with_code(code: u64) {

@@ -118,12 +118,14 @@ polkavm-wrapper -s examples/basic/sources/vector.move -e vecnew
 The expected output is in both cases similar to:
 
 ```bash
-2025-06-10T22:24:29.519797Z  INFO polkavm_wrapper: Compiled Move source to PolkaVM bytecode at /tmp/output.polkavm
-2025-06-10T22:24:29.731265Z  INFO polkavm_wrapper: Result: 2
+2025-06-13T12:24:10.906750Z  INFO polkavm_wrapper: Compiled Move source to PolkaVM bytecode at /tmp/output.polkavm
+2025-06-13T12:24:11.341468Z  INFO polkavm_wrapper: Calling entry point vecnew at PC 9263 with args: []
+2025-06-13T12:24:11.341726Z  INFO polkavm_wrapper: Done: Ok(())
 ```
 
 ### Known limitations:
 
+- Compiled Move code can not call external modules (as agreed), any dependencies need to be compiled in.
 - Move v2.x is not supported yet
 - Move project layout is not supported yet, only single Move file -> PolkaVM module compilation.
 - `polkavm-wrapper` can only call functions with maximum two u64 arguments and assumes the entrypoint returns u64 too. This is due to the generic API of the PolkaVM

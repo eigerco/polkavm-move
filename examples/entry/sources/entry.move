@@ -16,9 +16,8 @@ module 0xe::entry_bar {
         value: u64,
     }
 
-    public entry fun bar<T: store>(coin: &Coin<T>): u64 {
+    public entry fun bar<T: store>(coin: &Coin<T>) {
         let rv = coin.value;
         debug::print(&rv);
-        rv
     }
 }
