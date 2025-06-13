@@ -12,7 +12,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  basic-test-run:
+  aptos-build:
     runs-on: ubuntu-latest
     name: build examples with aptos-move
     steps:
@@ -33,7 +33,7 @@ jobs:
         run: |
           set -e
           source ~/.profile
-          for m in basic hash_tests vector string multi_module; do
+          for m in $(find . -mindepth 1 -maxdepth 1 -type d); do
             pushd $m
             aptos move compile
             popd

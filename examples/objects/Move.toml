@@ -3,8 +3,8 @@ name = "objects"
 version = "0.0.0"
 
 [dependencies]
-MoveStdlib = { local = "../../../move-stdlib" }
+MoveStdlib = { git = "https://github.com/aptos-labs/aptos-framework.git", subdir = "move-stdlib", rev = "main", addr_subst = { "std" = "0x1" } }
 
 [addresses]
-std =  "0x1"
+std = "0x1"
 objects = "0x2"

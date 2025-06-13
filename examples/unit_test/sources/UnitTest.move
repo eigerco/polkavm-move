@@ -8,9 +8,8 @@ module UnitTest::UnitTest {
     const ONE: u64 = 0x20001;
     const TWO: u64 = 0x20002;
 
-    public entry fun bar(rv: u64): u64 {
+    public entry fun bar(rv: u64) {
         debug::print(&rv);
-        rv
     }
 
     #[test]
