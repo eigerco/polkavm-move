@@ -4,10 +4,15 @@ module 0x1234::tuplebasic {
         (a, b)
     }
 
-    public entry fun add(a: u32, b: u64): u64 {
+    fun add(a: u32, b: u64): u64 {
         let (x, y) = giveMeTuple(a, b);
-        // we cannot use any arithmetic ops here which can cause under/over flow as move compiler
-        // automatically inserts move_rt_abort fn call on such cases - we are not ready for this yet
         (x as u64) + y
+    }
+
+    public entry fun main() {
+        let a: u32 = 10;
+        let b: u64 = 20;
+        let res = add(a, b);
+        assert!(res == 30, 0x1001);
     }
 }

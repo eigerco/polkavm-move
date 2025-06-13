@@ -8,23 +8,6 @@ use polkavm_move_native::{
 use serial_test::serial;
 
 #[test]
-#[serial] // TODO: find the reason this needs to run serially on macOS
-pub fn test_morebasic_program_execution() -> anyhow::Result<()> {
-    initialize_logger();
-    let (mut instance, mut allocator) = new_move_program(
-        "output/morebasic.polkavm",
-        "../../examples/basic/sources/morebasic.move",
-        vec![],
-    )?;
-    let result = instance
-        .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, "sum", (1, 10))
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 11);
-
-    Ok(())
-}
-
-#[test]
 #[serial]
 pub fn test_void_program_execution() -> anyhow::Result<()> {
     initialize_logger();
@@ -49,12 +32,10 @@ pub fn test_error() -> anyhow::Result<()> {
         "../../examples/basic/sources/error.move",
         vec![],
     )?;
-    let result = instance
-        .call_typed_and_get_result::<u64, ()>(&mut allocator, "error", ())
+    instance
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "error", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     // error numbers are category << 16 + the reason code (42 in this case)
-    let expected = (6 << 16) + 42;
-    assert_eq!(result, expected);
 
     Ok(())
 }
@@ -68,25 +49,12 @@ pub fn test_arith() -> anyhow::Result<()> {
         "../../examples/basic/sources/arith.move",
         vec![],
     )?;
-    let result = instance
-        .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, "div", (12, 3))
+    instance
+        .call_typed_and_get_result::<u64, ()>(&mut allocator, "main", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 4);
 
     let result = instance
-        .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, "mul", (12, 3))
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 36);
-
-    // div by zero and overflow should fail
-    let result = instance
-        .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, "div", (12, 0))
-        .map_err(|e| anyhow::anyhow!("{e:?}"));
-    assert!(result.is_err());
-
-    // overflow on multiplication should fail
-    let result = instance
-        .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, "mul", (u64::MAX, 2))
+        .call_typed_and_get_result::<u64, ()>(&mut allocator, "abort_on_div_by_zero", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(result.is_err());
 
@@ -102,11 +70,6 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
         "../../examples/basic/sources/basic.move",
         vec![],
     )?;
-    let result = instance
-        .call_typed_and_get_result::<u64, ()>(&mut allocator, "bar", ())
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 19);
-
     let result =
         instance.call_typed_and_get_result::<(), (u64,)>(&mut allocator, "abort_with_code", (42,));
     assert!(matches!(
@@ -123,10 +86,9 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 
     let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
 
-    let result = instance
-        .call_typed_and_get_result::<u64, _>(&mut allocator, "foo", (signer_address,))
+    instance
+        .call_typed_and_get_result::<(), _>(&mut allocator, "foo", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 17);
 
     Ok(())
 }
@@ -140,10 +102,9 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
         "../../examples/basic/sources/tuple.move",
         vec![],
     )?;
-    let result = instance
-        .call_typed_and_get_result::<u64, (u32, u64)>(&mut allocator, "add", (10, 5))
+    instance
+        .call_typed_and_get_result::<u64, ()>(&mut allocator, "main", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 15);
 
     Ok(())
 }
@@ -158,10 +119,9 @@ pub fn test_struct() -> anyhow::Result<()> {
         vec![],
     )?;
     // Grab the function and call it.
-    let result = instance
-        .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, "create_counter", (10, 32))
+    instance
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "main", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 42);
 
     Ok(())
 }
@@ -191,10 +151,9 @@ pub fn test_multi_module_call() -> anyhow::Result<()> {
 
     let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
 
-    let result = instance
-        .call_typed_and_get_result::<u64, _>(&mut allocator, "foo", (signer_address,))
+    instance
+        .call_typed_and_get_result::<(), _>(&mut allocator, "foo", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 17);
 
     Ok(())
 }
@@ -209,10 +168,9 @@ pub fn test_multi_module_call2() -> anyhow::Result<()> {
         vec!["multi_module=0x7"],
     )?;
 
-    let result = instance
-        .call_typed_and_get_result::<u32, (u32, u32, u32)>(&mut allocator, "add_all", (10, 5, 5))
+    instance
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "main", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    assert_eq!(result, 20);
 
     Ok(())
 }

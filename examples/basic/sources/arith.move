@@ -1,12 +1,22 @@
 module 0xa000::basic {
 
-    public entry fun div(a: u64, b:u64): u64 {
-        assert!(b != 0, 0x1001);
+    fun div(a: u64, b:u64): u64 {
         a / b
     }
 
-    public entry fun mul(a: u64, b:u64): u64 {
+    fun mul(a: u64, b:u64): u64 {
         a * b
+    }
+
+    public entry fun main() {
+        let mul = mul(10, 20);
+        assert!(mul == 200, 0x1002);
+        let div = div(100, 20);
+        assert!(div == 5, 0x1003);
+    }
+
+    public entry fun abort_on_div_by_zero() {
+        div(100, 0);
     }
 
 }

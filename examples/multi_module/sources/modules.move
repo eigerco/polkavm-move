@@ -6,17 +6,15 @@ module multi_module::A {
     use 0x10::debug;
     use std::signer;
 
-    public entry fun bar(): u64 {
+    public entry fun bar() {
         let rv = 19;
         debug::print(&rv);
-        rv
     }
 
-    public entry fun foo(account: &signer): u64 {
+    public entry fun foo(account: &signer) {
         let rv = 17;
         debug::print(&rv);
         debug::print(&signer::address_of(account));
-        rv
     }
 }
 
