@@ -12,8 +12,8 @@ fn create_blob_once() -> ProgramBlob {
         .get_or_init(|| {
             initialize_logger();
             create_blob(
-                "output/vector.polkavm",
-                "../../examples/basic/sources/vector.move",
+                "output/vector/vector.polkavm",
+                "../../examples/vector/sources/vector.move",
                 vec![],
             )
             .expect("Failed to compile Move source to PolkaVM bytecode")

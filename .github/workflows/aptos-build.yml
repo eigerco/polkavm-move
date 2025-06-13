@@ -1,0 +1,40 @@
+name: Compile examples with aptos move
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  basic-test-run:
+    runs-on: ubuntu-latest
+    name: build examples with aptos-move
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install required deps
+        run: |
+          sudo apt update -y
+          sudo apt-get install libudev-dev libdw-dev llvm-19 lld-19 libpq-dev libssl-dev pkgconf lsof build-essential ca-certificates clang-19 curl git --no-install-recommends --assume-yes
+
+      - name: Get aptos
+        shell: bash
+        run: wget -qO- "https://aptos.dev/scripts/install_cli.sh" | sh
+
+      - name: Run aptos
+        shell: bash
+        working-directory: examples
+        run: |
+          set -e
+          source ~/.profile
+          for m in basic hash_tests vector string multi_module; do
+            pushd $m
+            aptos move compile
+            popd
+          done

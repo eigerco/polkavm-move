@@ -1,4 +1,4 @@
-module 0x1234::tuplebasic {
+module 0x1235::tuplebasic {
     // this should be enough to check tuple structuring/destructuring
     fun giveMeTuple(a: u32, b: u64): (u32, u64) {
         (a, b)

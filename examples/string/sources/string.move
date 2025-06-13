@@ -2,7 +2,7 @@ module 0x10::debug {
     native public fun print<T>(x: &T);
 }
 
-module 0xa000::basic {
+module 0xa004::my_string {
     use 0x10::debug;
     use std::string;
 
