@@ -67,6 +67,13 @@ Try using
 export LLVM_SYS_191_PREFIX="/usr/local/opt/llvm@19"
 ```
 
+Depending on your distribution, you may need to set the following kernel parameters:
+
+```
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+sudo sysctl -w vm.unprivileged_userfaultfd=1
+```
+
 ## Basic usage
 
 The main crates for this repo are:
@@ -85,7 +92,7 @@ cargo install --path crates/move-to-polka
 Compile the given move source file into a PolkaVM module (`output.polkavm` by default):
 
 ```bash
-move-to-polka examples/basic/sources/morebasic.move
+move-to-polka examples/basic/sources/vector.move
 ```
 
 ### `polkavm-wrapper` installation and usage
