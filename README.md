@@ -17,7 +17,7 @@ This project relies heavily on [LLVM](https://llvm.org/) and just requires insta
 
 ```bash
 # Ubuntu
-sudo apt install libpolly-19-dev lld-19 libzstd-dev
+sudo apt install libpolly-19-dev lld-19 zstd libzstd-dev llvm-19 llvm-19-dev clang-19
 ```
 
 ```bash
