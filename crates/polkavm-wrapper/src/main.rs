@@ -65,25 +65,25 @@ fn main() -> anyhow::Result<()> {
     // assuming return value is u64. It's hard to handle with a dynamic CLI, when the function is generic
     let result = match reg_args.len() {
         0 => instance
-            .call_typed_and_get_result::<u64, ()>(&mut allocator, ep, ())
-            .map_err(|e| anyhow::anyhow!("{e:?}"))?,
+            .call_typed_and_get_result::<(), ()>(&mut allocator, ep, ())
+            .map_err(|e| anyhow::anyhow!("{e:?}")),
         1 => {
             let (a,) = (reg_args[0],);
             instance
-                .call_typed_and_get_result::<u64, (u64,)>(&mut allocator, ep, (a,))
-                .map_err(|e| anyhow::anyhow!("{e:?}"))?
+                .call_typed_and_get_result::<(), (u64,)>(&mut allocator, ep, (a,))
+                .map_err(|e| anyhow::anyhow!("{e:?}"))
         }
         2 => {
             let (a, b) = (reg_args[0], reg_args[1]);
             instance
-                .call_typed_and_get_result::<u64, (u64, u64)>(&mut allocator, ep, (a, b))
-                .map_err(|e| anyhow::anyhow!("{e:?}"))?
+                .call_typed_and_get_result::<(), (u64, u64)>(&mut allocator, ep, (a, b))
+                .map_err(|e| anyhow::anyhow!("{e:?}"))
         }
         // … repeat up to your max arity …
         _ => anyhow::bail!("too many arguments (max = 2)"),
     };
 
-    info!("Result: {:?}", result);
+    info!("Done: {:?}", result);
 
     Ok(())
 }
