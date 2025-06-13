@@ -19,10 +19,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         rust: [stable, nightly]
-        exclude:
-          # Segfaults in CI
-          - os: macos-latest
-            rust: nightly
 
     env:
       cache_version: 1
