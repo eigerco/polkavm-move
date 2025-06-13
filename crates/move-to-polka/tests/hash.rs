@@ -12,7 +12,7 @@ fn create_blob_once() -> ProgramBlob {
         .get_or_init(|| {
             initialize_logger();
             create_blob(
-                "output/hash_tests.polkavm",
+                "output/hash_tests/hash_tests.polkavm",
                 "../../examples/hash_tests/sources/hash_tests.move",
                 vec![],
             )

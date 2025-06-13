@@ -13,7 +13,7 @@ fn create_blob_once() -> ProgramBlob {
         .get_or_init(|| {
             initialize_logger();
             create_blob(
-                "output/serialize.polkavm",
+                "output/basic/serialize.polkavm",
                 "../../examples/basic/sources/serialize.move",
                 vec![],
             )

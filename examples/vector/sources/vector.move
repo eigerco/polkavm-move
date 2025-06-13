@@ -2,7 +2,7 @@ module 0x10::debug {
     native public fun print<T>(x: &T);
 }
 
-module 0xa000::basic {
+module 0xa000::my_vector {
     use 0x10::debug;
     use std::vector;
 
@@ -22,10 +22,8 @@ module 0xa000::basic {
         vector::push_back(&mut other, 10u8);
         vector::append(&mut v, other);
         assert!(vector::length(&v) == 11, 0);
-        debug::print(&v);
         let e = vector::borrow(&mut v, 2);
         let b = (*e as u64);
-        debug::print(&b);
         assert!(b == 2, 0);
     }
 
@@ -34,7 +32,6 @@ module 0xa000::basic {
         assert!(vector::is_empty(&v), 0);
         vector::push_back(&mut v, 0u8);
         let empty = vector::is_empty(&v);
-        debug::print(&empty);
         assert!(!empty, 0);
     }
 

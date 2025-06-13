@@ -1,4 +1,4 @@
-module 0xa000::basic {
+module 0xa001::arith {
 
     fun div(a: u64, b:u64): u64 {
         a / b

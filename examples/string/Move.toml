@@ -1,5 +1,5 @@
 [package]
-name = "HashTest"
+name = "string"
 version = "1.0.0"
 
 [addresses]
