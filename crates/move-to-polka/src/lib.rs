@@ -32,11 +32,13 @@ use move_model::{
     parse_addresses_from_options, run_model_builder_with_options_and_compilation_flags,
 };
 use std::{
+    cell::RefCell,
     collections::BTreeSet,
     fs,
     io::Write,
     iter::once,
     path::{Path, PathBuf},
+    rc::Rc,
 };
 
 // init logger from RUST_LOG env var, defaults to INFO
@@ -268,6 +270,8 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
     } else {
         0
     };
+
+    let asm = Rc::new(RefCell::new(String::with_capacity(100)));
     // Note: don't reverse order of modules, since DI may be inter module dependent and needs the direct order.
     for mod_id in global_env
         .get_modules()
@@ -279,7 +283,7 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
         let module = global_env.get_module(mod_id);
         let modname = module.llvm_module_name();
         debug!("Generating code for module {modname}");
-        let llmod = global_cx.llvm_cx.create_module(&modname);
+        let llmod = global_cx.llvm_cx.create_module(&modname, asm.clone());
         let module_source_path = module.get_source_path().to_str().expect("utf-8");
         let mod_cx =
             &mut global_cx.create_module_context(mod_id, &llmod, options, module_source_path);

@@ -105,11 +105,11 @@ impl Context {
         unsafe { Context(LLVMContextCreate()) }
     }
 
-    pub fn create_module(&self, name: &str) -> Module {
+    pub fn create_module(&self, name: &str, asm: Rc<RefCell<String>>) -> Module {
         unsafe {
             Module(
                 LLVMModuleCreateWithNameInContext(name.cstr(), self.0),
-                Rc::new(RefCell::new(String::with_capacity(100))),
+                asm,
                 name.to_owned(),
             )
         }
@@ -1677,6 +1677,14 @@ unsafe fn add_polkavm_metadata(
     num_args: u8,
     asm: Rc<RefCell<String>>,
 ) {
+    debug!(target: "metadata", "Adding metadata for function: {fn_name}/{mangled_fn_name} in module: {module_name}");
+    debug!("asm so far: {asm:?}");
+    if asm.borrow().contains(mangled_fn_name) {
+        debug!(target: "metadata", "Skipping metadata for {fn_name} as it is already present in the asm.");
+        // If the asm already contains the mangled function name, we skip adding metadata.
+        return;
+    }
+    debug!(target: "metadata", "Adding metadata for function: {fn_name}/{mangled_fn_name} in module: {module_name}");
     // Create the metadata symbol
     let i8_type = LLVMInt8TypeInContext(context);
     let array_ty = LLVMArrayType2(i8_type, fn_name.len() as u64);

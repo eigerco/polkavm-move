@@ -6,13 +6,13 @@ module multi_module::A {
     use 0x10::debug;
     use std::signer;
 
-    public entry fun bar(): u64 {
+    public fun bar(): u64 {
         let rv = 19;
         debug::print(&rv);
         rv
     }
 
-    public entry fun foo(account: &signer): u64 {
+    public fun foo(account: &signer): u64 {
         let rv = 17;
         debug::print(&rv);
         debug::print(&signer::address_of(account));
@@ -23,7 +23,7 @@ module multi_module::A {
 module multi_module::B {
     use 0x10::debug;
 
-    public entry fun foo_bar() {
+    public fun foo_bar() {
         let val = 42;
         debug::print(&val);
     }

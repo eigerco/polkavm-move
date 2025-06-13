@@ -6,14 +6,14 @@ module 0xa000::basic {
     use 0x10::debug;
     use std::string;
 
-    public entry fun foo() {
+    public fun foo() {
         let rv = b"Hello, PolkaVM!";
         let str = string::utf8(rv);
         debug::print(&rv);
         debug::print(&str);
     }
 
-    public entry fun index_of() {
+    public fun index_of() {
         let rv = b"Hello, PolkaVM!";
         let str = string::utf8(rv);
         let p = string::utf8(b"P");
@@ -21,7 +21,7 @@ module 0xa000::basic {
         assert!(i == 7, 0);
     }
 
-    public entry fun substring() {
+    public fun substring() {
         let rv = b"Hello, PolkaVM!";
         let str = string::utf8(rv);
         debug::print(&str);
@@ -31,7 +31,7 @@ module 0xa000::basic {
         assert!(polka == sub, 0);
     }
 
-    public entry fun append() {
+    public fun append() {
         let b = b"Hello, PolkaVM!";
         let str = string::utf8(b);
         let b2 = b" How are you?";
@@ -41,7 +41,7 @@ module 0xa000::basic {
         assert!(string::length(&str) == 28, 0);
     }
 
-    public entry fun insert() {
+    public fun insert() {
         let b = b"Hello, PolkaVM?";
         let str = string::utf8(b);
         let b2 = b" How are you,";

@@ -549,11 +549,17 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             if fn_env.is_entry() || fn_env.get_full_name_str().replace("::", "__") == unit_test {
                 linkage = llvm::LLVMLinkage::LLVMExternalLinkage;
             }
+            let is_move_stdlib = fn_env.module_env.get_full_name_str().starts_with("0x1");
+            debug!(
+                "Function {} is in module {:?}",
+                fn_env.get_full_name_str(),
+                fn_env.module_env.get_full_name_str()
+            );
             let tfn = self.llvm_module.add_function(
                 &fn_env.module_env.llvm_module_name(),
                 &ll_sym_name,
                 ll_fnty,
-                fn_env.is_entry(),
+                !is_move_stdlib,
             );
             self.llvm_module.add_attributes(tfn, &attrs);
             tfn

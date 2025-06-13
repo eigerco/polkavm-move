@@ -7,14 +7,14 @@ module 0xa000::basic {
     use std::bcs;
     use std::string;
 
-    public entry fun ser_signer(account: &signer) {
+    public fun ser_signer(account: &signer) {
         let bytes = bcs::to_bytes(account);
         debug::print(&bytes);
         let expected_output = x"ab010101010101010101010101010101010101010101010101010101010101ce";
         assert!(bytes == expected_output, 0);
     }
 
-    public entry fun ser_string() {
+    public fun ser_string() {
         let rv = b"Hello, PolkaVM!";
         let str = string::utf8(rv);
         let bytes = bcs::to_bytes(&str);

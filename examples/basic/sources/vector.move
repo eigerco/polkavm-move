@@ -6,7 +6,7 @@ module 0xa000::basic {
     use 0x10::debug;
     use std::vector;
 
-    public entry fun vecnew() {
+    public fun vecnew() {
         let v = vector::empty<u8>();
         vector::push_back(&mut v, 0u8);
         vector::push_back(&mut v, 1u8);
@@ -29,7 +29,7 @@ module 0xa000::basic {
         assert!(b == 2, 0);
     }
 
-    public entry fun vecisempty() {
+    public fun vecisempty() {
         let v = vector::empty<u8>();
         assert!(vector::is_empty(&v), 0);
         vector::push_back(&mut v, 0u8);
@@ -38,7 +38,7 @@ module 0xa000::basic {
         assert!(!empty, 0);
     }
 
-    public entry fun veccmp() {
+    public fun veccmp() {
         let v1 = x"616263";
         let v2 = vector::empty<u8>();
         vector::push_back(&mut v2, 97u8);
@@ -48,7 +48,7 @@ module 0xa000::basic {
         assert!(v1 == v2, 0);
     }
 
-    public entry fun singleton() {
+    public fun singleton() {
         let v = vector::singleton<u8>(42);
         assert!(vector::length(&v) == 1, 0);
         let first = vector::borrow_mut(&mut v, 0);
@@ -56,27 +56,27 @@ module 0xa000::basic {
         assert!(*vector::borrow(&v, 0) == 43u8, 0);
     }
 
-    public entry fun popback() {
+    public fun popback() {
         let v = x"616263";
         let last = vector::pop_back(&mut v);
         assert!(vector::length(&v) == 2, 0);
         assert!(last == 99u8, 0);
     }
 
-    public entry fun reverse() {
+    public fun reverse() {
         let v = x"616263";
         vector::reverse(&mut v);
         assert!(vector::length(&v) == 3, 0);
         assert!(*vector::borrow(&v, 0) == 99u8, 0);
     }
 
-    public entry fun contains() {
+    public fun contains() {
         let v = x"616263";
         assert!(!vector::contains(&v, &3u8), 0);
         assert!(vector::contains(&v, &97u8), 0);
     }
 
-    public entry fun swapremove() {
+    public fun swapremove() {
         let v1 = x"616263";
         let e = vector::swap_remove(&mut v1, 1);
         assert!(e == 98u8, 0);
@@ -84,7 +84,7 @@ module 0xa000::basic {
         assert!(v1 == v2, 0);
     }
 
-    public entry fun remove() {
+    public fun remove() {
         let v1 = x"616263";
         let e = vector::remove(&mut v1, 1);
         assert!(e == 98u8, 0);
@@ -92,7 +92,7 @@ module 0xa000::basic {
         assert!(v1 == v2, 0);
     }
 
-    public entry fun indexof() {
+    public fun indexof() {
         let v = x"616263";
         let (b, i) = vector::index_of(&v, &3u8);
         assert!(!b, 0);
@@ -105,30 +105,30 @@ module 0xa000::basic {
         assert!(i == 1, 0);
     }
 
-    public entry fun foreach() {
+    public fun foreach() {
         let v = x"616263";
         vector::for_each(v, |e| debug::print(&e));
     }
 
-    public entry fun foreachref() {
+    public fun foreachref() {
         let v = x"818283";
         vector::for_each_ref(&v, |e| debug::print(e));
     }
 
-    public entry fun fold() {
+    public fun fold() {
         let v = x"010203";
         let sum = 0u8;
         sum = vector::fold(v, sum, |sum, e| sum + e);
         assert!(sum == 6u8, 0);
     }
 
-    public entry fun map() {
+    public fun map() {
         let v = x"010203";
         let v2 = vector::map(v, |e| e * 2);
         assert!(*vector::borrow(&v2, 2) == 6u8, 0);
     }
 
-    public entry fun filter() {
+    public fun filter() {
         let v = x"0102030405060708090a0b0c0d0e0f";
         let v2 = vector::filter(v, |e| *e > 5);
         assert!(*vector::borrow(&v2, 0) == 6u8, 0);
