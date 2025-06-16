@@ -13,26 +13,41 @@ env:
 
 jobs:
   aptos-build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     name: build examples with aptos-move
     steps:
       - uses: actions/checkout@v4
 
       - name: Install required deps
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update -y
           sudo apt-get install libudev-dev libdw-dev llvm-19 lld-19 libpq-dev libssl-dev pkgconf lsof build-essential ca-certificates clang-19 curl git --no-install-recommends --assume-yes
 
-      - name: Get aptos
+      - name: Get aptos for linux
+        if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: wget -qO- "https://aptos.dev/scripts/install_cli.sh" | sh
+
+      - name: Get aptos for macOS
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          brew install aptos
 
       - name: Run aptos
         shell: bash
         working-directory: examples
         run: |
           set -e
-          source ~/.profile
+          if [[ "$(uname -s)" == "Linux" ]]; then
+            source ~/.profile
+          fi
           for m in $(find . -mindepth 1 -maxdepth 1 -type d); do
             pushd $m
             aptos move compile
