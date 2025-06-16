@@ -1423,7 +1423,7 @@ impl Alloca {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct AnyValue(LLVMValueRef);
 
 impl AnyValue {

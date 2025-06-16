@@ -58,7 +58,7 @@ pub struct MoveSignerVector {
 ///
 /// NOTE: The `type_info` pointer is only valid in guest memory.
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct MoveType {
     pub name: StaticTypeName,
     pub type_desc: TypeDesc,
@@ -90,7 +90,7 @@ impl core::fmt::Display for MoveType {
 ///
 /// The pointer must be to static memory and never mutated.
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct StaticTypeName {
     pub ptr: *const u8,
     pub len: u64,
@@ -117,7 +117,7 @@ pub static DUMMY_TYPE_NAME: StaticTypeName = StaticTypeName {
 };
 
 #[repr(u64)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum TypeDesc {
     Bool = 1,
     U8 = 2,
@@ -189,7 +189,7 @@ pub struct ReferenceTypeInfo {
 }
 
 #[repr(transparent)]
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Debug)]
 pub struct AnyValue(u8);
 
 #[repr(transparent)]
@@ -205,7 +205,7 @@ pub const ACCOUNT_ADDRESS_LENGTH: usize = 32;
 ///
 /// Bytes are in little-endian order.
 #[repr(transparent)]
-#[derive(Copy, Clone, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq, BorshSerialize, BorshDeserialize)]
 pub struct MoveAddress(pub [u8; ACCOUNT_ADDRESS_LENGTH]);
 
 impl core::fmt::Debug for MoveAddress {

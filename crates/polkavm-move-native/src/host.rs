@@ -3,6 +3,9 @@ extern crate std;
 use core::mem::MaybeUninit;
 use log::debug;
 use polkavm::{MemoryAccessError, MemoryMap, RawInstance};
+use std::{collections::HashMap, vec::Vec};
+
+use crate::types::{MoveAddress, MoveType};
 
 #[derive(Debug)]
 pub enum ProgramError {
@@ -22,11 +25,11 @@ impl From<MemoryAccessError> for ProgramError {
     }
 }
 
-// we probably gonna need to wrap polkavm instance too
 pub struct MemAllocator {
     base: u32,
     size: u32,
     offset: u32,
+    storage: HashMap<(MoveAddress, MoveType), Vec<u8>>,
 }
 
 impl MemAllocator {
@@ -38,7 +41,65 @@ impl MemAllocator {
             base: memory_map.aux_data_address(),
             size: memory_map.aux_data_size(),
             offset: 0,
+            storage: HashMap::new(),
         }
+    }
+
+    /// Store a global value at the specified address with the given type.
+    pub fn store_global(
+        &mut self,
+        address: MoveAddress,
+        typ: MoveType,
+        value: Vec<u8>,
+    ) -> Result<(), MemoryAccessError> {
+        debug!(
+            "Storing global value of type {:?} at address {:?}",
+            typ.name, address
+        );
+
+        // // Check if the address already exists
+        // if self.storage.contains_key(&(address, typ)) {
+        //     return Err(MemoryAccessError::OutOfRangeAccess {
+        //         address: self.base + self.offset,
+        //         length: 0,
+        //     });
+        // }
+
+        // Store the value in the storage map
+        self.storage.insert((address, typ), value);
+        debug!("storage: {:?}", &self.storage);
+
+        Ok(())
+    }
+
+    ///
+    pub fn load_global(
+        &mut self,
+        address: MoveAddress,
+        typ: MoveType,
+    ) -> Result<Vec<u8>, ProgramError> {
+        debug!(
+            "Loading global value of type {:?} at address {:?}",
+            typ.name, address
+        );
+
+        // // Check if the address already exists
+        // if self.storage.contains_key(&(address, typ)) {
+        //     return Err(MemoryAccessError::OutOfRangeAccess {
+        //         address: self.base + self.offset,
+        //         length: 0,
+        //     });
+        // }
+
+        // Store the value in the storage map
+        let value = self
+            .storage
+            .get(&(address, typ))
+            .ok_or_else(|| ProgramError::MemoryAccess(format!("global not found at {address:?}")))?
+            .clone();
+        debug!("storage: {:?}", &self.storage);
+
+        Ok(value)
     }
 
     /// Allocate guest memory in the auxiliary data region.
