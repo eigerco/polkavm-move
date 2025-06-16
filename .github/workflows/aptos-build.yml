@@ -46,7 +46,8 @@ jobs:
         run: |
           set -e
           if [[ "$(uname -s)" == "Linux" ]]; then
-            source ~/.profile
+            # aptos installer installs the binary in ~/.local/bin
+            export PATH=$PATH:$HOME/.local/bin
           fi
           for m in $(find . -mindepth 1 -maxdepth 1 -type d); do
             pushd $m
