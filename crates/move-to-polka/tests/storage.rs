@@ -44,3 +44,57 @@ pub fn test_storage() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+pub fn test_store_twice() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+
+    let restul = instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store_twice", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        restul.is_err(),
+        "Expected error when storing twice, but got: {:?}",
+        restul
+    );
+
+    Ok(())
+}
+
+#[test]
+pub fn test_load_non_existent() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+
+    let restul = instance
+        .call_typed_and_get_result::<(), (u32,)>(
+            &mut allocator,
+            "load_non_existent",
+            (signer_address,),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        restul.is_err(),
+        "Expected error when storing twice, but got: {:?}",
+        restul
+    );
+
+    Ok(())
+}

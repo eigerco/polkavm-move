@@ -51,19 +51,23 @@ impl MemAllocator {
         address: MoveAddress,
         typ: MoveType,
         value: Vec<u8>,
-    ) -> Result<(), MemoryAccessError> {
+    ) -> Result<(), ProgramError> {
         debug!(
             "Storing global value of type {:?} at address {:?}",
             typ.name, address
         );
 
         // // Check if the address already exists
-        // if self.storage.contains_key(&(address, typ)) {
-        //     return Err(MemoryAccessError::OutOfRangeAccess {
-        //         address: self.base + self.offset,
-        //         length: 0,
-        //     });
-        // }
+        if self.storage.contains_key(&(address, typ)) {
+            debug!(
+                "Global already exists at address {address:?} with type {:?}",
+                typ.name
+            );
+            return Err(ProgramError::MemoryAccess(format!(
+                "global already exists at address {address:?} with type {:?}",
+                typ.name
+            )));
+        }
 
         // Store the value in the storage map
         self.storage.insert((address, typ), value);
