@@ -1229,7 +1229,13 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             }
             Operation::BorrowGlobal(mod_id, struct_id, types) => {
                 debug!(target: "dwarf", "translate_call BorrowGlobal {mod_id:?} {struct_id:?} types {types:?}");
-                todo!("BorrowGlobal operation not implemented yet");
+                let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
+                assert_eq!(src.len(), 1);
+                assert_eq!(dst.len(), 1);
+                let src0_reg = self.locals[src[0]].llval.as_any_value();
+                let mty = Type::Struct(*mod_id, *struct_id, types);
+                debug!(target: "dwarf", "BorrowGlobal mty {mty:?}");
+                self.emit_rtcall(RtCall::BorrowGlobal(src0_reg, mty), dst, instr);
             }
             Operation::BorrowLoc => {
                 assert_eq!(src.len(), 1);
@@ -1994,6 +2000,26 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(loc_dst.llval.as_any_value());
                 self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
             }
+            RtCall::BorrowGlobal(address, ll_type) => {
+                debug!(target: "rtcall", "BorrowGlobal ll_type {ll_type:?}");
+                let llfn = ModuleContext::get_runtime_function(
+                    self.module_cx.llvm_cx,
+                    self.module_cx.llvm_module,
+                    &self.module_cx.rtty_cx,
+                    &rtcall,
+                );
+
+                let mut typarams: Vec<_> = self
+                    .module_cx
+                    .get_rttydesc_ptrs(std::slice::from_ref(ll_type))
+                    .iter()
+                    .map(|llval| llval.as_any_value())
+                    .collect();
+                typarams.push(*address);
+                let loc_dst = &self.locals[dst[0]];
+                typarams.push(loc_dst.llval.as_any_value());
+                self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
+            }
             RtCall::Exists(address, ll_type) => {
                 debug!(target: "rtcall", "Exists ll_type {ll_type:?}");
                 let llfn = ModuleContext::get_runtime_function(
@@ -2038,6 +2064,7 @@ pub enum RtCall {
     StructCmpEq(llvm::AnyValue, llvm::AnyValue, mty::Type),
     MoveTo(llvm::AnyValue, llvm::AnyValue, mty::Type),
     MoveFrom(llvm::AnyValue, mty::Type),
+    BorrowGlobal(llvm::AnyValue, mty::Type),
     Exists(llvm::AnyValue, mty::Type),
 }
 

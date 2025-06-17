@@ -44,12 +44,20 @@ unsafe extern "C" fn move_to(type_ve: &MoveType, signer_ref: &AnyValue, struct_r
 
 #[export_name = "move_rt_move_from"]
 unsafe extern "C" fn move_from(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyValue) {
-    let address = imports::move_from(type_ve, s1);
-    imports::debug_print(type_ve, address as *const AnyValue);
+    move_from_internal(type_ve, s1, out, true);
+}
+
+unsafe fn move_from_internal(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyValue, remove: bool) {
+    let r = remove.then_some(1).unwrap_or(0);
+    let address = imports::move_from(type_ve, s1, r);
     let bytevec = &*(address as *const MoveByteVector);
 
     crate::serialization::deserialize(type_ve, bytevec, out);
-    imports::debug_print(type_ve, out);
+}
+
+#[export_name = "move_rt_borrow_global"]
+unsafe extern "C" fn borrow_global(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyValue) {
+    move_from_internal(type_ve, s1, out, false);
 }
 
 #[export_name = "move_rt_exists"]

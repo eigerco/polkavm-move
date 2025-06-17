@@ -6,7 +6,7 @@ module 0xa000::storage {
     use 0x10::debug;
     use std::signer;
 
-    struct Containee has key, drop, store {
+    struct Containee has key, drop, store, copy {
         value: u64,
         s: vector<u8>,
     }
@@ -41,8 +41,17 @@ module 0xa000::storage {
         let expected = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
         assert!(container == expected, 1);
         let exists = exists<Container>(signer::address_of(account));
-        debug::print(&exists);
         assert!(!exists, 0);
+    }
+
+    public entry fun borrow(account: &signer) acquires Container {
+        let address = signer::address_of(account);
+        let container = borrow_global<Container>(address);
+        debug::print(container);
+        assert!(container.value == 42, 0);
+        let exists = exists<Container>(signer::address_of(account));
+        debug::print(&exists);
+        assert!(!exists, 1);
     }
 
     public entry fun load_non_existent(account: &signer) acquires Container {

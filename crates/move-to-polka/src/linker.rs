@@ -228,10 +228,11 @@ pub fn create_instance(
 
     linker.define_typed(
         "move_from",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32| {
+        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, remove_u32: u32| {
             debug!(
-                "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}"
+                "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, remove: {remove_u32}",
             );
+            let remove =  remove_u32 != 0;
             let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
             let ptr_to_info = move_type.type_info as u32;
             debug!("info: {ptr_to_info:?}");
@@ -242,7 +243,7 @@ pub fn create_instance(
                 "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, type: {move_type}, address: {address:?}",
             );
             let allocator = caller.user_data;
-            let value = allocator.load_global(address, move_type, true)?;
+            let value = allocator.load_global(address, move_type, remove)?;
             debug!("move_from loaded value: {value:?}");
             let address = to_move_byte_vector(caller.instance, allocator, value.to_vec())?;
             debug!("move_from returned address: 0x{address:X}");

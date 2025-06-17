@@ -39,6 +39,9 @@ pub fn test_storage() -> anyhow::Result<()> {
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "borrow", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    instance
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "load", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
