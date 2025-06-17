@@ -24,3 +24,22 @@ extern "C" {
 extern "C" {
     pub(crate) fn hash_sha3_256(v: *const MoveByteVector) -> u32;
 }
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn move_to(
+        type_ve: *const MoveType,
+        signer_ref: *const AnyValue,
+        struct_ref: *const MoveByteVector,
+    );
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn move_from(type_ve: *const MoveType, s1: *const AnyValue) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn exists(type_ve: *const MoveType, s1: *const AnyValue) -> u32;
+}

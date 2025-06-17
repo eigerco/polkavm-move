@@ -35,6 +35,28 @@ unsafe extern "C" fn move_native_hash_sha3_256(bytes: *const MoveByteVector) -> 
     *mv_ptr
 }
 
+#[export_name = "move_rt_move_to"]
+unsafe extern "C" fn move_to(type_ve: &MoveType, signer_ref: &AnyValue, struct_ref: &AnyValue) {
+    let bytes = crate::serialization::serialize(type_ve, struct_ref);
+    imports::move_to(type_ve, signer_ref, &bytes);
+}
+
+#[export_name = "move_rt_move_from"]
+unsafe extern "C" fn move_from(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyValue) {
+    let address = imports::move_from(type_ve, s1);
+    let bytes = address as *const MoveByteVector;
+    let mut value = AnyValue::default();
+    crate::serialization::deserialize(type_ve, &*bytes, &mut value as *mut AnyValue);
+    imports::debug_print(type_ve, &value);
+    let out_slice = crate::serialization::serialize(type_ve, &value);
+    core::ptr::copy_nonoverlapping(out_slice.ptr, out as *mut u8, out_slice.length as usize);
+}
+
+#[export_name = "move_rt_exists"]
+unsafe extern "C" fn exists(type_ve: &MoveType, s1: &AnyValue) -> u32 {
+    imports::exists(type_ve, s1)
+}
+
 #[export_name = "move_native_signer_borrow_address"]
 extern "C" fn borrow_address(s: &MoveSigner) -> &MoveAddress {
     &s.0
@@ -90,6 +112,7 @@ unsafe extern "C" fn str_cmp_eq(
 unsafe extern "C" fn struct_cmp_eq(type_ve: &MoveType, s1: &AnyValue, s2: &AnyValue) -> bool {
     crate::structs::cmp_eq(type_ve, s1, s2)
 }
+
 // Safety: Even empty Rust vectors have non-null buffer pointers,
 // which must be correctly aligned. This function crates empty Rust vecs
 // of the correct type and converts them to untyped move vecs.

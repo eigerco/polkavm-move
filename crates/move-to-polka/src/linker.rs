@@ -7,7 +7,7 @@ use polkavm::{
 };
 use polkavm_move_native::{
     host::{copy_bytes_from_guest, copy_from_guest, MemAllocator, ProgramError},
-    types::{MoveByteVector, MoveType, TypeDesc},
+    types::{MoveAddress, MoveByteVector, MoveSigner, MoveType, StructTypeInfo, TypeDesc},
     ALLOC_CODE, PANIC_CODE,
 };
 use sha2::Digest;
@@ -168,6 +168,10 @@ pub fn create_instance(
                         let move_value: u32 = copy_from_guest(caller.instance, ptr_to_data)?;
                         debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
                     }
+                    TypeDesc::Signer => {
+                        let move_signer: MoveSigner = copy_from_guest(caller.instance, ptr_to_data)?;
+                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_signer:?}");
+                    }
                     TypeDesc::U64 => {
                         let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
                         debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
@@ -193,6 +197,70 @@ pub fn create_instance(
                 debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
             }
             Result::<(), ProgramError>::Ok(())
+        },
+    )?;
+
+    linker.define_typed(
+        "move_to",
+        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_signer: u32, ptr_to_struct: u32| {
+            debug!(
+                "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}"
+            );
+            let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
+            let ptr_to_info = move_type.type_info as u32;
+            debug!("info: {ptr_to_info:?}");
+            let info: StructTypeInfo = copy_from_guest(caller.instance, ptr_to_info)?;
+            debug!("struct info: {info:?}");
+            let signer_ptr: u32 = copy_from_guest(caller.instance, ptr_to_signer)?;
+            let signer: MoveSigner = copy_from_guest(caller.instance, signer_ptr)?;
+            debug!("signer: {signer:?}");
+            let address = signer.0;
+            debug!("address: {address:?}");
+            let value = from_move_byte_vector(caller.instance, ptr_to_struct)?;
+            debug!(
+                "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}, type: {move_type}, address: {address:?}, value: {value:?}",
+            );
+            let allocator = caller.user_data;
+            allocator.store_global(address, move_type, value.to_vec())?;
+            Result::<(), ProgramError>::Ok(())
+        },
+    )?;
+
+    linker.define_typed(
+        "move_from",
+        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32| {
+            debug!(
+                "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}"
+            );
+            let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
+            let ptr_to_info = move_type.type_info as u32;
+            debug!("info: {ptr_to_info:?}");
+            let info: StructTypeInfo = copy_from_guest(caller.instance, ptr_to_info)?;
+            debug!("struct info: {info:?}");
+            let address: MoveAddress = copy_from_guest(caller.instance, ptr_to_addr)?;
+            debug!(
+                "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, type: {move_type}, address: {address:?}",
+            );
+            let allocator = caller.user_data;
+            let value = allocator.load_global(address, move_type, true)?;
+            debug!("move_from loaded value: {value:?}");
+            let address = to_move_byte_vector(caller.instance, allocator, value.to_vec())?;
+            debug!("move_from returned address: 0x{address:X}");
+            Result::<u32, ProgramError>::Ok(address)
+        },
+    )?;
+
+    linker.define_typed(
+        "exists",
+        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32| {
+            debug!(
+                "exists called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}"
+            );
+            let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
+            let address: MoveAddress = copy_from_guest(caller.instance, ptr_to_addr)?;
+            let allocator = caller.user_data;
+            let value = allocator.exists(address, move_type)?;
+            Result::<u32, ProgramError>::Ok(value as u32)
         },
     )?;
 
