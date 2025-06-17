@@ -1219,12 +1219,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             }
             Operation::Exists(mod_id, struct_id, types) => {
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
-                debug!(target: "dwarf", "translate_call MoveFrom {mod_id:?} {struct_id:?} types {types:?}");
+                debug!(target: "dwarf", "translate_call Exists {mod_id:?} {struct_id:?} types {types:?}");
                 assert_eq!(src.len(), 1);
                 assert_eq!(dst.len(), 1);
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
                 let mty = Type::Struct(*mod_id, *struct_id, types);
-                debug!(target: "dwarf", "MoveFrom mty {mty:?}");
+                debug!(target: "dwarf", "Exists mty {mty:?}");
                 self.emit_rtcall(RtCall::Exists(src0_reg, mty), dst, instr);
             }
             Operation::BorrowGlobal(mod_id, struct_id, types) => {
