@@ -1203,7 +1203,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 debug!(target: "dwarf", "MoveTo src {:?} dst {dst:?}", self.locals);
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
                 let src1_reg = self.locals[src[1]].llval.as_any_value();
-                let mty = Type::Struct(mod_id.clone(), struct_id.clone(), types);
+                let mty = Type::Struct(*mod_id, *struct_id, types);
                 debug!(target: "dwarf", "MoveTo mty {mty:?}");
                 self.emit_rtcall(RtCall::MoveTo(src1_reg, src0_reg, mty), dst, instr);
             }
@@ -1213,9 +1213,19 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 assert_eq!(src.len(), 1);
                 assert_eq!(dst.len(), 1);
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
-                let mty = Type::Struct(mod_id.clone(), struct_id.clone(), types);
+                let mty = Type::Struct(*mod_id, *struct_id, types);
                 debug!(target: "dwarf", "MoveFrom mty {mty:?}");
                 self.emit_rtcall(RtCall::MoveFrom(src0_reg, mty), dst, instr);
+            }
+            Operation::Exists(mod_id, struct_id, types) => {
+                let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
+                debug!(target: "dwarf", "translate_call MoveFrom {mod_id:?} {struct_id:?} types {types:?}");
+                assert_eq!(src.len(), 1);
+                assert_eq!(dst.len(), 1);
+                let src0_reg = self.locals[src[0]].llval.as_any_value();
+                let mty = Type::Struct(*mod_id, *struct_id, types);
+                debug!(target: "dwarf", "MoveFrom mty {mty:?}");
+                self.emit_rtcall(RtCall::Exists(src0_reg, mty), dst, instr);
             }
             Operation::BorrowGlobal(mod_id, struct_id, types) => {
                 debug!(target: "dwarf", "translate_call BorrowGlobal {mod_id:?} {struct_id:?} types {types:?}");
@@ -1984,6 +1994,29 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(loc_dst.llval.as_any_value());
                 self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
             }
+            RtCall::Exists(address, ll_type) => {
+                debug!(target: "rtcall", "Exists ll_type {ll_type:?}");
+                let llfn = ModuleContext::get_runtime_function(
+                    self.module_cx.llvm_cx,
+                    self.module_cx.llvm_module,
+                    &self.module_cx.rtty_cx,
+                    &rtcall,
+                );
+
+                let mut typarams: Vec<_> = self
+                    .module_cx
+                    .get_rttydesc_ptrs(std::slice::from_ref(ll_type))
+                    .iter()
+                    .map(|llval| llval.as_any_value())
+                    .collect();
+                typarams.push(*address);
+                let loc_dst = &self.locals[dst[0]];
+                self.module_cx.llvm_builder.call_store(
+                    llfn,
+                    &typarams,
+                    &[(loc_dst.llty, loc_dst.llval)],
+                );
+            }
             _ => unreachable!(),
         }
     }
@@ -2005,6 +2038,7 @@ pub enum RtCall {
     StructCmpEq(llvm::AnyValue, llvm::AnyValue, mty::Type),
     MoveTo(llvm::AnyValue, llvm::AnyValue, mty::Type),
     MoveFrom(llvm::AnyValue, mty::Type),
+    Exists(llvm::AnyValue, mty::Type),
 }
 
 /// Compile the module to object file.

@@ -15,6 +15,9 @@ module 0xa000::storage {
         debug::print(&container);
         debug::print(account);
         move_to(account, container);
+        let exists = exists<Container>(signer::address_of(account));
+        debug::print(&exists);
+        assert!(exists, 1);
     }
 
     public entry fun load(account: &signer) acquires Container {
@@ -22,6 +25,9 @@ module 0xa000::storage {
         let container: Container = move_from(address);
         debug::print(&container);
         assert!(container.value == 42, 0);
+        let exists = exists<Container>(signer::address_of(account));
+        debug::print(&exists);
+        assert!(!exists, 0);
     }
 }
 

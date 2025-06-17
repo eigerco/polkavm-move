@@ -52,6 +52,11 @@ unsafe extern "C" fn move_from(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyV
     core::ptr::copy_nonoverlapping(out_slice.ptr, out as *mut u8, out_slice.length as usize);
 }
 
+#[export_name = "move_rt_exists"]
+unsafe extern "C" fn exists(type_ve: &MoveType, s1: &AnyValue) -> u32 {
+    imports::exists(type_ve, s1)
+}
+
 #[export_name = "move_native_signer_borrow_address"]
 extern "C" fn borrow_address(s: &MoveSigner) -> &MoveAddress {
     &s.0

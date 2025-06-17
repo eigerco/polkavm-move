@@ -72,7 +72,7 @@ impl MemAllocator {
         Ok(())
     }
 
-    ///
+    /// Load a global value from the specified address with the given type.
     pub fn load_global(
         &mut self,
         address: MoveAddress,
@@ -95,6 +95,19 @@ impl MemAllocator {
         }
         debug!("storage: {:?}", &self.storage);
 
+        Ok(value)
+    }
+
+    /// Check if a global value exists at the specified address with the given type.
+    pub fn exists(&mut self, address: MoveAddress, typ: MoveType) -> Result<bool, ProgramError> {
+        debug!(
+            "Exists global value of type {:?} at address {:?}",
+            typ.name, address
+        );
+
+        // Store the value in the storage map
+        let value = self.storage.contains_key(&(address, typ));
+        debug!("storage: {:?}", &self.storage);
         Ok(value)
     }
 
