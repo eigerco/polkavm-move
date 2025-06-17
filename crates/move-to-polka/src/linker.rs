@@ -242,7 +242,7 @@ pub fn create_instance(
                 "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, type: {move_type}, address: {address:?}",
             );
             let allocator = caller.user_data;
-            let value = allocator.load_global(address, move_type)?;
+            let value = allocator.load_global(address, move_type, true)?;
             debug!("move_from loaded value: {value:?}");
             let address = to_move_byte_vector(caller.instance, allocator, value.to_vec())?;
             debug!("move_from returned address: 0x{address:X}");

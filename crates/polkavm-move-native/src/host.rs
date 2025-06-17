@@ -77,19 +77,12 @@ impl MemAllocator {
         &mut self,
         address: MoveAddress,
         typ: MoveType,
+        remove: bool,
     ) -> Result<Vec<u8>, ProgramError> {
         debug!(
             "Loading global value of type {:?} at address {:?}",
             typ.name, address
         );
-
-        // // Check if the address already exists
-        // if self.storage.contains_key(&(address, typ)) {
-        //     return Err(MemoryAccessError::OutOfRangeAccess {
-        //         address: self.base + self.offset,
-        //         length: 0,
-        //     });
-        // }
 
         // Store the value in the storage map
         let value = self
@@ -97,6 +90,9 @@ impl MemAllocator {
             .get(&(address, typ))
             .ok_or_else(|| ProgramError::MemoryAccess(format!("global not found at {address:?}")))?
             .clone();
+        if remove {
+            self.storage.remove(&(address, typ));
+        }
         debug!("storage: {:?}", &self.storage);
 
         Ok(value)
