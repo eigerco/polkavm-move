@@ -5,6 +5,7 @@ use crate::{
     },
     vector::{TypedMoveBorrowedRustVec, TypedMoveBorrowedRustVecMut},
 };
+extern crate alloc;
 use core::str;
 
 mod allocator;
@@ -44,12 +45,11 @@ unsafe extern "C" fn move_to(type_ve: &MoveType, signer_ref: &AnyValue, struct_r
 #[export_name = "move_rt_move_from"]
 unsafe extern "C" fn move_from(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyValue) {
     let address = imports::move_from(type_ve, s1);
-    let bytes = address as *const MoveByteVector;
-    let mut value = AnyValue::default();
-    crate::serialization::deserialize(type_ve, &*bytes, &mut value as *mut AnyValue);
-    imports::debug_print(type_ve, &value);
-    let out_slice = crate::serialization::serialize(type_ve, &value);
-    core::ptr::copy_nonoverlapping(out_slice.ptr, out as *mut u8, out_slice.length as usize);
+    imports::debug_print(type_ve, address as *const AnyValue);
+    let bytevec = &*(address as *const MoveByteVector);
+
+    crate::serialization::deserialize(type_ve, bytevec, out);
+    imports::debug_print(type_ve, out);
 }
 
 #[export_name = "move_rt_exists"]

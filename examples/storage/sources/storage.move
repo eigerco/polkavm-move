@@ -6,12 +6,18 @@ module 0xa000::storage {
     use 0x10::debug;
     use std::signer;
 
+    struct Containee has key, drop, store {
+        value: u64,
+        s: vector<u8>,
+    }
+
     struct Container has key, drop, store {
         value: u64,
+        inner: Containee,
     }
 
     public entry fun store(account: &signer) {
-        let container = Container { value: 42 };
+        let container = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
         debug::print(&container);
         debug::print(account);
         move_to(account, container);
@@ -21,9 +27,9 @@ module 0xa000::storage {
     }
 
     public entry fun store_twice(account: &signer) {
-        let container = Container { value: 42 };
+        let container = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
         move_to(account, container);
-        let container2 = Container { value: 69 };
+        let container2 = Container { value: 69, inner: Containee { value: 42, s: x"DEADBEEF" } };
         move_to(account, container2); // this should abort
     }
 
@@ -32,6 +38,8 @@ module 0xa000::storage {
         let container: Container = move_from(address);
         debug::print(&container);
         assert!(container.value == 42, 0);
+        let expected = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
+        assert!(container == expected, 1);
         let exists = exists<Container>(signer::address_of(account));
         debug::print(&exists);
         assert!(!exists, 0);
