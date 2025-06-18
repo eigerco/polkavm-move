@@ -23,7 +23,53 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
-pub fn test_storage() -> anyhow::Result<()> {
+pub fn test_store_load() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "load", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+pub fn test_store_different() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store2", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "load2", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+pub fn test_borrow() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
@@ -40,9 +86,6 @@ pub fn test_storage() -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     instance
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "borrow", (signer_address,))
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-    instance
-        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "load", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())
