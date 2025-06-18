@@ -1,5 +1,6 @@
 module 0x10::debug {
     native public fun print<T>(x: &T);
+    native public fun hex_dump();
 }
 
 module 0xa000::storage {
@@ -82,6 +83,7 @@ module 0xa000::storage {
         let address = signer::address_of(account);
         let container = borrow_global<Container>(address);
         debug::print(container);
+        debug::hex_dump();
         assert!(container.value == 42, 0);
         let exists = exists<Container>(signer::address_of(account));
         debug::print(&exists);

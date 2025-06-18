@@ -7,7 +7,7 @@ use polkavm::{
 };
 use polkavm_move_native::{
     host::{copy_bytes_from_guest, copy_from_guest, MemAllocator, ProgramError},
-    types::{MoveAddress, MoveByteVector, MoveSigner, MoveType, StructTypeInfo, TypeDesc},
+    types::{MoveAddress, MoveByteVector, MoveSigner, MoveType, TypeDesc},
     ALLOC_CODE, PANIC_CODE,
 };
 use sha2::Digest;
@@ -149,6 +149,12 @@ pub fn create_instance(
 
     // additional "native" function used by move program and also exposed by host
     // it is just for testing/debuging only
+    linker.define_typed("hex_dump", |caller: Caller<MemAllocator>| {
+        let allocator = caller.user_data;
+        let instance = caller.instance;
+        hexdump(allocator, instance);
+    })?;
+
     linker.define_typed(
         "debug_print",
         |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_data: u32| {
@@ -161,12 +167,12 @@ pub fn create_instance(
                     TypeDesc::Bool |
                     TypeDesc::U8 => {
                         let move_value: u8 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value}:x?");
                     }
                     TypeDesc::U16 |
                     TypeDesc::U32 => {
                         let move_value: u32 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value:x?}");
                     }
                     TypeDesc::Signer => {
                         let move_signer: MoveSigner = copy_from_guest(caller.instance, ptr_to_data)?;
@@ -174,17 +180,18 @@ pub fn create_instance(
                     }
                     TypeDesc::U64 => {
                         let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value:x?}");
                     }
                     TypeDesc::Vector => {
                         let vec: MoveByteVector = copy_from_guest(caller.instance, ptr_to_data)?;
                         let instance = caller.instance;
                         let len = vec.length as usize;
                         let bytes = copy_bytes_from_guest(instance, vec.ptr as u32, len)?;
-                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {vec:?}, bytes: {bytes:?}");
-                        let s = String::from_utf8(bytes);
+                        let s = String::from_utf8(bytes.clone());
                         if let Ok(s) = s {
-                            debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {s}");
+                            debug!("debug_print called: {s}");
+                        } else {
+                            debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {vec:?}, bytes: {bytes:x?}");
                         }
                     }
                     _ => {
@@ -207,10 +214,6 @@ pub fn create_instance(
                 "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}"
             );
             let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
-            let ptr_to_info = move_type.type_info as u32;
-            debug!("info: {ptr_to_info:?}");
-            let info: StructTypeInfo = copy_from_guest(caller.instance, ptr_to_info)?;
-            debug!("struct info: {info:?}");
             let signer_ptr: u32 = copy_from_guest(caller.instance, ptr_to_signer)?;
             let signer: MoveSigner = copy_from_guest(caller.instance, signer_ptr)?;
             debug!("signer: {signer:?}");
@@ -218,7 +221,7 @@ pub fn create_instance(
             debug!("address: {address:?}");
             let value = from_move_byte_vector(caller.instance, ptr_to_struct)?;
             debug!(
-                "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}, type: {move_type}, address: {address:?}, value: {value:?}",
+                "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}, type: {move_type}, address: {address:?}, value: {value:x?}",
             );
             let allocator = caller.user_data;
             allocator.store_global(address, move_type, value.to_vec())?;
@@ -232,21 +235,19 @@ pub fn create_instance(
             debug!(
                 "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, remove: {remove_u32}",
             );
+            let instance = caller.instance;
+            let allocator = caller.user_data;
             let remove =  remove_u32 != 0;
-            let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
-            let ptr_to_info = move_type.type_info as u32;
-            debug!("info: {ptr_to_info:?}");
-            let info: StructTypeInfo = copy_from_guest(caller.instance, ptr_to_info)?;
-            debug!("struct info: {info:?}");
-            let address: MoveAddress = copy_from_guest(caller.instance, ptr_to_addr)?;
+            let move_type: MoveType = copy_from_guest(instance, ptr_to_type)?;
+            let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
             debug!(
                 "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, type: {move_type}, address: {address:?}",
             );
-            let allocator = caller.user_data;
             let value = allocator.load_global(address, move_type, remove)?;
-            debug!("move_from loaded value: {value:?}");
-            let address = to_move_byte_vector(caller.instance, allocator, value.to_vec())?;
+            debug!("move_from loaded value: {value:x?}");
+            let address = to_move_byte_vector(instance, allocator, value.to_vec())?;
             debug!("move_from returned address: 0x{address:X}");
+            hexdump(allocator, instance);
             Result::<u32, ProgramError>::Ok(address)
         },
     )?;
@@ -379,4 +380,50 @@ fn to_move_byte_vector(
     };
     debug!("move_byte_vec: {move_byte_vec:?}");
     Ok(allocator.copy_to_guest(instance, &move_byte_vec)?)
+}
+
+fn hexdump(allocator: &MemAllocator, instance: &mut RawInstance) {
+    let mem = allocator.dump(instance).unwrap_or_else(|_| vec![]);
+    let base = allocator.base() as usize;
+    let start_address = 0usize;
+    let mut offset = 0;
+
+    println!("------------------------------------------------------------------------------");
+    while offset < mem.len() {
+        // Print the address
+        print!("{:08x}  ", base + start_address + offset);
+
+        // Print hex values
+        for i in 0..16 {
+            if offset + i < mem.len() {
+                print!("{:02x} ", mem[offset + i]);
+            } else {
+                print!("   ");
+            }
+            if i == 7 {
+                print!(" "); // extra space between 8-byte halves
+            }
+        }
+
+        print!(" |");
+
+        // Print ASCII representation
+        for i in 0..16 {
+            if offset + i < mem.len() {
+                let byte = mem[offset + i];
+                let ch = if byte.is_ascii_graphic() || byte == b' ' {
+                    byte as char
+                } else {
+                    '.'
+                };
+                print!("{}", ch);
+            } else {
+                print!(" ");
+            }
+        }
+
+        println!("|");
+        offset += 16;
+    }
+    println!("------------------------------------------------------------------------------");
 }

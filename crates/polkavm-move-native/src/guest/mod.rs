@@ -12,6 +12,18 @@ mod allocator;
 mod imports;
 mod panic;
 
+#[macro_export]
+macro_rules! heapless_format {
+    ($($arg:tt)*) => {{
+        use heapless::String;
+        use core::fmt::Write;
+
+        let mut s: String<256> = String::new();
+        let _ = write!(&mut s, $($arg)*);
+        s
+    }};
+}
+
 #[export_name = "move_rt_abort"]
 unsafe extern "C" fn move_rt_abort(code: u64) {
     imports::abort(code);
@@ -20,6 +32,11 @@ unsafe extern "C" fn move_rt_abort(code: u64) {
 #[export_name = "move_native_debug_print"]
 unsafe extern "C" fn print(type_x: *const MoveType, x: *const AnyValue) {
     imports::debug_print(type_x, x);
+}
+
+#[export_name = "move_native_debug_hex_dump"]
+unsafe extern "C" fn hex_dump() {
+    imports::hex_dump();
 }
 
 #[export_name = "move_native_hash_sha2_256"]
@@ -39,25 +56,39 @@ unsafe extern "C" fn move_native_hash_sha3_256(bytes: *const MoveByteVector) -> 
 #[export_name = "move_rt_move_to"]
 unsafe extern "C" fn move_to(type_ve: &MoveType, signer_ref: &AnyValue, struct_ref: &AnyValue) {
     let bytes = crate::serialization::serialize(type_ve, struct_ref);
+    print_vec(&bytes);
     imports::move_to(type_ve, signer_ref, &bytes);
 }
 
 #[export_name = "move_rt_move_from"]
 unsafe extern "C" fn move_from(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyValue) {
-    move_from_internal(type_ve, s1, out, true);
-}
-
-unsafe fn move_from_internal(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyValue, remove: bool) {
-    let r = remove.then_some(1).unwrap_or(0);
-    let address = imports::move_from(type_ve, s1, r);
+    let address = imports::move_from(type_ve, s1, 1);
     let bytevec = &*(address as *const MoveByteVector);
-
     crate::serialization::deserialize(type_ve, bytevec, out);
 }
 
 #[export_name = "move_rt_borrow_global"]
 unsafe extern "C" fn borrow_global(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyValue) {
-    move_from_internal(type_ve, s1, out, false);
+    let address = imports::move_from(type_ve, s1, 0);
+    let bytevec = &*(address as *const MoveByteVector);
+    print_vec(bytevec);
+    // crate::serialization::deserialize(type_ve, bytevec, out);
+    // Allocate heap memory for the deserialized value
+    let boxed = alloc::boxed::Box::new(AnyValue::default());
+    let raw = alloc::boxed::Box::into_raw(boxed);
+
+    // Deserialize into the boxed location
+    crate::serialization::deserialize(type_ve, bytevec, raw);
+    imports::debug_print(type_ve, raw as *const AnyValue);
+    core::ptr::copy_nonoverlapping(raw, out as *mut AnyValue, 4);
+
+    let s = heapless_format!(
+        "borrow_global: type: {:?}, address: {:x?}, out ptr: {:x?}",
+        type_ve.type_desc,
+        address,
+        out as u32
+    );
+    print_str(&s);
 }
 
 #[export_name = "move_rt_exists"]
@@ -224,4 +255,17 @@ pub unsafe extern "C" fn internal_index_of(s: &MoveByteVector, r: &MoveByteVecto
 #[export_name = "move_native_bcs_to_bytes"]
 pub unsafe extern "C" fn to_bytes(type_v: &MoveType, v: &AnyValue) -> MoveByteVector {
     crate::serialization::serialize(type_v, v)
+}
+
+unsafe fn print_vec(vec: &MoveByteVector) {
+    let typ_string = MoveType::vec();
+    imports::debug_print(&typ_string, vec as *const MoveByteVector as *const AnyValue);
+}
+
+unsafe fn print_str(info: &str) {
+    let typ_string = MoveType::vec();
+    let s = MoveAsciiString {
+        bytes: MoveByteVector::from_rust_vec(info.as_bytes().to_vec()),
+    };
+    imports::debug_print(&typ_string, &s as *const MoveAsciiString as *const AnyValue);
 }

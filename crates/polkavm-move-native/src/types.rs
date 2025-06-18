@@ -86,6 +86,23 @@ impl core::fmt::Display for MoveType {
     }
 }
 
+impl MoveType {
+    pub fn u32() -> Self {
+        Self {
+            name: DUMMY_TYPE_NAME,
+            type_desc: TypeDesc::U32,
+            type_info: core::ptr::null(),
+        }
+    }
+    pub fn vec() -> Self {
+        Self {
+            name: DUMMY_TYPE_NAME,
+            type_desc: TypeDesc::Vector,
+            type_info: core::ptr::null(),
+        }
+    }
+}
+
 /// # Safety
 ///
 /// The pointer must be to static memory and never mutated.

@@ -45,6 +45,10 @@ impl MemAllocator {
         }
     }
 
+    pub fn base(&self) -> u32 {
+        self.base
+    }
+
     /// Store a global value at the specified address with the given type.
     pub fn store_global(
         &mut self,
@@ -71,7 +75,7 @@ impl MemAllocator {
 
         // Store the value in the storage map
         self.storage.insert((address, typ), value);
-        debug!("storage: {:?}", &self.storage);
+        debug!("storage: {:x?}", &self.storage);
 
         Ok(())
     }
@@ -97,7 +101,7 @@ impl MemAllocator {
         if remove {
             self.storage.remove(&(address, typ));
         }
-        debug!("storage: {:?}", &self.storage);
+        debug!("storage: {:x?}", &self.storage);
 
         Ok(value)
     }
@@ -111,7 +115,7 @@ impl MemAllocator {
 
         // Store the value in the storage map
         let value = self.storage.contains_key(&(address, typ));
-        debug!("storage: {:?}", &self.storage);
+        debug!("storage: {:x?}", &self.storage);
         Ok(value)
     }
 
@@ -200,6 +204,11 @@ impl MemAllocator {
         instance.write_memory(address, bytes)?;
 
         Ok(address)
+    }
+
+    pub fn dump(&self, instance: &mut RawInstance) -> Result<Vec<u8>, MemoryAccessError> {
+        let memory = instance.read_memory(self.base, self.offset)?;
+        Ok(memory)
     }
 }
 
