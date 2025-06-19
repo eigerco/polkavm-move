@@ -133,18 +133,6 @@ pub fn create_instance(
     let module = Module::from_blob(&engine, &module_config, blob.clone())?;
     // Create a memory allocator for the module.
     let allocator = MemAllocator::init(module.memory_map());
-    let memory_map = module.memory_map();
-    debug!(
-        "RO: {:X} size {}",
-        memory_map.ro_data_address(),
-        memory_map.ro_data_size()
-    );
-
-    debug!(
-        "AUX: {:X} size: {}",
-        memory_map.aux_data_address(),
-        memory_map.aux_data_size()
-    );
     let mut linker: MoveProgramLinker = Linker::new();
 
     // additional "native" function used by move program and also exposed by host
@@ -216,9 +204,7 @@ pub fn create_instance(
             let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
             let signer_ptr: u32 = copy_from_guest(caller.instance, ptr_to_signer)?;
             let signer: MoveSigner = copy_from_guest(caller.instance, signer_ptr)?;
-            debug!("signer: {signer:?}");
             let address = signer.0;
-            debug!("address: {address:?}");
             let tag: [u8; 32] = copy_from_guest(caller.instance, ptr_to_tag)?;
             let value = from_move_byte_vector(caller.instance, ptr_to_struct)?;
             debug!(
@@ -392,9 +378,9 @@ fn hexdump(allocator: &MemAllocator, instance: &mut RawInstance) {
         .read_memory(ro_base, 256)
         .unwrap_or_else(|_| vec![]);
     print_mem(ro, ro_base as usize, " RO  ");
-    // let stack_base = 0xfffce000;
+    // let stack_base = 0xfffcf000;
     // let stack = instance
-    //     .read_memory(stack_base, 8192)
+    //     .read_memory(stack_base, 4096)
     //     .unwrap_or_else(|_| vec![]);
     // print_mem(stack, stack_base as usize, " STACK ");
     let aux = allocator.dump_aux(instance).unwrap_or_else(|_| vec![]);
@@ -406,7 +392,7 @@ fn print_mem(mem: Vec<u8>, base: usize, label: &str) {
     let start_address = 0usize;
     let mut offset = 0;
 
-    println!("{:-^78}", label);
+    println!("{label:-^78}");
     while offset < mem.len() {
         // Print the address
         print!("{:08x}  ", base + start_address + offset);
@@ -434,7 +420,7 @@ fn print_mem(mem: Vec<u8>, base: usize, label: &str) {
                 } else {
                     '.'
                 };
-                print!("{}", ch);
+                print!("{ch}");
             } else {
                 print!(" ");
             }

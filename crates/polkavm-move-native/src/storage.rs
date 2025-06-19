@@ -44,7 +44,7 @@ struct GlobalResourceEntry {
     pub borrow_count: u32,
 
     /// True if there's an active mutable borrow (`&mut T`).
-    pub borrow_mut: bool,
+    pub _borrow_mut: bool,
 }
 
 impl GlobalResourceEntry {
@@ -52,7 +52,7 @@ impl GlobalResourceEntry {
         Self {
             data,
             borrow_count: 0,
-            borrow_mut: false,
+            _borrow_mut: false,
         }
     }
 }
@@ -70,6 +70,12 @@ impl GlobalStorage {
     }
 }
 
+impl Default for GlobalStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Storage for GlobalStorage {
     fn store(
         &mut self,
@@ -77,22 +83,14 @@ impl Storage for GlobalStorage {
         typ: StructTagHash,
         value: Vec<u8>,
     ) -> Result<(), ProgramError> {
-        debug!(
-            "Storing global value of type {:?} at address {:?}",
-            typ, address
-        );
+        debug!("Storing global value of type {typ:?} at address {address:?}",);
 
         let key = Key::new(address, typ);
 
         // Check if the address already exists
         if self.storage.contains_key(&key) {
-            debug!(
-                "Global already exists at address {address:?} with type {:?}",
-                typ
-            );
             return Err(ProgramError::MemoryAccess(format!(
-                "global already exists at address {address:?} with type {:?}",
-                typ
+                "global already exists at address {address:?} with type {typ:?}",
             )));
         }
 
@@ -110,10 +108,7 @@ impl Storage for GlobalStorage {
         typ: StructTagHash,
         remove: bool,
     ) -> Result<Vec<u8>, ProgramError> {
-        debug!(
-            "Loading global value of type {:?} at address {:?}",
-            typ, address
-        );
+        debug!("Loading global value of type {typ:?} at address {address:?}",);
 
         let key = Key::new(address, typ);
         let mut value = self
@@ -133,10 +128,7 @@ impl Storage for GlobalStorage {
 
     /// Check if a global value exists at the specified address with the given type.
     fn exists(&mut self, address: MoveAddress, typ: StructTagHash) -> Result<bool, ProgramError> {
-        debug!(
-            "Exists global value of type {:?} at address {:?}",
-            typ, address
-        );
+        debug!("Exists global value of type {typ:?} at address {address:?}",);
 
         let key = Key::new(address, typ);
         let value = self.storage.contains_key(&key);

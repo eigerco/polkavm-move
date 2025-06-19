@@ -2088,7 +2088,6 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 };
                 let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
                 let struct_name = struct_env.get_full_name_with_address();
-                // let struct_name = format!("{:?}", ll_type);
                 let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
                 let tag_ptr = Global::from_array(
                     self.module_cx.llvm_cx,

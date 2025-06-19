@@ -1450,6 +1450,7 @@ impl AnyValue {
 pub struct Global(LLVMValueRef);
 
 impl Global {
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn from_array(
         llvm_cx: &Context,
         builder: &Builder,
@@ -1459,36 +1460,24 @@ impl Global {
         unsafe {
             let i8_type = LLVMInt8TypeInContext(LLVMGetGlobalContext());
             let array_ty = LLVMArrayType2(i8_type, bytes.len() as u64);
-            debug!(
-                "Creating constant array of type {:?} with length {}",
-                array_ty,
-                bytes.len()
-            );
             let values: Vec<LLVMValueRef> = bytes
                 .iter()
                 .map(|&b| LLVMConstInt(i8_type, b as u64, 0))
                 .collect();
             let const_array =
                 LLVMConstArray2(array_ty, values.as_ptr() as *mut _, bytes.len() as u64);
-            debug!("Created constant array: {:?}", const_array);
             let cname = std::ffi::CString::new("struct_tag").unwrap();
             let global = LLVMAddGlobal(module, array_ty, cname.as_ptr());
 
-            // Set the global initializer to the constant array
             LLVMSetInitializer(global, const_array);
-
-            // Set internal linkage (you can change to ExternalLinkage if needed)
             LLVMSetLinkage(global, LLVMLinkage::LLVMInternalLinkage);
 
             let global = AnyValue(global);
             let i8_ptr_type = llvm_cx.ptr_type();
 
-            // Perform the bitcast
-            let tag_ptr_cast = builder.build_unary_bitcast(
-                global,
-                i8_ptr_type,
-                "struct_tag_as_i8_ptr", // Name for the new LLVM value
-            );
+            // LLVM is not happy with the global as is, we need to cast it to a pointer type.
+            let tag_ptr_cast =
+                builder.build_unary_bitcast(global, i8_ptr_type, "struct_tag_as_i8_ptr");
 
             Global(tag_ptr_cast.0)
         }

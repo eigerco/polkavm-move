@@ -61,7 +61,7 @@ unsafe extern "C" fn move_to(
     tag: &AnyValue,
 ) {
     let bytes = crate::serialization::serialize(type_ve, struct_ref);
-    print_vec(&bytes);
+    // print_vec(&bytes);
     imports::move_to(type_ve, signer_ref, &bytes, tag);
 }
 
@@ -86,24 +86,15 @@ unsafe extern "C" fn borrow_global(
 ) {
     let address = imports::move_from(type_ve, s1, 0, tag);
     let bytevec = &*(address as *const MoveByteVector);
-    print_vec(bytevec);
-    // crate::serialization::deserialize(type_ve, bytevec, out);
-    // Allocate heap memory for the deserialized value
-    let boxed = alloc::boxed::Box::new(AnyValue::default());
+    // allocate a boxed slice of bytevec.length bytes, deserialized should be smaller so this is safe
+    let mut boxed: alloc::boxed::Box<[u8]> =
+        alloc::vec![0u8; bytevec.length as usize].into_boxed_slice();
     let raw = alloc::boxed::Box::into_raw(boxed);
-
     // Deserialize into the boxed location
-    crate::serialization::deserialize(type_ve, bytevec, raw);
-    imports::debug_print(type_ve, raw as *const AnyValue);
-    core::ptr::copy_nonoverlapping(raw, out as *mut AnyValue, 4);
-
-    let s = heapless_format!(
-        "borrow_global: type: {:?}, address: {:x?}, out ptr: {:x?}",
-        type_ve.type_desc,
-        address,
-        out as u32
-    );
-    print_str(&s);
+    crate::serialization::deserialize(type_ve, bytevec, raw as *mut AnyValue);
+    let raw_addr_value = raw as *const u8 as u32;
+    // Copy the address of the boxed value into the output pointer
+    core::ptr::copy_nonoverlapping(&raw_addr_value as *const u32, out as *mut u32, 1);
 }
 
 #[export_name = "move_rt_exists"]
