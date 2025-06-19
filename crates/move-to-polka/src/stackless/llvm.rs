@@ -15,7 +15,7 @@
 
 use libc::abort;
 use llvm_sys::{core::*, prelude::*, target::*, target_machine::*, LLVMOpcode, LLVMUnnamedAddr};
-use log::{debug, warn};
+use log::{debug, trace, warn};
 use move_core_types::u256;
 use num_traits::{PrimInt, ToPrimitive};
 
@@ -311,7 +311,7 @@ impl Module {
             LLVMSetModuleInlineAsm2(self.0, asm.as_ptr() as *const i8, asm.len());
             let ir_str_ptr = LLVMPrintModuleToString(self.0);
             let ir_str = CStr::from_ptr(ir_str_ptr);
-            debug!("Generated LLVM IR:\n{}", ir_str.to_string_lossy());
+            trace!("Generated LLVM IR:\n{}", ir_str.to_string_lossy());
             /*
             File::create(format!("{}.ll", self.2))
                 .unwrap()
@@ -1362,10 +1362,10 @@ impl Function {
     pub fn verify(&self, module_cx: &ModuleContext<'_, '_>) {
         use llvm_sys::analysis::*;
         let module_info = module_cx.llvm_module.print_to_str();
-        debug!(target: "verify function", "Module content:");
-        debug!(target: "verify function", "------------------------------");
-        debug!(target: "verify function", "{module_info}");
-        debug!(target: "verify function", "------------------------------");
+        trace!(target: "verify function", "Module content:");
+        trace!(target: "verify function", "------------------------------");
+        trace!(target: "verify function", "{module_info}");
+        trace!(target: "verify function", "------------------------------");
         unsafe {
             if LLVMVerifyFunction(self.0, LLVMVerifierFailureAction::LLVMPrintMessageAction) == 1 {
                 println!("{} function verifiction failed", &self.get_name());
