@@ -31,17 +31,27 @@ extern "C" {
         type_ve: *const MoveType,
         signer_ref: *const AnyValue,
         struct_ref: *const MoveByteVector,
+        tag: *const AnyValue,
     );
 }
 
 #[polkavm_derive::polkavm_import]
 extern "C" {
-    pub(crate) fn move_from(type_ve: *const MoveType, s1: *const AnyValue, remove: u32) -> u32;
+    pub(crate) fn move_from(
+        type_ve: *const MoveType,
+        s1: *const AnyValue,
+        remove: u32,
+        tag: *const AnyValue,
+    ) -> u32;
 }
 
 #[polkavm_derive::polkavm_import]
 extern "C" {
-    pub(crate) fn exists(type_ve: *const MoveType, s1: *const AnyValue) -> u32;
+    pub(crate) fn exists(
+        type_ve: *const MoveType,
+        s1: *const AnyValue,
+        tag: *const AnyValue,
+    ) -> u32;
 }
 
 #[polkavm_derive::polkavm_import]

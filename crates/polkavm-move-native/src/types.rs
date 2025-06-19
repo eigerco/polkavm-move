@@ -56,7 +56,7 @@ pub struct MoveSignerVector {
 ///
 /// The pointer must be to static memory and never mutated.
 ///
-/// NOTE: The `type_info` pointer is only valid in guest memory.
+/// NOTE: The `type_info` pointer and name are only valid in guest memory.
 #[repr(C)]
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct MoveType {

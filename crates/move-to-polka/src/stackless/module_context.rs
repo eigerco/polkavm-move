@@ -1074,11 +1074,14 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     let ret_ty = llvm_cx.int_type(1);
                     let tydesc_ty = llvm_cx.ptr_type();
                     let anyval_ty = llvm_cx.ptr_type();
-                    let param_tys = &[anyval_ty, tydesc_ty];
+                    let tag_ty = llvm_cx.ptr_type();
+                    let param_tys = &[anyval_ty, tydesc_ty, tag_ty];
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);
                     let mut attrs = Self::mk_pattrs_for_move_type(1);
                     attrs.push((2, "readonly", None));
                     attrs.push((2, "nonnull", None));
+                    attrs.push((3, "readonly", None));
+                    attrs.push((3, "nonnull", None));
                     (llty, attrs)
                 }
                 n => panic!("unknown runtime function {n}"),

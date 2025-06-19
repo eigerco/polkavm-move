@@ -209,7 +209,7 @@ pub fn create_instance(
 
     linker.define_typed(
         "move_to",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_signer: u32, ptr_to_struct: u32| {
+        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_signer: u32, ptr_to_struct: u32, ptr_to_tag: u32| {
             debug!(
                 "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}"
             );
@@ -219,19 +219,20 @@ pub fn create_instance(
             debug!("signer: {signer:?}");
             let address = signer.0;
             debug!("address: {address:?}");
+            let tag: [u8; 32] = copy_from_guest(caller.instance, ptr_to_tag)?;
             let value = from_move_byte_vector(caller.instance, ptr_to_struct)?;
             debug!(
                 "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}, type: {move_type}, address: {address:?}, value: {value:x?}",
             );
             let allocator = caller.user_data;
-            allocator.store_global(address, move_type, value.to_vec())?;
+            allocator.store_global(address, tag, value.to_vec())?;
             Result::<(), ProgramError>::Ok(())
         },
     )?;
 
     linker.define_typed(
         "move_from",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, remove_u32: u32| {
+        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, remove_u32: u32, ptr_to_tag: u32| {
             debug!(
                 "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, remove: {remove_u32}",
             );
@@ -240,10 +241,11 @@ pub fn create_instance(
             let remove =  remove_u32 != 0;
             let move_type: MoveType = copy_from_guest(instance, ptr_to_type)?;
             let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
+            let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
             debug!(
                 "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, type: {move_type}, address: {address:?}",
             );
-            let value = allocator.load_global(address, move_type, remove)?;
+            let value = allocator.load_global(address, tag, remove)?;
             debug!("move_from loaded value: {value:x?}");
             let address = to_move_byte_vector(instance, allocator, value.to_vec())?;
             debug!("move_from returned address: 0x{address:X}");
@@ -254,14 +256,14 @@ pub fn create_instance(
 
     linker.define_typed(
         "exists",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32| {
+        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, ptr_to_tag: u32| {
             debug!(
                 "exists called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}"
             );
-            let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
             let address: MoveAddress = copy_from_guest(caller.instance, ptr_to_addr)?;
             let allocator = caller.user_data;
-            let value = allocator.exists(address, move_type)?;
+            let tag: [u8; 32] = copy_from_guest(caller.instance, ptr_to_tag)?;
+            let value = allocator.exists(address, tag)?;
             Result::<u32, ProgramError>::Ok(value as u32)
         },
     )?;
@@ -383,12 +385,26 @@ fn to_move_byte_vector(
 }
 
 fn hexdump(allocator: &MemAllocator, instance: &mut RawInstance) {
-    let mem = allocator.dump(instance).unwrap_or_else(|_| vec![]);
-    let base = allocator.base() as usize;
+    let ro_base = 0x10000u32;
+    let ro = instance
+        .read_memory(ro_base, 256)
+        .unwrap_or_else(|_| vec![]);
+    print_mem(ro, ro_base as usize, " RO  ");
+    // let stack_base = 0xfffce000;
+    // let stack = instance
+    //     .read_memory(stack_base, 8192)
+    //     .unwrap_or_else(|_| vec![]);
+    // print_mem(stack, stack_base as usize, " STACK ");
+    let aux = allocator.dump_aux(instance).unwrap_or_else(|_| vec![]);
+    let aux_base = allocator.base() as usize;
+    print_mem(aux, aux_base, " AUX ");
+}
+
+fn print_mem(mem: Vec<u8>, base: usize, label: &str) {
     let start_address = 0usize;
     let mut offset = 0;
 
-    println!("------------------------------------------------------------------------------");
+    println!("{:-^78}", label);
     while offset < mem.len() {
         // Print the address
         print!("{:08x}  ", base + start_address + offset);
@@ -425,5 +441,5 @@ fn hexdump(allocator: &MemAllocator, instance: &mut RawInstance) {
         println!("|");
         offset += 16;
     }
-    println!("------------------------------------------------------------------------------");
+    println!("{:-<78}", "");
 }

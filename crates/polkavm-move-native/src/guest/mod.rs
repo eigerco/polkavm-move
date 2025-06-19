@@ -54,22 +54,37 @@ unsafe extern "C" fn move_native_hash_sha3_256(bytes: *const MoveByteVector) -> 
 }
 
 #[export_name = "move_rt_move_to"]
-unsafe extern "C" fn move_to(type_ve: &MoveType, signer_ref: &AnyValue, struct_ref: &AnyValue) {
+unsafe extern "C" fn move_to(
+    type_ve: &MoveType,
+    signer_ref: &AnyValue,
+    struct_ref: &AnyValue,
+    tag: &AnyValue,
+) {
     let bytes = crate::serialization::serialize(type_ve, struct_ref);
     print_vec(&bytes);
-    imports::move_to(type_ve, signer_ref, &bytes);
+    imports::move_to(type_ve, signer_ref, &bytes, tag);
 }
 
 #[export_name = "move_rt_move_from"]
-unsafe extern "C" fn move_from(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyValue) {
-    let address = imports::move_from(type_ve, s1, 1);
+unsafe extern "C" fn move_from(
+    type_ve: &MoveType,
+    s1: &AnyValue,
+    out: *mut AnyValue,
+    tag: &AnyValue,
+) {
+    let address = imports::move_from(type_ve, s1, 1, tag);
     let bytevec = &*(address as *const MoveByteVector);
     crate::serialization::deserialize(type_ve, bytevec, out);
 }
 
 #[export_name = "move_rt_borrow_global"]
-unsafe extern "C" fn borrow_global(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyValue) {
-    let address = imports::move_from(type_ve, s1, 0);
+unsafe extern "C" fn borrow_global(
+    type_ve: &MoveType,
+    s1: &AnyValue,
+    out: *mut AnyValue,
+    tag: &AnyValue,
+) {
+    let address = imports::move_from(type_ve, s1, 0, tag);
     let bytevec = &*(address as *const MoveByteVector);
     print_vec(bytevec);
     // crate::serialization::deserialize(type_ve, bytevec, out);
@@ -92,8 +107,8 @@ unsafe extern "C" fn borrow_global(type_ve: &MoveType, s1: &AnyValue, out: *mut 
 }
 
 #[export_name = "move_rt_exists"]
-unsafe extern "C" fn exists(type_ve: &MoveType, s1: &AnyValue) -> u32 {
-    imports::exists(type_ve, s1)
+unsafe extern "C" fn exists(type_ve: &MoveType, s1: &AnyValue, tag: &AnyValue) -> u32 {
+    imports::exists(type_ve, s1, tag)
 }
 
 #[export_name = "move_native_signer_borrow_address"]

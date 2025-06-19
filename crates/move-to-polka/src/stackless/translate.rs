@@ -33,7 +33,8 @@
 use crate::{
     options::Options,
     stackless::{
-        dwarf::DIContext, extensions::*, llvm, module_context::ModuleContext, rttydesc::RttyContext,
+        dwarf::DIContext, extensions::*, llvm, module_context::ModuleContext,
+        rttydesc::RttyContext, Constant, Global,
     },
 };
 use codespan::Location;
@@ -56,6 +57,7 @@ use move_stackless_bytecode::{
 };
 use num::BigUint;
 use num_traits::ToBytes;
+use sha2::Digest;
 use std::collections::BTreeMap;
 
 #[derive(Copy, Clone)]
@@ -1970,6 +1972,17 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     &self.module_cx.rtty_cx,
                     &rtcall,
                 );
+                // let struct_name = self
+                //     .module_cx
+                //     .rtty_cx
+                //     .get_struct_name_for_type(ll_type)
+                //     .expect("no struct name for type");
+                // debug!(target: "rtcall", "struct_name {struct_name}");
+                // let struct_tag = sha2::Sha256::digest(struct_name.as_bytes());
+                // let tag_ptr = Constant::from_array(struct_tag.as_bytes())
+                //     .as_any_value()
+                //     .as_pointer_value();
+
                 let mut typarams: Vec<_> = self
                     .module_cx
                     .get_rttydesc_ptrs(std::slice::from_ref(ll_type))
@@ -1978,6 +1991,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .collect();
                 typarams.push(*address);
                 typarams.push(*value);
+                // typarams.push(tag_ptr);
                 self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
             }
             RtCall::MoveFrom(address, ll_type) => {
@@ -1989,6 +2003,17 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     &rtcall,
                 );
 
+                // let struct_name = self
+                //     .module_cx
+                //     .rtty_cx
+                //     .get_struct_name_for_type(ll_type)
+                //     .expect("no struct name for type");
+                // debug!(target: "rtcall", "struct_name {struct_name}");
+                // let struct_tag = sha2::Sha256::digest(struct_name.as_bytes());
+                // let tag_ptr = Constant::from_array(struct_tag.as_bytes())
+                //     .as_any_value()
+                //     .as_pointer_value();
+
                 let mut typarams: Vec<_> = self
                     .module_cx
                     .get_rttydesc_ptrs(std::slice::from_ref(ll_type))
@@ -1998,6 +2023,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(*address);
                 let loc_dst = &self.locals[dst[0]];
                 typarams.push(loc_dst.llval.as_any_value());
+                // typarams.push(&struct_tag[..]);
                 self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
             }
             RtCall::BorrowGlobal(address, ll_type) => {
@@ -2009,6 +2035,17 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     &rtcall,
                 );
 
+                // let struct_name = self
+                //     .module_cx
+                //     .rtty_cx
+                //     .get_struct_name_for_type(ll_type)
+                //     .expect("no struct name for type");
+                // debug!(target: "rtcall", "struct_name {struct_name}");
+                // let struct_tag = sha2::Sha256::digest(struct_name.as_bytes());
+                // let tag_ptr = Constant::from_array(struct_tag.into())
+                //     .as_any_value()
+                //     .as_pointer_value();
+
                 let mut typarams: Vec<_> = self
                     .module_cx
                     .get_rttydesc_ptrs(std::slice::from_ref(ll_type))
@@ -2018,6 +2055,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(*address);
                 let loc_dst = &self.locals[dst[0]];
                 typarams.push(loc_dst.llval.as_any_value());
+                // typarams.push(struct_tag);
                 self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
             }
             RtCall::Exists(address, ll_type) => {
@@ -2029,6 +2067,13 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     &rtcall,
                 );
 
+                let struct_name = format!("{:?}", ll_type);
+                debug!(target: "rtcall", "struct_name {struct_name}");
+                let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
+                debug!(target: "rtcall", "struct_tag {struct_tag:?}");
+                let tag_ptr =
+                    Global::from_array(self.module_cx.llvm_module.0, struct_tag.as_slice());
+
                 let mut typarams: Vec<_> = self
                     .module_cx
                     .get_rttydesc_ptrs(std::slice::from_ref(ll_type))
@@ -2036,6 +2081,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .map(|llval| llval.as_any_value())
                     .collect();
                 typarams.push(*address);
+                typarams.push(tag_ptr.as_any_value());
                 let loc_dst = &self.locals[dst[0]];
                 self.module_cx.llvm_builder.call_store(
                     llfn,

@@ -2637,6 +2637,7 @@ dependencies = [
  "log",
  "polkavm",
  "polkavm-derive",
+ "sha2 0.10.9",
 ]
 
 [[package]]

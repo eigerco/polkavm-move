@@ -1450,6 +1450,35 @@ impl AnyValue {
 pub struct Global(LLVMValueRef);
 
 impl Global {
+    pub fn from_array(module: LLVMModuleRef, bytes: &[u8]) -> Self {
+        unsafe {
+            let i8_type = LLVMInt8TypeInContext(LLVMGetGlobalContext());
+            let array_ty = LLVMArrayType2(i8_type, bytes.len() as u64);
+            debug!(
+                "Creating constant array of type {:?} with length {}",
+                array_ty,
+                bytes.len()
+            );
+            let values: Vec<LLVMValueRef> = bytes
+                .iter()
+                .map(|&b| LLVMConstInt(i8_type, b as u64, 0))
+                .collect();
+            let const_array =
+                LLVMConstArray2(array_ty, values.as_ptr() as *mut _, bytes.len() as u64);
+            debug!("Created constant array: {:?}", const_array);
+            let cname = std::ffi::CString::new("struct_tag").unwrap();
+            let global = LLVMAddGlobal(module, array_ty, cname.as_ptr());
+
+            // Set the global initializer to the constant array
+            LLVMSetInitializer(global, const_array);
+
+            // Set internal linkage (you can change to ExternalLinkage if needed)
+            LLVMSetLinkage(global, LLVMLinkage::LLVMInternalLinkage);
+
+            Global(global)
+        }
+    }
+
     pub fn ptr(&self) -> Constant {
         Constant(self.0)
     }

@@ -23,7 +23,7 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
-pub fn test_store_load() -> anyhow::Result<()> {
+pub fn storage_store_load() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
@@ -46,7 +46,7 @@ pub fn test_store_load() -> anyhow::Result<()> {
 }
 
 #[test]
-pub fn test_store_different() -> anyhow::Result<()> {
+pub fn storage_store_different() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
@@ -69,7 +69,7 @@ pub fn test_store_different() -> anyhow::Result<()> {
 }
 
 #[test]
-pub fn test_borrow() -> anyhow::Result<()> {
+pub fn storage_borrow() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
@@ -92,7 +92,7 @@ pub fn test_borrow() -> anyhow::Result<()> {
 }
 
 #[test]
-pub fn test_store_twice() -> anyhow::Result<()> {
+pub fn storage_store_twice() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
@@ -117,7 +117,7 @@ pub fn test_store_twice() -> anyhow::Result<()> {
 }
 
 #[test]
-pub fn test_load_non_existent() -> anyhow::Result<()> {
+pub fn storage_load_non_existent() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];

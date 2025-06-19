@@ -3,9 +3,12 @@ extern crate std;
 use core::mem::MaybeUninit;
 use log::debug;
 use polkavm::{MemoryAccessError, MemoryMap, RawInstance};
-use std::{collections::HashMap, vec::Vec};
+use std::vec::Vec;
 
-use crate::types::{MoveAddress, MoveType};
+use crate::{
+    storage::{GlobalStorage, Storage, StructTagHash},
+    types::MoveAddress,
+};
 
 #[derive(Debug)]
 pub enum ProgramError {
@@ -29,7 +32,7 @@ pub struct MemAllocator {
     base: u32,
     size: u32,
     offset: u32,
-    storage: HashMap<(MoveAddress, MoveType), Vec<u8>>,
+    storage: GlobalStorage,
 }
 
 impl MemAllocator {
@@ -41,7 +44,7 @@ impl MemAllocator {
             base: memory_map.aux_data_address(),
             size: memory_map.aux_data_size(),
             offset: 0,
-            storage: HashMap::new(),
+            storage: GlobalStorage::new(),
         }
     }
 
@@ -53,30 +56,10 @@ impl MemAllocator {
     pub fn store_global(
         &mut self,
         address: MoveAddress,
-        typ: MoveType,
+        typ: StructTagHash,
         value: Vec<u8>,
     ) -> Result<(), ProgramError> {
-        debug!(
-            "Storing global value of type {:?} at address {:?}",
-            typ.name, address
-        );
-
-        // // Check if the address already exists
-        if self.storage.contains_key(&(address, typ)) {
-            debug!(
-                "Global already exists at address {address:?} with type {:?}",
-                typ.name
-            );
-            return Err(ProgramError::MemoryAccess(format!(
-                "global already exists at address {address:?} with type {:?}",
-                typ.name
-            )));
-        }
-
-        // Store the value in the storage map
-        self.storage.insert((address, typ), value);
-        debug!("storage: {:x?}", &self.storage);
-
+        self.storage.store(address, typ, value)?;
         Ok(())
     }
 
@@ -84,38 +67,20 @@ impl MemAllocator {
     pub fn load_global(
         &mut self,
         address: MoveAddress,
-        typ: MoveType,
+        typ: StructTagHash,
         remove: bool,
     ) -> Result<Vec<u8>, ProgramError> {
-        debug!(
-            "Loading global value of type {:?} at address {:?}",
-            typ.name, address
-        );
-
-        // Store the value in the storage map
-        let value = self
-            .storage
-            .get(&(address, typ))
-            .ok_or_else(|| ProgramError::MemoryAccess(format!("global not found at {address:?}")))?
-            .clone();
-        if remove {
-            self.storage.remove(&(address, typ));
-        }
-        debug!("storage: {:x?}", &self.storage);
-
+        let value = self.storage.load(address, typ, remove)?;
         Ok(value)
     }
 
     /// Check if a global value exists at the specified address with the given type.
-    pub fn exists(&mut self, address: MoveAddress, typ: MoveType) -> Result<bool, ProgramError> {
-        debug!(
-            "Exists global value of type {:?} at address {:?}",
-            typ.name, address
-        );
-
-        // Store the value in the storage map
-        let value = self.storage.contains_key(&(address, typ));
-        debug!("storage: {:x?}", &self.storage);
+    pub fn exists(
+        &mut self,
+        address: MoveAddress,
+        typ: StructTagHash,
+    ) -> Result<bool, ProgramError> {
+        let value = self.storage.exists(address, typ)?;
         Ok(value)
     }
 
@@ -206,7 +171,7 @@ impl MemAllocator {
         Ok(address)
     }
 
-    pub fn dump(&self, instance: &mut RawInstance) -> Result<Vec<u8>, MemoryAccessError> {
+    pub fn dump_aux(&self, instance: &mut RawInstance) -> Result<Vec<u8>, MemoryAccessError> {
         let memory = instance.read_memory(self.base, self.offset)?;
         Ok(memory)
     }
