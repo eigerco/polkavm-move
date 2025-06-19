@@ -167,7 +167,7 @@ pub fn create_instance(
                     TypeDesc::Bool |
                     TypeDesc::U8 => {
                         let move_value: u8 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value}:x?");
+                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value}");
                     }
                     TypeDesc::U16 |
                     TypeDesc::U32 => {
@@ -258,11 +258,14 @@ pub fn create_instance(
         "exists",
         |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, ptr_to_tag: u32| {
             debug!(
-                "exists called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}"
+                "exists called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",
             );
             let address: MoveAddress = copy_from_guest(caller.instance, ptr_to_addr)?;
             let allocator = caller.user_data;
             let tag: [u8; 32] = copy_from_guest(caller.instance, ptr_to_tag)?;
+            debug!(
+                "exists called with type ptr: 0x{ptr_to_type:X}, address: {address:?}, tag: {tag:?}",
+            );
             let value = allocator.exists(address, tag)?;
             Result::<u32, ProgramError>::Ok(value as u32)
         },
@@ -339,11 +342,10 @@ pub fn create_instance(
     // zero stack
     let stack_size = module.memory_map().stack_size();
     instance.zero_memory(module.memory_map().stack_address_low(), stack_size)?;
-    // zero RW data
-    instance.zero_memory(
-        module.memory_map().rw_data_address(),
-        module.memory_map().rw_data_size(),
-    )?;
+    // write RW data
+    let blob = blob.clone();
+    let data = blob.rw_data();
+    instance.write_memory(module.memory_map().rw_data_address(), data)?;
     // write RO data to memory.
     let blob = blob.clone();
     let data = blob.ro_data();

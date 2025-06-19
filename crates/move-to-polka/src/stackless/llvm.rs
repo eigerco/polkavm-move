@@ -1450,7 +1450,12 @@ impl AnyValue {
 pub struct Global(LLVMValueRef);
 
 impl Global {
-    pub fn from_array(module: LLVMModuleRef, bytes: &[u8]) -> Self {
+    pub fn from_array(
+        llvm_cx: &Context,
+        builder: &Builder,
+        module: LLVMModuleRef,
+        bytes: &[u8],
+    ) -> Self {
         unsafe {
             let i8_type = LLVMInt8TypeInContext(LLVMGetGlobalContext());
             let array_ty = LLVMArrayType2(i8_type, bytes.len() as u64);
@@ -1475,7 +1480,17 @@ impl Global {
             // Set internal linkage (you can change to ExternalLinkage if needed)
             LLVMSetLinkage(global, LLVMLinkage::LLVMInternalLinkage);
 
-            Global(global)
+            let global = AnyValue(global);
+            let i8_ptr_type = llvm_cx.ptr_type();
+
+            // Perform the bitcast
+            let tag_ptr_cast = builder.build_unary_bitcast(
+                global,
+                i8_ptr_type,
+                "struct_tag_as_i8_ptr", // Name for the new LLVM value
+            );
+
+            Global(tag_ptr_cast.0)
         }
     }
 

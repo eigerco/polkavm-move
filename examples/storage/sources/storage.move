@@ -94,5 +94,11 @@ module 0xa000::storage {
         let address = signer::address_of(account);
         let _container: Container = move_from(address); // should abort
     }
+
+    public entry fun does_not_exist(account: &signer) {
+        let exists = exists<Container>(signer::address_of(account));
+        debug::print(&exists);
+        assert!(!exists, 1);
+    }
 }
 
