@@ -1981,7 +1981,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .collect();
                 typarams.push(*address);
                 typarams.push(*value);
-                let struct_name = format!("{:?}", ll_type);
+                let struct_id = match ll_type {
+                    mty::Type::Struct(_, struct_id, _) => struct_id,
+                    _ => panic!("Expected a struct type for Exists call"),
+                };
+                let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
+                let struct_name = struct_env.get_full_name_with_address();
                 let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
                 let tag_ptr = Global::from_array(
                     self.module_cx.llvm_cx,
@@ -2010,7 +2015,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(*address);
                 let loc_dst = &self.locals[dst[0]];
                 typarams.push(loc_dst.llval.as_any_value());
-                let struct_name = format!("{:?}", ll_type);
+                let struct_id = match ll_type {
+                    mty::Type::Struct(_, struct_id, _) => struct_id,
+                    _ => panic!("Expected a struct type for Exists call"),
+                };
+                let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
+                let struct_name = struct_env.get_full_name_with_address();
                 let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
                 let tag_ptr = Global::from_array(
                     self.module_cx.llvm_cx,
@@ -2039,7 +2049,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(*address);
                 let loc_dst = &self.locals[dst[0]];
                 typarams.push(loc_dst.llval.as_any_value());
-                let struct_name = format!("{:?}", ll_type);
+                let struct_id = match ll_type {
+                    mty::Type::Struct(_, struct_id, _) => struct_id,
+                    _ => panic!("Expected a struct type for Exists call"),
+                };
+                let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
+                let struct_name = struct_env.get_full_name_with_address();
                 let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
                 let tag_ptr = Global::from_array(
                     self.module_cx.llvm_cx,
@@ -2067,7 +2082,13 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .collect();
                 typarams.push(*address);
 
-                let struct_name = format!("{:?}", ll_type);
+                let struct_id = match ll_type {
+                    mty::Type::Struct(_, struct_id, _) => struct_id,
+                    _ => panic!("Expected a struct type for Exists call"),
+                };
+                let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
+                let struct_name = struct_env.get_full_name_with_address();
+                // let struct_name = format!("{:?}", ll_type);
                 let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
                 let tag_ptr = Global::from_array(
                     self.module_cx.llvm_cx,
