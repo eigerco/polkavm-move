@@ -1082,7 +1082,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 }
                 "exists" => {
                     debug!(target: "runtime", "Declaring exists function {fn_name}");
-                    // move_from(address: &AnyValue, type: &MoveType, type_tag) -> T;
+                    // exists(address: &AnyValue, type: &MoveType, type_tag) -> bool;
                     let ret_ty = llvm_cx.int_type(1);
                     let tydesc_ty = llvm_cx.ptr_type();
                     let anyval_ty = llvm_cx.ptr_type();

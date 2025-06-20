@@ -1,10 +1,4 @@
-module 0x10::debug {
-    native public fun print<T>(x: &T);
-    native public fun hex_dump();
-}
-
 module 0xa000::storage {
-    use 0x10::debug;
     use std::signer;
 
     struct Containee has key, drop, store, copy {
@@ -72,11 +66,18 @@ module 0xa000::storage {
     public entry fun borrow(account: &signer) acquires Container {
         let address = signer::address_of(account);
         let container = borrow_global<Container>(address);
-        debug::hex_dump();
-        debug::print(container);
         assert!(container.value == 42, 0);
         let exists = exists<Container>(signer::address_of(account));
-        debug::print(&exists);
+        assert!(exists, 1);
+    }
+
+    public entry fun borrow_mut(account: &signer) acquires Container {
+        let address = signer::address_of(account);
+        let container = borrow_global_mut<Container>(address);
+        assert!(container.value == 42, 0);
+        container.value = 100;
+        assert!(container.value == 100, 0);
+        let exists = exists<Container>(signer::address_of(account));
         assert!(exists, 1);
     }
 
