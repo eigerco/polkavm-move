@@ -69,8 +69,9 @@ impl MemAllocator {
         address: MoveAddress,
         typ: StructTagHash,
         remove: bool,
+        is_mut: bool,
     ) -> Result<Vec<u8>, ProgramError> {
-        let value = self.storage.load(address, typ, remove)?;
+        let value = self.storage.load(address, typ, remove, is_mut)?;
         Ok(value)
     }
 

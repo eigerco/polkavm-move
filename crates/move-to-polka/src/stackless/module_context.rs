@@ -1068,7 +1068,8 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     let anyval_ty = llvm_cx.ptr_type();
                     let retval_ty = llvm_cx.ptr_type();
                     let tag_ty = llvm_cx.ptr_type();
-                    let param_tys = &[anyval_ty, tydesc_ty, retval_ty, tag_ty];
+                    let mut_ty = llvm_cx.int_type(1);
+                    let param_tys = &[anyval_ty, tydesc_ty, retval_ty, tag_ty, mut_ty];
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);
                     let mut attrs = Self::mk_pattrs_for_move_type(1);
                     attrs.push((2, "readonly", None));

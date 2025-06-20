@@ -311,7 +311,7 @@ impl Module {
             LLVMSetModuleInlineAsm2(self.0, asm.as_ptr() as *const i8, asm.len());
             let ir_str_ptr = LLVMPrintModuleToString(self.0);
             let ir_str = CStr::from_ptr(ir_str_ptr);
-            trace!("Generated LLVM IR:\n{}", ir_str.to_string_lossy());
+            debug!("Generated LLVM IR:\n{}", ir_str.to_string_lossy());
             /*
             File::create(format!("{}.ll", self.2))
                 .unwrap()

@@ -42,6 +42,7 @@ extern "C" {
         s1: *const AnyValue,
         remove: u32,
         tag: *const AnyValue,
+        is_mut: u32,
     ) -> u32;
 }
 

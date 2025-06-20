@@ -19,6 +19,7 @@ pub trait Storage {
         address: MoveAddress,
         typ: StructTagHash,
         remove: bool,
+        is_mut: bool,
     ) -> Result<Vec<u8>, ProgramError>;
 
     /// Check if a global value exists at the specified address with the given type.
@@ -44,7 +45,7 @@ struct GlobalResourceEntry {
     pub borrow_count: u32,
 
     /// True if there's an active mutable borrow (`&mut T`).
-    pub _borrow_mut: bool,
+    pub borrow_mut: bool,
 }
 
 impl GlobalResourceEntry {
@@ -52,7 +53,7 @@ impl GlobalResourceEntry {
         Self {
             data,
             borrow_count: 0,
-            _borrow_mut: false,
+            borrow_mut: false,
         }
     }
 }
@@ -107,23 +108,36 @@ impl Storage for GlobalStorage {
         address: MoveAddress,
         typ: StructTagHash,
         remove: bool,
+        is_mut: bool,
     ) -> Result<Vec<u8>, ProgramError> {
-        debug!("Loading global value of type {typ:?} at address {address:?}",);
+        debug!("Loading global value of type {typ:?} at address {address:?}, is_mut: {is_mut}, remove: {remove}",);
 
         let key = Key::new(address, typ);
-        let mut value = self
-            .storage
-            .get(&key)
-            .ok_or_else(|| ProgramError::MemoryAccess(format!("global not found at {address:?}")))?
-            .clone();
+        let value = self.storage.get_mut(&key).ok_or_else(|| {
+            ProgramError::MemoryAccess(format!("global not found at {address:?}"))
+        })?;
+        let rv = value.data.clone();
         if remove {
             self.storage.remove(&key);
         } else {
+            if value.borrow_mut {
+                return Err(ProgramError::MemoryAccess(format!(
+                    "mutable borrow already exists for global at {address:?} with type {typ:?}",
+                )));
+            }
+            if is_mut {
+                if value.borrow_count > 0 {
+                    return Err(ProgramError::MemoryAccess(format!(
+                        "cannot create mutable borrow for global at {address:?} with type {typ:?} while there are active shared borrows",
+                    )));
+                }
+                value.borrow_mut = true;
+            }
             value.borrow_count += 1;
         }
         debug!("storage: {:x?}", &self.storage);
 
-        Ok(value.data.clone())
+        Ok(rv)
     }
 
     /// Check if a global value exists at the specified address with the given type.

@@ -61,7 +61,6 @@ unsafe extern "C" fn move_to(
     tag: &AnyValue,
 ) {
     let bytes = crate::serialization::serialize(type_ve, struct_ref);
-    // print_vec(&bytes);
     imports::move_to(type_ve, signer_ref, &bytes, tag);
 }
 
@@ -72,7 +71,7 @@ unsafe extern "C" fn move_from(
     out: *mut AnyValue,
     tag: &AnyValue,
 ) {
-    let address = imports::move_from(type_ve, s1, 1, tag);
+    let address = imports::move_from(type_ve, s1, 1, tag, 0);
     let bytevec = &*(address as *const MoveByteVector);
     crate::serialization::deserialize(type_ve, bytevec, out);
 }
@@ -83,8 +82,9 @@ unsafe extern "C" fn borrow_global(
     s1: &AnyValue,
     out: *mut AnyValue,
     tag: &AnyValue,
+    is_mut: u32,
 ) {
-    let address = imports::move_from(type_ve, s1, 0, tag);
+    let address = imports::move_from(type_ve, s1, 0, tag, is_mut);
     let bytevec = &*(address as *const MoveByteVector);
     // allocate a boxed slice of bytevec.length bytes, deserialized should be smaller so this is safe
     let mut boxed: alloc::boxed::Box<[u8]> =

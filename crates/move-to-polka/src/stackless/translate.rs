@@ -1229,7 +1229,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 debug!(target: "dwarf", "Exists mty {mty:?}");
                 self.emit_rtcall(RtCall::Exists(src0_reg, mty), dst, instr);
             }
-            Operation::BorrowGlobal(mod_id, struct_id, types) => {
+            Operation::BorrowGlobal(mod_id, struct_id, types, is_mut) => {
                 debug!(target: "dwarf", "translate_call BorrowGlobal {mod_id:?} {struct_id:?} types {types:?}");
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
                 assert_eq!(src.len(), 1);
@@ -1237,7 +1237,8 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
                 let mty = Type::Struct(*mod_id, *struct_id, types);
                 debug!(target: "dwarf", "BorrowGlobal mty {mty:?}");
-                self.emit_rtcall(RtCall::BorrowGlobal(src0_reg, mty), dst, instr);
+                let is_mut_u32 = if *is_mut { 1 } else { 0 };
+                self.emit_rtcall(RtCall::BorrowGlobal(src0_reg, mty, is_mut_u32), dst, instr);
             }
             Operation::BorrowLoc => {
                 assert_eq!(src.len(), 1);
@@ -2031,7 +2032,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(tag_ptr.as_any_value());
                 self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
             }
-            RtCall::BorrowGlobal(address, ll_type) => {
+            RtCall::BorrowGlobal(address, ll_type, is_mut) => {
                 debug!(target: "rtcall", "BorrowGlobal ll_type {ll_type:?}");
                 let llfn = ModuleContext::get_runtime_function(
                     self.module_cx.llvm_cx,
@@ -2063,6 +2064,10 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     struct_tag.as_slice(),
                 );
                 typarams.push(tag_ptr.as_any_value());
+                typarams.push(
+                    llvm::Constant::int(self.module_cx.llvm_cx.int_type(1), U256::from(*is_mut))
+                        .as_any_value(),
+                );
                 self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
             }
             RtCall::Exists(address, ll_type) => {
@@ -2125,7 +2130,7 @@ pub enum RtCall {
     StructCmpEq(llvm::AnyValue, llvm::AnyValue, mty::Type),
     MoveTo(llvm::AnyValue, llvm::AnyValue, mty::Type),
     MoveFrom(llvm::AnyValue, mty::Type),
-    BorrowGlobal(llvm::AnyValue, mty::Type),
+    BorrowGlobal(llvm::AnyValue, mty::Type, u32),
     Exists(llvm::AnyValue, mty::Type),
 }
 

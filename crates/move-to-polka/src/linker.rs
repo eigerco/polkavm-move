@@ -218,20 +218,21 @@ pub fn create_instance(
 
     linker.define_typed(
         "move_from",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, remove_u32: u32, ptr_to_tag: u32| {
+        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, remove_u32: u32, ptr_to_tag: u32, is_mut_u32: u32| {
             debug!(
-                "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, remove: {remove_u32}",
+                "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, remove: {remove_u32}, is_mut: {is_mut_u32}",
             );
             let instance = caller.instance;
             let allocator = caller.user_data;
             let remove =  remove_u32 != 0;
+            let is_mut = is_mut_u32 != 0;
             let move_type: MoveType = copy_from_guest(instance, ptr_to_type)?;
             let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
             let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
             debug!(
                 "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, type: {move_type}, address: {address:?}",
             );
-            let value = allocator.load_global(address, tag, remove)?;
+            let value = allocator.load_global(address, tag, remove, is_mut)?;
             debug!("move_from loaded value: {value:x?}");
             let address = to_move_byte_vector(instance, allocator, value.to_vec())?;
             debug!("move_from returned address: 0x{address:X}");
