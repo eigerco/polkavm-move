@@ -1343,7 +1343,15 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let mty = &self.locals[idx].mty;
                 match mty {
                     mty::Type::Primitive(_) => ( /* nop */ ),
-                    mty::Type::Struct(_, _, _) => ( /* nop */ ),
+                    mty::Type::Struct(m_id, struct_id, types) => {
+                        let mty = Type::Struct(*m_id, *struct_id, types.clone());
+                        let idx_llval = self.locals[idx].clone();
+                        self.emit_rtcall(
+                            RtCall::Release(idx_llval.llval.as_any_value(), mty),
+                            &[],
+                            instr,
+                        );
+                    }
                     mty::Type::Reference(_, _) => { /* nop */ }
                     mty::Type::Vector(elt_mty) => {
                         self.emit_rtcall(RtCall::VecDestroy(idx, (**elt_mty).clone()), &[], instr);
@@ -2132,6 +2140,7 @@ pub enum RtCall {
     MoveFrom(llvm::AnyValue, mty::Type),
     BorrowGlobal(llvm::AnyValue, mty::Type, u32),
     Exists(llvm::AnyValue, mty::Type),
+    Release(llvm::AnyValue, mty::Type),
 }
 
 /// Compile the module to object file.

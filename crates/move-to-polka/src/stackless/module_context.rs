@@ -892,6 +892,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             RtCall::MoveFrom(..) => "move_from",
             RtCall::BorrowGlobal(..) => "borrow_global",
             RtCall::Exists(..) => "exists",
+            RtCall::Release(..) => "release",
         };
         Self::get_runtime_function_by_name(llvm_cx, llvm_module, rtty_cx, name)
     }
@@ -1096,6 +1097,27 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     attrs.push((3, "readonly", None));
                     attrs.push((3, "nonnull", None));
                     attrs.push((3, "dereferenceable", Some(32u64)));
+                    (llty, attrs)
+                }
+                "release" => {
+                    debug!(target: "runtime", "Declaring borrow_global function {fn_name}");
+                    // release(address: &AnyValue, type: &MoveType, type_tag);
+                    let ret_ty = llvm_cx.void_type();
+                    let tydesc_ty = llvm_cx.ptr_type();
+                    let anyval_ty = llvm_cx.ptr_type();
+                    let retval_ty = llvm_cx.ptr_type();
+                    let tag_ty = llvm_cx.ptr_type();
+                    let mut_ty = llvm_cx.int_type(1);
+                    let param_tys = &[anyval_ty, tydesc_ty, retval_ty, tag_ty, mut_ty];
+                    let llty = llvm::FunctionType::new(ret_ty, param_tys);
+                    let mut attrs = Self::mk_pattrs_for_move_type(1);
+                    attrs.push((2, "readonly", None));
+                    attrs.push((2, "nonnull", None));
+                    attrs.push((3, "readonly", None));
+                    attrs.push((3, "nonnull", None));
+                    attrs.push((4, "readonly", None));
+                    attrs.push((4, "nonnull", None));
+                    attrs.push((4, "dereferenceable", Some(32u64)));
                     (llty, attrs)
                 }
                 n => panic!("unknown runtime function {n}"),
