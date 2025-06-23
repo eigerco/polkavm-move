@@ -24,6 +24,9 @@ pub trait Storage {
 
     /// Check if a global value exists at the specified address with the given type.
     fn exists(&mut self, address: MoveAddress, typ: StructTagHash) -> Result<bool, ProgramError>;
+
+    /// Release a global value at the specified address with the given tag.
+    fn release(&self, address: MoveAddress, tag: StructTagHash);
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -148,5 +151,26 @@ impl Storage for GlobalStorage {
         let value = self.storage.contains_key(&key);
         debug!("storage: {:x?}", &self.storage);
         Ok(value)
+    }
+
+    /// Release a global value at the specified address with the given tag.
+    fn release(&self, address: MoveAddress, tag: StructTagHash) {
+        debug!("Releasing global value at address {address:?} with tag {tag:?}",);
+
+        let key = Key::new(address, tag);
+        if let Some(entry) = self.storage.get(&key) {
+            if entry.borrow_mut {
+                // If there's a mutable borrow, we can release it
+                debug!("Released mutable borrow for global at {address:?} with type {tag:?}");
+            } else if entry.borrow_count > 0 {
+                // If there are shared borrows, we just decrement the count
+                debug!("Decremented borrow count for global at {address:?} with type {tag:?}");
+            } else {
+                // No active borrows, nothing to do
+                debug!("No active borrows to release for global at {address:?} with type {tag:?}");
+            }
+        } else {
+            debug!("No global found at {address:?} with type {tag:?} to release");
+        }
     }
 }

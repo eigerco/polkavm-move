@@ -57,5 +57,10 @@ extern "C" {
 
 #[polkavm_derive::polkavm_import]
 extern "C" {
+    pub(crate) fn release(type_ve: *const MoveType, s1: *const AnyValue, tag: *const AnyValue);
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
     pub(crate) fn hex_dump();
 }

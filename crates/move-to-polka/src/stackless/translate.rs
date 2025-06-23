@@ -1336,7 +1336,8 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let lsrc = (self.locals[src_idx].llty, self.locals[src_idx].llval);
                 builder.load_and_extract_fields(lsrc, &fdstvals, stype);
             }
-            Operation::Release => {
+            Operation::Drop => {
+                debug!(target: "dwarf", "translate_call Drop dst {dst:#?} src {src:#?}");
                 assert!(dst.is_empty());
                 assert_eq!(src.len(), 1);
                 let idx = src[0];
@@ -1344,6 +1345,30 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 match mty {
                     mty::Type::Primitive(_) => ( /* nop */ ),
                     mty::Type::Struct(m_id, struct_id, types) => {
+                        debug!(target: "dwarf", "Drop mty {mty:?}");
+                        let mty = Type::Struct(*m_id, *struct_id, types.clone());
+                        let idx_llval = self.locals[idx].clone();
+                        self.emit_rtcall(
+                            RtCall::Release(idx_llval.llval.as_any_value(), mty),
+                            &[],
+                            instr,
+                        );
+                    }
+                    mty::Type::Reference(_, _) => { /* nop */ }
+                    mty::Type::Vector(_) => {}
+                    _ => todo!("{mty:?}"),
+                }
+            }
+            Operation::Release => {
+                debug!(target: "dwarf", "translate_call Release dst {dst:#?} src {src:#?}");
+                assert!(dst.is_empty());
+                assert_eq!(src.len(), 1);
+                let idx = src[0];
+                let mty = &self.locals[idx].mty;
+                match mty {
+                    mty::Type::Primitive(_) => ( /* nop */ ),
+                    mty::Type::Struct(m_id, struct_id, types) => {
+                        debug!(target: "dwarf", "Release mty {mty:?}");
                         let mty = Type::Struct(*m_id, *struct_id, types.clone());
                         let idx_llval = self.locals[idx].clone();
                         self.emit_rtcall(
@@ -1579,7 +1604,6 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             | Operation::OpaqueCallEnd(_, _, _)
             | Operation::Uninit
             | Operation::Havoc(_)
-            | Operation::Drop
             | Operation::Stop => {}
             _ => todo!("{op:?}"),
         }
@@ -1992,7 +2016,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(*value);
                 let struct_id = match ll_type {
                     mty::Type::Struct(_, struct_id, _) => struct_id,
-                    _ => panic!("Expected a struct type for Exists call"),
+                    _ => panic!("Expected a struct type for MoveTo call"),
                 };
                 let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
                 let struct_name = struct_env.get_full_name_with_address();
@@ -2026,7 +2050,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(loc_dst.llval.as_any_value());
                 let struct_id = match ll_type {
                     mty::Type::Struct(_, struct_id, _) => struct_id,
-                    _ => panic!("Expected a struct type for Exists call"),
+                    _ => panic!("Expected a struct type for MoveFrom call"),
                 };
                 let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
                 let struct_name = struct_env.get_full_name_with_address();
@@ -2060,7 +2084,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(loc_dst.llval.as_any_value());
                 let struct_id = match ll_type {
                     mty::Type::Struct(_, struct_id, _) => struct_id,
-                    _ => panic!("Expected a struct type for Exists call"),
+                    _ => panic!("Expected a struct type for BorrowGlobal call"),
                 };
                 let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
                 let struct_name = struct_env.get_full_name_with_address();
@@ -2076,6 +2100,38 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     llvm::Constant::int(self.module_cx.llvm_cx.int_type(1), U256::from(*is_mut))
                         .as_any_value(),
                 );
+                self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
+            }
+            RtCall::Release(address, ll_type) => {
+                debug!(target: "rtcall", "Release ll_type {ll_type:?}");
+                let llfn = ModuleContext::get_runtime_function(
+                    self.module_cx.llvm_cx,
+                    self.module_cx.llvm_module,
+                    &self.module_cx.rtty_cx,
+                    &rtcall,
+                );
+
+                let mut typarams: Vec<_> = self
+                    .module_cx
+                    .get_rttydesc_ptrs(std::slice::from_ref(ll_type))
+                    .iter()
+                    .map(|llval| llval.as_any_value())
+                    .collect();
+                typarams.push(*address);
+                let struct_id = match ll_type {
+                    mty::Type::Struct(_, struct_id, _) => struct_id,
+                    _ => panic!("Expected a struct type for Release call"),
+                };
+                let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
+                let struct_name = struct_env.get_full_name_with_address();
+                let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
+                let tag_ptr = Global::from_array(
+                    self.module_cx.llvm_cx,
+                    &self.module_cx.llvm_builder,
+                    self.module_cx.llvm_module.0,
+                    struct_tag.as_slice(),
+                );
+                typarams.push(tag_ptr.as_any_value());
                 self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
             }
             RtCall::Exists(address, ll_type) => {

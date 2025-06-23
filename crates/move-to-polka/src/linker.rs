@@ -1,6 +1,6 @@
 use crate::{options::Options, run_to_polka};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
-use log::debug;
+use log::{debug, trace};
 use polkavm::{
     Caller, Config, Engine, Instance, Linker, MemoryAccessError, Module, ModuleConfig, ProgramBlob,
     RawInstance,
@@ -76,7 +76,7 @@ pub fn load_from_elf_with_polka_linker(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     // config is taken from polkatool with default values
     let mut config = polkavm_linker::Config::default();
     config.set_strip(false);
-    config.set_optimize(true);
+    config.set_optimize(false);
 
     let res = polkavm_linker::program_from_elf(config, data)?;
     Ok(res)
@@ -258,6 +258,23 @@ pub fn create_instance(
         },
     )?;
 
+    linker.define_typed(
+        "release",
+        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, ptr_to_tag: u32| {
+            debug!(
+                "release called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",
+            );
+            let address: MoveAddress = copy_from_guest(caller.instance, ptr_to_addr)
+                .unwrap();
+            let allocator = caller.user_data;
+            let tag: [u8; 32] = copy_from_guest(caller.instance, ptr_to_tag).unwrap_or([0; 32]);
+            allocator.release(
+                address,
+                tag,
+            );
+        },
+    )?;
+
     linker.define_typed("abort", |code: u64| {
         let program_error = match code {
             PANIC_CODE => ProgramError::NativeLibPanic,
@@ -270,7 +287,7 @@ pub fn create_instance(
     linker.define_typed(
         "guest_alloc",
         |caller: Caller<MemAllocator>, size: u64, align: u64| {
-            debug!("guest_alloc called with size: {size}, align: {align}");
+            trace!("guest_alloc called with size: {size}, align: {align}");
             let allocator = caller.user_data;
             let address = allocator
                 .alloc(
@@ -278,7 +295,7 @@ pub fn create_instance(
                     align.try_into().expect("failed to allocate"),
                 )
                 .unwrap();
-            debug!("guest_alloc allocated address: 0x{address:X}");
+            trace!("guest_alloc allocated address: 0x{address:X}");
             Result::<u32, ProgramError>::Ok(address)
         },
     )?;

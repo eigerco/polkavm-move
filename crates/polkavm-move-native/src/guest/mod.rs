@@ -98,8 +98,13 @@ unsafe extern "C" fn borrow_global(
 }
 
 #[export_name = "move_rt_exists"]
-unsafe extern "C" fn exists(type_ve: &MoveType, s1: &AnyValue, tag: &AnyValue) -> u32 {
-    imports::exists(type_ve, s1, tag)
+unsafe extern "C" fn exists(type_ve: &MoveType, s: &AnyValue, tag: &AnyValue) -> u32 {
+    imports::exists(type_ve, s, tag)
+}
+
+#[export_name = "move_rt_release"]
+unsafe extern "C" fn release(type_ve: &MoveType, s: &AnyValue, tag: &AnyValue) {
+    imports::release(type_ve, s, tag);
 }
 
 #[export_name = "move_native_signer_borrow_address"]
