@@ -11,7 +11,7 @@ pub mod stackless;
 use crate::options::Options;
 
 use anyhow::Context;
-use codespan_reporting::{diagnostic::Severity, term::termcolor::WriteColor};
+use codespan_reporting::term::termcolor::WriteColor;
 use itertools::Itertools;
 use linker::load_from_elf_with_polka_linker;
 use log::{debug, Level, LevelFilter};
@@ -24,16 +24,15 @@ use move_bytecode_source_map::{
 use move_command_line_common::files::{
     FileHash, MOVE_COMPILED_EXTENSION, MOVE_EXTENSION, SOURCE_MAP_EXTENSION,
 };
-use move_compiler::{shared::PackagePaths, Flags};
+use move_compiler_v2::run_move_compiler;
+use move_compiler_v2::{Experiment, Options as CompilerV2Options};
 use move_ir_types::location::Spanned;
 use move_model::{
     model::{GlobalEnv, ModuleId, MoveIrLoc},
-    options::ModelBuilderOptions,
-    parse_addresses_from_options, run_model_builder_with_options_and_compilation_flags,
+    parse_addresses_from_options,
 };
 use std::{
-    collections::BTreeSet,
-    fs,
+    fs::{self, write},
     io::Write,
     iter::once,
     path::{Path, PathBuf},
@@ -123,28 +122,32 @@ pub fn get_env_from_source<W: WriteColor>(
     let addrs = parse_addresses_from_options(options.named_address_mapping.clone())?;
     debug!("Named addresses {addrs:?}");
 
-    let env = run_model_builder_with_options_and_compilation_flags(
-        vec![PackagePaths {
-            name: None,
-            paths: options.sources.clone(),
-            named_address_map: addrs.clone(),
-        }],
-        vec![],
-        vec![PackagePaths {
-            name: None,
-            paths: options.dependencies.clone(),
-            named_address_map: addrs,
-        }],
-        ModelBuilderOptions::default(),
-        Flags::empty().set_flavor("async"),
-        &BTreeSet::new(),
-    )?;
+    let mut v2_options = CompilerV2Options {
+        sources: options.sources.clone(),
+        dependencies: options.dependencies.clone(),
+        named_address_mapping: options.named_address_mapping.clone(),
+        output_dir: options.output.clone(),
+        whole_program: true,
+        ..Default::default()
+    };
+
+    v2_options = v2_options.set_experiment(Experiment::SPEC_REWRITE, true);
+    v2_options = v2_options.set_experiment(Experiment::ATTACH_COMPILED_MODULE, true);
+    let mut emitter = v2_options.error_emitter(error_writer);
+    let (env, _units) = run_move_compiler(emitter.as_mut(), v2_options)?;
+    env.treat_everything_as_target(false);
 
     for module in env.get_modules() {
-        debug!("Move module: {}", module.get_full_name_str())
+        debug!("Move module: {}", module.get_full_name_str());
+        let bytecode = module.get_verified_module().unwrap();
+        let mut bytes = Vec::with_capacity(2048);
+        bytecode.serialize(&mut bytes).ok();
+        let path = Path::new(&options.output)
+            .with_file_name(module.get_full_name_str())
+            .with_extension(MOVE_COMPILED_EXTENSION);
+        write(path, bytes).ok();
     }
 
-    env.report_diag(error_writer, Severity::Warning);
     if env.has_errors() {
         anyhow::bail!("Move source code errors")
     } else {
