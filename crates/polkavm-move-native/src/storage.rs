@@ -27,6 +27,9 @@ pub trait Storage {
 
     /// Release a global value at the specified address with the given tag.
     fn release(&self, address: MoveAddress, tag: StructTagHash);
+
+    /// Release all global resources.
+    fn release_all(&self);
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -172,5 +175,15 @@ impl Storage for GlobalStorage {
         } else {
             debug!("No global found at {address:?} with type {tag:?} to release");
         }
+    }
+
+    fn release_all(&self) {
+        debug!("Releasing all global resources");
+        for entry in self.storage.keys() {
+            let Key(address, tag) = entry;
+            debug!("Releasing global at address: {address:?} with tag: {tag:?}");
+            self.release(*address, *tag);
+        }
+        debug!("All global resources released");
     }
 }

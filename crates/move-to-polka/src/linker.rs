@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use crate::{options::Options, run_to_polka};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
-use log::{debug, trace};
+use log::{debug, info, trace, warn};
 use polkavm::{
-    Caller, Config, Engine, Instance, Linker, MemoryAccessError, Module, ModuleConfig, ProgramBlob,
-    RawInstance,
+    Caller, Config, Engine, Instance, InterruptKind, Linker, MemoryAccessError, Module,
+    ModuleConfig, ProgramBlob, RawInstance, Reg,
 };
 use polkavm_move_native::{
     host::{copy_bytes_from_guest, copy_from_guest, MemAllocator, ProgramError},
@@ -146,176 +148,86 @@ pub fn create_instance(
     linker.define_typed(
         "debug_print",
         |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_data: u32| {
-            let mut move_type_string = "Unknown".to_string();
-            let move_type: Result<MoveType, MemoryAccessError> = copy_from_guest(caller.instance, ptr_to_type);
-            // for some reason, the type is stored in RO memory, which we can't read when dynamic paging is enabled
-            if let Ok(move_type) = move_type {
-                move_type_string = move_type.to_string();
-                match move_type.type_desc {
-                    TypeDesc::Bool |
-                    TypeDesc::U8 => {
-                        let move_value: u8 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value}");
-                    }
-                    TypeDesc::U16 |
-                    TypeDesc::U32 => {
-                        let move_value: u32 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value:x?}");
-                    }
-                    TypeDesc::Signer => {
-                        let move_signer: MoveSigner = copy_from_guest(caller.instance, ptr_to_data)?;
-                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_signer:?}");
-                    }
-                    TypeDesc::U64 => {
-                        let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value:x?}");
-                    }
-                    TypeDesc::Vector => {
-                        let vec: MoveByteVector = copy_from_guest(caller.instance, ptr_to_data)?;
-                        let instance = caller.instance;
-                        let len = vec.length as usize;
-                        let bytes = copy_bytes_from_guest(instance, vec.ptr as u32, len)?;
-                        let s = String::from_utf8(bytes.clone());
-                        if let Ok(s) = s {
-                            debug!("debug_print called: {s}");
-                        } else {
-                            debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {vec:?}, bytes: {bytes:x?}");
-                        }
-                    }
-                    _ => {
-                        let move_value: u64 = copy_from_guest(caller.instance, ptr_to_data)?;
-                        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value:x}");
-                    }
-                }
-            } else {
-                let move_value: u32 = copy_from_guest(caller.instance, ptr_to_data)?;
-                debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
-            }
-            Result::<(), ProgramError>::Ok(())
+            let instance = caller.instance;
+            debug_print(instance, ptr_to_type, ptr_to_data)
         },
     )?;
 
     linker.define_typed(
         "move_to",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_signer: u32, ptr_to_struct: u32, ptr_to_tag: u32| {
-            debug!(
-                "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}"
-            );
-            let move_type: MoveType = copy_from_guest(caller.instance, ptr_to_type)?;
-            let signer_ptr: u32 = copy_from_guest(caller.instance, ptr_to_signer)?;
-            let signer: MoveSigner = copy_from_guest(caller.instance, signer_ptr)?;
-            let address = signer.0;
-            let tag: [u8; 32] = copy_from_guest(caller.instance, ptr_to_tag)?;
-            let value = from_move_byte_vector(caller.instance, ptr_to_struct)?;
-            debug!(
-                "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}, type: {move_type}, address: {address:?}, value: {value:x?}",
-            );
+        |caller: Caller<MemAllocator>,
+         ptr_to_type: u32,
+         ptr_to_signer: u32,
+         ptr_to_struct: u32,
+         ptr_to_tag: u32| {
             let allocator = caller.user_data;
-            allocator.store_global(address, tag, value.to_vec())?;
-            Result::<(), ProgramError>::Ok(())
+            let instance = caller.instance;
+            move_to(
+                allocator,
+                instance,
+                ptr_to_type,
+                ptr_to_signer,
+                ptr_to_struct,
+                ptr_to_tag,
+            )
         },
     )?;
 
     linker.define_typed(
         "move_from",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, remove_u32: u32, ptr_to_tag: u32, is_mut_u32: u32| {
-            debug!(
-                "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, remove: {remove_u32}, is_mut: {is_mut_u32}",
-            );
+        |caller: Caller<MemAllocator>,
+         ptr_to_type: u32,
+         ptr_to_addr: u32,
+         remove_u32: u32,
+         ptr_to_tag: u32,
+         is_mut_u32: u32| {
             let instance = caller.instance;
             let allocator = caller.user_data;
-            let remove =  remove_u32 != 0;
-            let is_mut = is_mut_u32 != 0;
-            let move_type: MoveType = copy_from_guest(instance, ptr_to_type)?;
-            let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
-            let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
-            debug!(
-                "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, type: {move_type}, address: {address:?}",
-            );
-            let value = allocator.load_global(address, tag, remove, is_mut)?;
-            debug!("move_from loaded value: {value:x?}");
-            let address = to_move_byte_vector(instance, allocator, value.to_vec())?;
-            debug!("move_from returned address: 0x{address:X}");
-            hexdump(allocator, instance);
-            Result::<u32, ProgramError>::Ok(address)
+            move_from(
+                allocator,
+                instance,
+                ptr_to_type,
+                ptr_to_addr,
+                remove_u32,
+                ptr_to_tag,
+                is_mut_u32,
+            )
         },
     )?;
 
     linker.define_typed(
         "exists",
         |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, ptr_to_tag: u32| {
-            debug!(
-                "exists called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",
-            );
-            let address: MoveAddress = copy_from_guest(caller.instance, ptr_to_addr)?;
             let allocator = caller.user_data;
-            let tag: [u8; 32] = copy_from_guest(caller.instance, ptr_to_tag)?;
-            debug!(
-                "exists called with type ptr: 0x{ptr_to_type:X}, address: {address:?}, tag: {tag:?}",
-            );
-            let value = allocator.exists(address, tag)?;
-            Result::<u32, ProgramError>::Ok(value as u32)
+            let instance = caller.instance;
+            exists(allocator, instance, ptr_to_type, ptr_to_addr, ptr_to_tag)
         },
     )?;
 
     linker.define_typed(
         "release",
         |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, ptr_to_tag: u32| {
-            debug!(
-                "release called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",
-            );
-            let address: MoveAddress = copy_from_guest(caller.instance, ptr_to_addr)
-                .unwrap();
             let allocator = caller.user_data;
-            let tag: [u8; 32] = copy_from_guest(caller.instance, ptr_to_tag).unwrap_or([0; 32]);
-            allocator.release(
-                address,
-                tag,
-            );
+            let instance = caller.instance;
+            release(allocator, instance, ptr_to_type, ptr_to_addr, ptr_to_tag);
         },
     )?;
 
-    linker.define_typed("abort", |code: u64| {
-        let program_error = match code {
-            PANIC_CODE => ProgramError::NativeLibPanic,
-            ALLOC_CODE => ProgramError::NativeLibAllocatorCall,
-            _ => ProgramError::Abort(code),
-        };
-        Result::<(), _>::Err(program_error)
-    })?;
+    linker.define_typed("abort", |code: u64| guest_abort(code))?;
 
     linker.define_typed(
         "guest_alloc",
         |caller: Caller<MemAllocator>, size: u64, align: u64| {
-            trace!("guest_alloc called with size: {size}, align: {align}");
-            let allocator = caller.user_data;
-            let address = allocator
-                .alloc(
-                    size.try_into().unwrap(),
-                    align.try_into().expect("failed to allocate"),
-                )
-                .unwrap();
-            trace!("guest_alloc allocated address: 0x{address:X}");
-            Result::<u32, ProgramError>::Ok(address)
+            guest_alloc(caller.user_data, size, align)
         },
     )?;
 
     linker.define_typed(
         "hash_sha2_256",
         |caller: Caller<MemAllocator>, ptr_to_buf: u32| {
-            debug!("hash_sha2_256 called with type: ptr: 0x{ptr_to_buf:X}");
             let allocator = caller.user_data;
             let instance = caller.instance;
-            let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
-            debug!("bytes: {bytes:?}");
-            let digest = sha2::Sha256::digest(&bytes);
-            debug!(
-                "hash_sha2_256 called with {} bytes, digest: {digest:X?}",
-                bytes.len(),
-            );
-            let address = to_move_byte_vector(instance, allocator, digest.to_vec())?;
-            debug!("Allocated address for digest: 0x{address:X}");
-            Result::<u32, ProgramError>::Ok(address)
+            hash_sha2_256(allocator, instance, ptr_to_buf)
         },
     )?;
 
@@ -325,16 +237,7 @@ pub fn create_instance(
             debug!("hash_sha3_256 called with type: ptr: 0x{ptr_to_buf:X}");
             let allocator = caller.user_data;
             let instance = caller.instance;
-            let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
-            debug!("bytes: {bytes:?}");
-            let digest = sha3::Sha3_256::digest(&bytes);
-            debug!(
-                "hash_sha3_256 called with {} bytes, digest: {digest:X?}",
-                bytes.len(),
-            );
-            let address = to_move_byte_vector(instance, allocator, digest.to_vec())?;
-            debug!("Allocated address for digest: 0x{address:X}");
-            Result::<u32, ProgramError>::Ok(address)
+            hash_sha3_256(allocator, instance, ptr_to_buf)
         },
     )?;
 
@@ -360,6 +263,359 @@ pub fn create_instance(
         module.memory_map().aux_data_size(),
     )?;
     Ok((instance, allocator))
+}
+
+pub fn run_lowlevel(
+    instance: &mut Instance<MemAllocator, ProgramError>,
+    allocator: &mut MemAllocator,
+) -> Result<(), anyhow::Error> {
+    let start = instance
+        .module()
+        .exports()
+        .find(|export| export.symbol() == "pvm_start")
+        .expect("'pvm_start' export not found")
+        .program_counter();
+    let module = instance.module();
+    let imports = module.imports().iter().collect::<Vec<_>>();
+    let sp = module.default_sp();
+    // cache imports with their indices
+    const ALLOWED_IMPORTS: &[&[u8]] = &[
+        b"debug_print",
+        b"hex_dump",
+        b"guest_alloc",
+        b"abort",
+        b"move_to",
+        b"move_from",
+        b"exists",
+        b"release",
+        b"hash_sha2_256",
+        b"hash_sha3_256",
+    ];
+    let map: HashMap<usize, &'static str> = imports
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, import)| {
+            let import = import?;
+            ALLOWED_IMPORTS
+                .iter()
+                .find(|&&allowed| allowed == import.as_bytes())
+                .map(|&name| (i, std::str::from_utf8(name).unwrap()))
+        })
+        .collect();
+    instance.set_next_program_counter(start);
+    instance.set_reg(Reg::RA, polkavm::RETURN_TO_HOST);
+    instance.set_reg(Reg::SP, sp);
+    loop {
+        match instance.run()? {
+            InterruptKind::Finished => {
+                info!("Program finished successfully.");
+                allocator.release_all();
+                break;
+            }
+            InterruptKind::Ecalli(n) => {
+                let syscall = map.get(&(n as usize)).unwrap_or(&"unknown syscall");
+                debug!("Ecalli interrupt with code: {n}: {syscall}");
+                handle_ecalli(instance, allocator, syscall);
+                if syscall == &"abort" {
+                    let code = instance.reg(Reg::A0);
+                    panic!("Aborted: {code}");
+                }
+            }
+            InterruptKind::Segfault(segfault) => {
+                allocator.release_all();
+                panic!("Segfault occurred at address {:x?}", segfault.page_address);
+            }
+            InterruptKind::Trap => {
+                info!("Trap occurred, releasing all resources.");
+                allocator.release_all();
+                panic!("Trap");
+            }
+            other => {
+                warn!("Program interrupted: {other:?}");
+                break;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn handle_ecalli(
+    instance: &mut polkavm::Instance<
+        polkavm_move_native::host::MemAllocator,
+        polkavm_move_native::host::ProgramError,
+    >,
+    allocator: &mut polkavm_move_native::host::MemAllocator,
+    syscall: &str,
+) {
+    match syscall {
+        "debug_print" => {
+            let ptr_to_type = instance.reg(Reg::A0) as u32;
+            let ptr_to_data = instance.reg(Reg::A1) as u32;
+            debug_print(instance, ptr_to_type, ptr_to_data).expect("Failed to print debug info");
+        }
+        "hex_dump" => {
+            hexdump(allocator, instance);
+        }
+        "move_to" => {
+            let ptr_to_type = instance.reg(Reg::A0) as u32;
+            let ptr_to_signer = instance.reg(Reg::A1) as u32;
+            let ptr_to_struct = instance.reg(Reg::A2) as u32;
+            let ptr_to_tag = instance.reg(Reg::A3) as u32;
+            move_to(
+                allocator,
+                instance,
+                ptr_to_type,
+                ptr_to_signer,
+                ptr_to_struct,
+                ptr_to_tag,
+            )
+            .expect("Failed to print debug info");
+        }
+        "move_from" => {
+            let ptr_to_type = instance.reg(Reg::A0) as u32;
+            let ptr_to_signer = instance.reg(Reg::A1) as u32;
+            let remove = instance.reg(Reg::A2) as u32;
+            let ptr_to_tag = instance.reg(Reg::A4) as u32;
+            let is_mut = instance.reg(Reg::A5) as u32;
+            move_from(
+                allocator,
+                instance,
+                ptr_to_type,
+                ptr_to_signer,
+                remove,
+                ptr_to_tag,
+                is_mut,
+            )
+            .expect("Failed to print debug info");
+        }
+        "exists" => {
+            let ptr_to_type = instance.reg(Reg::A0) as u32;
+            let ptr_to_signer = instance.reg(Reg::A1) as u32;
+            let ptr_to_tag = instance.reg(Reg::A2) as u32;
+            exists(allocator, instance, ptr_to_type, ptr_to_signer, ptr_to_tag)
+                .expect("Failed to print debug info");
+        }
+        "guest_alloc" => {
+            let size = instance.reg(Reg::A0);
+            let align = instance.reg(Reg::A1);
+            let result = guest_alloc(allocator, size, align);
+            instance.set_reg(
+                Reg::A0,
+                result.expect("Failed to allocate guest memory") as u64,
+            );
+        }
+        "hash_sha2_256" => {
+            let ptr_to_vec = instance.reg(Reg::A0) as u32;
+            let result = hash_sha2_256(allocator, instance, ptr_to_vec);
+            instance.set_reg(
+                Reg::A0,
+                result.expect("Failed to allocate guest memory") as u64,
+            );
+        }
+        "hash_sha3_256" => {
+            let ptr_to_vec = instance.reg(Reg::A0) as u32;
+            let result = hash_sha3_256(allocator, instance, ptr_to_vec);
+            instance.set_reg(
+                Reg::A0,
+                result.expect("Failed to allocate guest memory") as u64,
+            );
+        }
+        "abort" => {
+            let code = instance.reg(Reg::A0);
+            guest_abort(code).ok();
+        }
+        _ => {}
+    }
+}
+
+fn hash_sha2_256(
+    allocator: &mut MemAllocator,
+    instance: &mut RawInstance,
+    ptr_to_buf: u32,
+) -> Result<u32, ProgramError> {
+    let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
+    debug!("hash_sha2_256 called with type: ptr: 0x{ptr_to_buf:X}");
+    debug!("bytes: {bytes:?}");
+    let digest = sha2::Sha256::digest(&bytes);
+    debug!(
+        "hash_sha2_256 called with {} bytes, digest: {digest:X?}",
+        bytes.len(),
+    );
+    let address = to_move_byte_vector(instance, allocator, digest.to_vec())?;
+    debug!("Allocated address for digest: 0x{address:X}");
+    Result::<u32, ProgramError>::Ok(address)
+}
+
+fn guest_abort(code: u64) -> Result<(), ProgramError> {
+    let program_error = match code {
+        PANIC_CODE => ProgramError::NativeLibPanic,
+        ALLOC_CODE => ProgramError::NativeLibAllocatorCall,
+        _ => ProgramError::Abort(code),
+    };
+    Result::<(), _>::Err(program_error)
+}
+
+fn release(
+    allocator: &mut MemAllocator,
+    instance: &mut RawInstance,
+    ptr_to_type: u32,
+    ptr_to_addr: u32,
+    ptr_to_tag: u32,
+) {
+    debug!(
+        "release called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",
+    );
+    let address: MoveAddress = copy_from_guest(instance, ptr_to_addr).unwrap();
+    let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag).unwrap_or([0; 32]);
+    allocator.release(address, tag);
+}
+
+fn exists(
+    allocator: &mut MemAllocator,
+    instance: &mut RawInstance,
+    ptr_to_type: u32,
+    ptr_to_addr: u32,
+    ptr_to_tag: u32,
+) -> Result<u32, ProgramError> {
+    debug!(
+        "exists called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",
+    );
+    let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
+    let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
+    debug!("exists called with type ptr: 0x{ptr_to_type:X}, address: {address:?}, tag: {tag:?}",);
+    let value = allocator.exists(address, tag)?;
+    Result::<u32, ProgramError>::Ok(value as u32)
+}
+
+fn move_from(
+    allocator: &mut MemAllocator,
+    instance: &mut RawInstance,
+    ptr_to_type: u32,
+    ptr_to_addr: u32,
+    remove_u32: u32,
+    ptr_to_tag: u32,
+    is_mut_u32: u32,
+) -> Result<u32, ProgramError> {
+    debug!(
+        "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, remove: {remove_u32}, is_mut: {is_mut_u32}",
+    );
+    let remove = remove_u32 != 0;
+    let is_mut = is_mut_u32 != 0;
+    let move_type: MoveType = copy_from_guest(instance, ptr_to_type)?;
+    let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
+    let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
+    debug!(
+        "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, type: {move_type}, address: {address:?}",
+    );
+    let value = allocator.load_global(address, tag, remove, is_mut)?;
+    debug!("move_from loaded value: {value:x?}");
+    let address = to_move_byte_vector(instance, allocator, value.to_vec())?;
+    debug!("move_from returned address: 0x{address:X}");
+    hexdump(allocator, instance);
+    Result::<u32, ProgramError>::Ok(address)
+}
+
+fn move_to(
+    allocator: &mut MemAllocator,
+    instance: &mut RawInstance,
+    ptr_to_type: u32,
+    ptr_to_signer: u32,
+    ptr_to_struct: u32,
+    ptr_to_tag: u32,
+) -> Result<(), ProgramError> {
+    debug!(
+        "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}"
+    );
+    let move_type: MoveType = copy_from_guest(instance, ptr_to_type)?;
+    let signer_ptr: u32 = copy_from_guest(instance, ptr_to_signer)?;
+    let signer: MoveSigner = copy_from_guest(instance, signer_ptr)?;
+    let address = signer.0;
+    let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
+    let value = from_move_byte_vector(instance, ptr_to_struct)?;
+    debug!(
+        "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}, type: {move_type}, address: {address:?}, value: {value:x?}",
+    );
+    allocator.store_global(address, tag, value.to_vec())?;
+    Result::<(), ProgramError>::Ok(())
+}
+
+fn debug_print(
+    instance: &mut RawInstance,
+    ptr_to_type: u32,
+    ptr_to_data: u32,
+) -> Result<(), ProgramError> {
+    let mut move_type_string = "Unknown".to_string();
+    let move_type: Result<MoveType, MemoryAccessError> = copy_from_guest(instance, ptr_to_type);
+    // for some reason, the type is stored in RO memory, which we can't read when dynamic paging is enabled
+    if let Ok(move_type) = move_type {
+        move_type_string = move_type.to_string();
+        match move_type.type_desc {
+            TypeDesc::Bool | TypeDesc::U8 => {
+                let move_value: u8 = copy_from_guest(instance, ptr_to_data)?;
+                debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value}");
+            }
+            TypeDesc::U16 | TypeDesc::U32 => {
+                let move_value: u32 = copy_from_guest(instance, ptr_to_data)?;
+                debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value:x?}");
+            }
+            TypeDesc::Signer => {
+                let move_signer: MoveSigner = copy_from_guest(instance, ptr_to_data)?;
+                debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_signer:?}");
+            }
+            TypeDesc::U64 => {
+                let move_value: u64 = copy_from_guest(instance, ptr_to_data)?;
+                debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value:x?}");
+            }
+            TypeDesc::Vector => {
+                let vec: MoveByteVector = copy_from_guest(instance, ptr_to_data)?;
+                let len = vec.length as usize;
+                let bytes = copy_bytes_from_guest(instance, vec.ptr as u32, len)?;
+                let s = String::from_utf8(bytes.clone());
+                if let Ok(s) = s {
+                    debug!("debug_print called: {s}");
+                } else {
+                    debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {vec:?}, bytes: {bytes:x?}");
+                }
+            }
+            _ => {
+                let move_value: u64 = copy_from_guest(instance, ptr_to_data)?;
+                debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: 0x{move_value:x}");
+            }
+        }
+    } else {
+        let move_value: u32 = copy_from_guest(instance, ptr_to_data)?;
+        debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
+    }
+    Result::<(), ProgramError>::Ok(())
+}
+
+fn guest_alloc(allocator: &mut MemAllocator, size: u64, align: u64) -> Result<u32, ProgramError> {
+    trace!("guest_alloc called with size: {size}, align: {align}");
+    let address = allocator
+        .alloc(
+            size.try_into().unwrap(),
+            align.try_into().expect("failed to allocate"),
+        )
+        .unwrap();
+    trace!("guest_alloc allocated address: 0x{address:X}");
+    Result::<u32, ProgramError>::Ok(address)
+}
+
+fn hash_sha3_256(
+    allocator: &mut MemAllocator,
+    instance: &mut RawInstance,
+    ptr_to_buf: u32,
+) -> Result<u32, ProgramError> {
+    let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
+    debug!("bytes: {bytes:?}");
+    let digest = sha3::Sha3_256::digest(&bytes);
+    debug!(
+        "hash_sha3_256 called with {} bytes, digest: {digest:X?}",
+        bytes.len(),
+    );
+    let address = to_move_byte_vector(instance, allocator, digest.to_vec())?;
+    debug!("Allocated address for digest: 0x{address:X}");
+    Result::<u32, ProgramError>::Ok(address)
 }
 
 fn from_move_byte_vector(

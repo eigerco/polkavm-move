@@ -1,7 +1,7 @@
 extern crate std;
 
 use core::mem::MaybeUninit;
-use log::trace;
+use log::{debug, trace};
 use polkavm::{MemoryAccessError, MemoryMap, RawInstance};
 use std::vec::Vec;
 
@@ -180,6 +180,11 @@ impl MemAllocator {
     pub fn dump_aux(&self, instance: &mut RawInstance) -> Result<Vec<u8>, MemoryAccessError> {
         let memory = instance.read_memory(self.base, self.offset)?;
         Ok(memory)
+    }
+
+    pub fn release_all(&self) {
+        debug!("Releasing all global storage");
+        self.storage.release_all();
     }
 }
 
