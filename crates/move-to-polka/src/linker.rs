@@ -99,6 +99,7 @@ pub fn new_move_program(
     create_instance(create_blob(output, source, mapping)?)
 }
 
+/// Load a Move program from source and create a PolkaVM blob.
 pub fn create_blob(
     output: &str,
     source: &str,
@@ -118,27 +119,30 @@ pub fn create_blob(
     Ok(blob)
 }
 
+/// Creates a new PolkaVM instance with the Move program blob.
 pub fn create_instance(
     blob: ProgramBlob,
 ) -> Result<(Instance<MemAllocator, ProgramError>, MemAllocator), anyhow::Error> {
     const AUX_DATA_SIZE: u32 = 4 * 1024;
     let mut config = Config::from_env()?;
     config.set_allow_dynamic_paging(true);
-    let engine = Engine::new(&config)?;
 
     let mut module_config = ModuleConfig::new();
-    module_config.set_strict(true);
     // enforce module loading fail if not all host functions are provided
+    module_config.set_strict(true);
     module_config.set_aux_data_size(AUX_DATA_SIZE);
     module_config.set_dynamic_paging(true);
 
+    let engine = Engine::new(&config)?;
     let module = Module::from_blob(&engine, &module_config, blob.clone())?;
     // Create a memory allocator for the module.
     let allocator = MemAllocator::init(module.memory_map());
     let mut linker: MoveProgramLinker = Linker::new();
 
-    // additional "native" function used by move program and also exposed by host
-    // it is just for testing/debuging only
+    // Define the host functions that will be used by the Move program.
+    // Note: when using the low-level `run_lowlevel` function, these are not called automatically,
+    // but the program loop must handle the `Ecalli` interrupts and call these functions manually
+    // setting up the parameters in the registers.
     linker.define_typed("hex_dump", |caller: Caller<MemAllocator>| {
         let allocator = caller.user_data;
         let instance = caller.instance;
@@ -265,19 +269,21 @@ pub fn create_instance(
     Ok((instance, allocator))
 }
 
+/// Different way to run the program, which allows to handle low-level interrupts
+/// The caller must store the parameters to the entrypoint function into registers before calling this function.
 pub fn run_lowlevel(
     instance: &mut Instance<MemAllocator, ProgramError>,
     allocator: &mut MemAllocator,
+    entry: &str,
 ) -> Result<(), anyhow::Error> {
     let start = instance
         .module()
         .exports()
-        .find(|export| export.symbol() == "pvm_start")
+        .find(|export| export.symbol() == entry)
         .expect("'pvm_start' export not found")
         .program_counter();
     let module = instance.module();
     let imports = module.imports().iter().collect::<Vec<_>>();
-    let sp = module.default_sp();
     // cache imports with their indices
     const ALLOWED_IMPORTS: &[&[u8]] = &[
         b"debug_print",
@@ -302,9 +308,13 @@ pub fn run_lowlevel(
                 .map(|&name| (i, std::str::from_utf8(name).unwrap()))
         })
         .collect();
+
+    // set the initial program counter and stack pointer
+    let sp = module.default_sp();
     instance.set_next_program_counter(start);
     instance.set_reg(Reg::RA, polkavm::RETURN_TO_HOST);
     instance.set_reg(Reg::SP, sp);
+    // run the program loop. We must handle the interrupts manually.
     loop {
         match instance.run()? {
             InterruptKind::Finished => {
@@ -329,6 +339,11 @@ pub fn run_lowlevel(
                 info!("Trap occurred, releasing all resources.");
                 allocator.release_all();
                 panic!("Trap");
+            }
+            InterruptKind::NotEnoughGas => {
+                warn!("Not enough gas to continue execution, releasing all resources.");
+                allocator.release_all();
+                panic!("Not enough gas to continue execution");
             }
             other => {
                 warn!("Program interrupted: {other:?}");

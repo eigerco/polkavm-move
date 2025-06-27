@@ -24,7 +24,7 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
-pub fn test_run_to_end() -> anyhow::Result<()> {
+pub fn test_run_lowlevel() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
@@ -37,7 +37,7 @@ pub fn test_run_to_end() -> anyhow::Result<()> {
     info!("Signer address: {signer_address:x?}");
     instance.set_reg(Reg::A0, signer_address as u64);
 
-    run_lowlevel(&mut instance, &mut allocator)?;
+    run_lowlevel(&mut instance, &mut allocator, "pvm_start")?;
 
     Ok(())
 }
