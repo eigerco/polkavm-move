@@ -86,7 +86,7 @@ impl MemAllocator {
     }
 
     /// Release a global value at the specified address with the given tag.
-    pub fn release(&self, address: MoveAddress, tag: [u8; 32]) {
+    pub fn release(&mut self, address: MoveAddress, tag: [u8; 32]) {
         self.storage.release(address, tag);
     }
 
@@ -182,9 +182,13 @@ impl MemAllocator {
         Ok(memory)
     }
 
-    pub fn release_all(&self) {
+    pub fn release_all(&mut self) {
         debug!("Releasing all global storage");
         self.storage.release_all();
+    }
+
+    pub fn is_borrowed(&self, move_signer: MoveAddress, tag: [u8; 32]) -> bool {
+        self.storage.is_borrowed(move_signer, tag)
     }
 }
 
