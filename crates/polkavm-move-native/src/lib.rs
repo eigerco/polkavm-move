@@ -234,6 +234,8 @@ pub mod guest;
 #[cfg(feature = "host")]
 pub mod host;
 pub mod serialization;
+#[cfg(feature = "host")]
+pub mod storage;
 pub mod structs;
 pub mod types;
 pub mod vector;

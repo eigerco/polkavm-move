@@ -56,7 +56,7 @@ pub struct MoveSignerVector {
 ///
 /// The pointer must be to static memory and never mutated.
 ///
-/// NOTE: The `type_info` pointer is only valid in guest memory.
+/// NOTE: The `type_info` pointer and name are only valid in guest memory.
 #[repr(C)]
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct MoveType {
@@ -83,6 +83,23 @@ impl core::fmt::Display for MoveType {
         f.debug_struct("MoveType")
             .field("type", &self.type_desc)
             .finish()
+    }
+}
+
+impl MoveType {
+    pub fn u32() -> Self {
+        Self {
+            name: DUMMY_TYPE_NAME,
+            type_desc: TypeDesc::U32,
+            type_info: core::ptr::null(),
+        }
+    }
+    pub fn vec() -> Self {
+        Self {
+            name: DUMMY_TYPE_NAME,
+            type_desc: TypeDesc::Vector,
+            type_info: core::ptr::null(),
+        }
     }
 }
 

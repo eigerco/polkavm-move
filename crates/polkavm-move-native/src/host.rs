@@ -1,11 +1,14 @@
 extern crate std;
 
 use core::mem::MaybeUninit;
-use log::debug;
+use log::{debug, trace};
 use polkavm::{MemoryAccessError, MemoryMap, RawInstance};
-use std::{collections::HashMap, vec::Vec};
+use std::vec::Vec;
 
-use crate::types::{MoveAddress, MoveType};
+use crate::{
+    storage::{GlobalStorage, Storage, StructTagHash},
+    types::MoveAddress,
+};
 
 #[derive(Debug)]
 pub enum ProgramError {
@@ -29,7 +32,7 @@ pub struct MemAllocator {
     base: u32,
     size: u32,
     offset: u32,
-    storage: HashMap<(MoveAddress, MoveType), Vec<u8>>,
+    storage: GlobalStorage,
 }
 
 impl MemAllocator {
@@ -41,38 +44,22 @@ impl MemAllocator {
             base: memory_map.aux_data_address(),
             size: memory_map.aux_data_size(),
             offset: 0,
-            storage: HashMap::new(),
+            storage: GlobalStorage::new(),
         }
+    }
+
+    pub fn base(&self) -> u32 {
+        self.base
     }
 
     /// Store a global value at the specified address with the given type.
     pub fn store_global(
         &mut self,
         address: MoveAddress,
-        typ: MoveType,
+        typ: StructTagHash,
         value: Vec<u8>,
     ) -> Result<(), ProgramError> {
-        debug!(
-            "Storing global value of type {:?} at address {:?}",
-            typ.name, address
-        );
-
-        // // Check if the address already exists
-        if self.storage.contains_key(&(address, typ)) {
-            debug!(
-                "Global already exists at address {address:?} with type {:?}",
-                typ.name
-            );
-            return Err(ProgramError::MemoryAccess(format!(
-                "global already exists at address {address:?} with type {:?}",
-                typ.name
-            )));
-        }
-
-        // Store the value in the storage map
-        self.storage.insert((address, typ), value);
-        debug!("storage: {:?}", &self.storage);
-
+        self.storage.store(address, typ, value)?;
         Ok(())
     }
 
@@ -80,39 +67,27 @@ impl MemAllocator {
     pub fn load_global(
         &mut self,
         address: MoveAddress,
-        typ: MoveType,
+        typ: StructTagHash,
         remove: bool,
+        is_mut: bool,
     ) -> Result<Vec<u8>, ProgramError> {
-        debug!(
-            "Loading global value of type {:?} at address {:?}",
-            typ.name, address
-        );
-
-        // Store the value in the storage map
-        let value = self
-            .storage
-            .get(&(address, typ))
-            .ok_or_else(|| ProgramError::MemoryAccess(format!("global not found at {address:?}")))?
-            .clone();
-        if remove {
-            self.storage.remove(&(address, typ));
-        }
-        debug!("storage: {:?}", &self.storage);
-
+        let value = self.storage.load(address, typ, remove, is_mut)?;
         Ok(value)
     }
 
     /// Check if a global value exists at the specified address with the given type.
-    pub fn exists(&mut self, address: MoveAddress, typ: MoveType) -> Result<bool, ProgramError> {
-        debug!(
-            "Exists global value of type {:?} at address {:?}",
-            typ.name, address
-        );
-
-        // Store the value in the storage map
-        let value = self.storage.contains_key(&(address, typ));
-        debug!("storage: {:?}", &self.storage);
+    pub fn exists(
+        &mut self,
+        address: MoveAddress,
+        typ: StructTagHash,
+    ) -> Result<bool, ProgramError> {
+        let value = self.storage.exists(address, typ)?;
         Ok(value)
+    }
+
+    /// Release a global value at the specified address with the given tag.
+    pub fn release(&self, address: MoveAddress, tag: [u8; 32]) {
+        self.storage.release(address, tag);
     }
 
     /// Allocate guest memory in the auxiliary data region.
@@ -155,7 +130,7 @@ impl MemAllocator {
 
         self.offset = new_offset;
 
-        debug!(
+        trace!(
             "Allocated {size} bytes at aligned address: 0x{address:#X} (offset: {aligned_offset})"
         );
 
@@ -168,7 +143,7 @@ impl MemAllocator {
         instance: &mut RawInstance,
         value: &T,
     ) -> Result<u32, MemoryAccessError> {
-        debug!(
+        trace!(
             "Copying value of type {} to guest memory",
             core::any::type_name::<T>()
         );
@@ -193,13 +168,23 @@ impl MemAllocator {
         let size = bytes.len();
         let align = core::mem::align_of::<u8>(); // usually 1, but explicit for clarity
 
-        debug!("Copying {size} bytes to guest memory with alignment {align}");
+        trace!("Copying {size} bytes to guest memory with alignment {align}");
 
         let address = self.alloc(size, align)?;
 
         instance.write_memory(address, bytes)?;
 
         Ok(address)
+    }
+
+    pub fn dump_aux(&self, instance: &mut RawInstance) -> Result<Vec<u8>, MemoryAccessError> {
+        let memory = instance.read_memory(self.base, self.offset)?;
+        Ok(memory)
+    }
+
+    pub fn release_all(&self) {
+        debug!("Releasing all global storage");
+        self.storage.release_all();
     }
 }
 
@@ -208,7 +193,7 @@ pub fn copy_from_guest<T: Sized + Copy>(
     instance: &mut RawInstance,
     address: u32,
 ) -> Result<T, MemoryAccessError> {
-    debug!(
+    trace!(
         "Copying value of type {} from guest memory at address 0x{:X}",
         core::any::type_name::<T>(),
         address
@@ -217,7 +202,7 @@ pub fn copy_from_guest<T: Sized + Copy>(
     unsafe {
         let dst_bytes: &mut [u8] =
             core::slice::from_raw_parts_mut(uninit.as_mut_ptr() as *mut u8, size_of::<T>());
-        debug!(
+        trace!(
             "Reading {} bytes from guest memory at address 0x{:X}",
             size_of::<T>(),
             address
@@ -233,7 +218,7 @@ pub fn copy_bytes_from_guest(
     address: u32,
     length: usize,
 ) -> Result<std::vec::Vec<u8>, MemoryAccessError> {
-    debug!("Copying {length} bytes from guest memory at address 0x{address:X}");
+    trace!("Copying {length} bytes from guest memory at address 0x{address:X}");
     let mut uninit: std::boxed::Box<[MaybeUninit<u8>]> = std::boxed::Box::new_uninit_slice(length);
 
     // Step 2: let `read_memory_into` initialize it

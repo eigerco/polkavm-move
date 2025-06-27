@@ -15,7 +15,7 @@
 
 use libc::abort;
 use llvm_sys::{core::*, prelude::*, target::*, target_machine::*, LLVMOpcode, LLVMUnnamedAddr};
-use log::{debug, warn};
+use log::{debug, trace, warn};
 use move_core_types::u256;
 use num_traits::{PrimInt, ToPrimitive};
 
@@ -1362,10 +1362,10 @@ impl Function {
     pub fn verify(&self, module_cx: &ModuleContext<'_, '_>) {
         use llvm_sys::analysis::*;
         let module_info = module_cx.llvm_module.print_to_str();
-        debug!(target: "verify function", "Module content:");
-        debug!(target: "verify function", "------------------------------");
-        debug!(target: "verify function", "{module_info}");
-        debug!(target: "verify function", "------------------------------");
+        trace!(target: "verify function", "Module content:");
+        trace!(target: "verify function", "------------------------------");
+        trace!(target: "verify function", "{module_info}");
+        trace!(target: "verify function", "------------------------------");
         unsafe {
             if LLVMVerifyFunction(self.0, LLVMVerifierFailureAction::LLVMPrintMessageAction) == 1 {
                 println!("{} function verifiction failed", &self.get_name());
@@ -1450,6 +1450,39 @@ impl AnyValue {
 pub struct Global(LLVMValueRef);
 
 impl Global {
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    pub fn from_array(
+        llvm_cx: &Context,
+        builder: &Builder,
+        module: LLVMModuleRef,
+        bytes: &[u8],
+    ) -> Self {
+        unsafe {
+            let i8_type = LLVMInt8TypeInContext(LLVMGetGlobalContext());
+            let array_ty = LLVMArrayType2(i8_type, bytes.len() as u64);
+            let values: Vec<LLVMValueRef> = bytes
+                .iter()
+                .map(|&b| LLVMConstInt(i8_type, b as u64, 0))
+                .collect();
+            let const_array =
+                LLVMConstArray2(array_ty, values.as_ptr() as *mut _, bytes.len() as u64);
+            let cname = std::ffi::CString::new("struct_tag").unwrap();
+            let global = LLVMAddGlobal(module, array_ty, cname.as_ptr());
+
+            LLVMSetInitializer(global, const_array);
+            LLVMSetLinkage(global, LLVMLinkage::LLVMInternalLinkage);
+
+            let global = AnyValue(global);
+            let i8_ptr_type = llvm_cx.ptr_type();
+
+            // LLVM is not happy with the global as is, we need to cast it to a pointer type.
+            let tag_ptr_cast =
+                builder.build_unary_bitcast(global, i8_ptr_type, "struct_tag_as_i8_ptr");
+
+            Global(tag_ptr_cast.0)
+        }
+    }
+
     pub fn ptr(&self) -> Constant {
         Constant(self.0)
     }

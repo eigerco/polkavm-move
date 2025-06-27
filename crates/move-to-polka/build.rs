@@ -14,7 +14,7 @@ fn fetch_move_stdlib() -> anyhow::Result<()> {
         .exec()
         .expect("failed to fetch cargo metadata");
 
-    let git_prefix = "git+https://github.com/move-language/move-on-aptos.git";
+    let git_prefix = "git+https://github.com/joske/move-on-aptos.git";
     let dep_pkg: &Package = metadata
         .packages
         .iter()

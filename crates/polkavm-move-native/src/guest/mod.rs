@@ -12,6 +12,18 @@ mod allocator;
 mod imports;
 mod panic;
 
+#[macro_export]
+macro_rules! heapless_format {
+    ($($arg:tt)*) => {{
+        use heapless::String;
+        use core::fmt::Write;
+
+        let mut s: String<256> = String::new();
+        let _ = write!(&mut s, $($arg)*);
+        s
+    }};
+}
+
 #[export_name = "move_rt_abort"]
 unsafe extern "C" fn move_rt_abort(code: u64) {
     imports::abort(code);
@@ -20,6 +32,11 @@ unsafe extern "C" fn move_rt_abort(code: u64) {
 #[export_name = "move_native_debug_print"]
 unsafe extern "C" fn print(type_x: *const MoveType, x: *const AnyValue) {
     imports::debug_print(type_x, x);
+}
+
+#[export_name = "move_native_debug_hex_dump"]
+unsafe extern "C" fn hex_dump() {
+    imports::hex_dump();
 }
 
 #[export_name = "move_native_hash_sha2_256"]
@@ -37,24 +54,57 @@ unsafe extern "C" fn move_native_hash_sha3_256(bytes: *const MoveByteVector) -> 
 }
 
 #[export_name = "move_rt_move_to"]
-unsafe extern "C" fn move_to(type_ve: &MoveType, signer_ref: &AnyValue, struct_ref: &AnyValue) {
+unsafe extern "C" fn move_to(
+    type_ve: &MoveType,
+    signer_ref: &AnyValue,
+    struct_ref: &AnyValue,
+    tag: &AnyValue,
+) {
     let bytes = crate::serialization::serialize(type_ve, struct_ref);
-    imports::move_to(type_ve, signer_ref, &bytes);
+    imports::move_to(type_ve, signer_ref, &bytes, tag);
 }
 
 #[export_name = "move_rt_move_from"]
-unsafe extern "C" fn move_from(type_ve: &MoveType, s1: &AnyValue, out: *mut AnyValue) {
-    let address = imports::move_from(type_ve, s1);
-    imports::debug_print(type_ve, address as *const AnyValue);
+unsafe extern "C" fn move_from(
+    type_ve: &MoveType,
+    s1: &AnyValue,
+    out: *mut AnyValue,
+    tag: &AnyValue,
+) {
+    let address = imports::move_from(type_ve, s1, 1, tag, 0);
     let bytevec = &*(address as *const MoveByteVector);
-
     crate::serialization::deserialize(type_ve, bytevec, out);
-    imports::debug_print(type_ve, out);
+}
+
+#[export_name = "move_rt_borrow_global"]
+unsafe extern "C" fn borrow_global(
+    type_ve: &MoveType,
+    s1: &AnyValue,
+    out: *mut AnyValue,
+    tag: &AnyValue,
+    is_mut: u32,
+) {
+    let address = imports::move_from(type_ve, s1, 0, tag, is_mut);
+    let bytevec = &*(address as *const MoveByteVector);
+    // allocate a boxed slice of bytevec.length bytes, deserialized should be smaller so this is safe
+    let boxed: alloc::boxed::Box<[u8]> =
+        alloc::vec![0u8; bytevec.length as usize].into_boxed_slice();
+    let raw = alloc::boxed::Box::into_raw(boxed);
+    // Deserialize into the boxed location
+    crate::serialization::deserialize(type_ve, bytevec, raw as *mut AnyValue);
+    let raw_addr_value = raw as *const u8 as u32;
+    // Copy the address of the boxed value into the output pointer
+    core::ptr::copy_nonoverlapping(&raw_addr_value as *const u32, out as *mut u32, 1);
 }
 
 #[export_name = "move_rt_exists"]
-unsafe extern "C" fn exists(type_ve: &MoveType, s1: &AnyValue) -> u32 {
-    imports::exists(type_ve, s1)
+unsafe extern "C" fn exists(type_ve: &MoveType, s: &AnyValue, tag: &AnyValue) -> u32 {
+    imports::exists(type_ve, s, tag)
+}
+
+#[export_name = "move_rt_release"]
+unsafe extern "C" fn release(type_ve: &MoveType, s: &AnyValue, tag: &AnyValue) {
+    imports::release(type_ve, s, tag);
 }
 
 #[export_name = "move_native_signer_borrow_address"]
@@ -216,4 +266,19 @@ pub unsafe extern "C" fn internal_index_of(s: &MoveByteVector, r: &MoveByteVecto
 #[export_name = "move_native_bcs_to_bytes"]
 pub unsafe extern "C" fn to_bytes(type_v: &MoveType, v: &AnyValue) -> MoveByteVector {
     crate::serialization::serialize(type_v, v)
+}
+
+#[allow(dead_code)]
+unsafe fn print_vec(vec: &MoveByteVector) {
+    let typ_string = MoveType::vec();
+    imports::debug_print(&typ_string, vec as *const MoveByteVector as *const AnyValue);
+}
+
+#[allow(dead_code)]
+unsafe fn print_str(info: &str) {
+    let typ_string = MoveType::vec();
+    let s = MoveAsciiString {
+        bytes: MoveByteVector::from_rust_vec(info.as_bytes().to_vec()),
+    };
+    imports::debug_print(&typ_string, &s as *const MoveAsciiString as *const AnyValue);
 }

@@ -890,7 +890,9 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             RtCall::StructCmpEq(..) => "struct_cmp_eq",
             RtCall::MoveTo(..) => "move_to",
             RtCall::MoveFrom(..) => "move_from",
+            RtCall::BorrowGlobal(..) => "borrow_global",
             RtCall::Exists(..) => "exists",
+            RtCall::Release(..) => "release",
         };
         Self::get_runtime_function_by_name(llvm_cx, llvm_module, rtty_cx, name)
     }
@@ -1022,46 +1024,96 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 }
                 "move_to" => {
                     debug!(target: "runtime", "Declaring move_to function {fn_name}");
-                    // move_to(address: &AnyValue, r: &AnyValue, type: &MoveType) -> bool;
+                    // move_to(address: &AnyValue, r: &AnyValue, type: &MoveType, type_tag) -> bool;
                     let ret_ty = llvm_cx.void_type();
                     let tydesc_ty = llvm_cx.ptr_type();
                     let anyval_ty = llvm_cx.ptr_type();
-                    let param_tys = &[anyval_ty, anyval_ty, tydesc_ty];
+                    let tag_ty = llvm_cx.ptr_type();
+                    let param_tys = &[anyval_ty, anyval_ty, tydesc_ty, tag_ty];
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);
                     let mut attrs = Self::mk_pattrs_for_move_type(1);
                     attrs.push((2, "readonly", None));
                     attrs.push((2, "nonnull", None));
                     attrs.push((3, "readonly", None));
                     attrs.push((3, "nonnull", None));
+                    attrs.push((4, "readonly", None));
+                    attrs.push((4, "nonnull", None));
+                    attrs.push((4, "dereferenceable", Some(32u64)));
                     (llty, attrs)
                 }
                 "move_from" => {
                     debug!(target: "runtime", "Declaring move_from function {fn_name}");
-                    // move_from(address: &AnyValue, type: &MoveType) -> T;
+                    // move_from(address: &AnyValue, type: &MoveType, retval, type_tag) -> T;
                     let ret_ty = llvm_cx.void_type();
                     let tydesc_ty = llvm_cx.ptr_type();
                     let anyval_ty = llvm_cx.ptr_type();
                     let retval_ty = llvm_cx.ptr_type();
-                    let param_tys = &[anyval_ty, tydesc_ty, retval_ty];
+                    let tag_ty = llvm_cx.ptr_type();
+                    let param_tys = &[anyval_ty, tydesc_ty, retval_ty, tag_ty];
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);
                     let mut attrs = Self::mk_pattrs_for_move_type(1);
                     attrs.push((2, "readonly", None));
                     attrs.push((2, "nonnull", None));
                     attrs.push((3, "readonly", None));
                     attrs.push((3, "nonnull", None));
+                    attrs.push((4, "readonly", None));
+                    attrs.push((4, "nonnull", None));
+                    attrs.push((4, "dereferenceable", Some(32u64)));
                     (llty, attrs)
                 }
-                "exists" => {
-                    debug!(target: "runtime", "Declaring exists function {fn_name}");
-                    // move_from(address: &AnyValue, type: &MoveType) -> T;
-                    let ret_ty = llvm_cx.int_type(1);
+                "borrow_global" => {
+                    debug!(target: "runtime", "Declaring borrow_global function {fn_name}");
+                    // borrow_global(address: &AnyValue, type: &MoveType, retval, type_tag) -> &T;
+                    let ret_ty = llvm_cx.void_type();
                     let tydesc_ty = llvm_cx.ptr_type();
                     let anyval_ty = llvm_cx.ptr_type();
-                    let param_tys = &[anyval_ty, tydesc_ty];
+                    let retval_ty = llvm_cx.ptr_type();
+                    let tag_ty = llvm_cx.ptr_type();
+                    let mut_ty = llvm_cx.int_type(1);
+                    let param_tys = &[anyval_ty, tydesc_ty, retval_ty, tag_ty, mut_ty];
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);
                     let mut attrs = Self::mk_pattrs_for_move_type(1);
                     attrs.push((2, "readonly", None));
                     attrs.push((2, "nonnull", None));
+                    attrs.push((3, "readonly", None));
+                    attrs.push((3, "nonnull", None));
+                    attrs.push((4, "readonly", None));
+                    attrs.push((4, "nonnull", None));
+                    attrs.push((4, "dereferenceable", Some(32u64)));
+                    (llty, attrs)
+                }
+                "exists" => {
+                    debug!(target: "runtime", "Declaring exists function {fn_name}");
+                    // exists(address: &AnyValue, type: &MoveType, type_tag) -> bool;
+                    let ret_ty = llvm_cx.int_type(1);
+                    let tydesc_ty = llvm_cx.ptr_type();
+                    let anyval_ty = llvm_cx.ptr_type();
+                    let tag_ty = llvm_cx.ptr_type();
+                    let param_tys = &[anyval_ty, tydesc_ty, tag_ty];
+                    let llty = llvm::FunctionType::new(ret_ty, param_tys);
+                    let mut attrs = Self::mk_pattrs_for_move_type(1);
+                    attrs.push((2, "readonly", None));
+                    attrs.push((2, "nonnull", None));
+                    attrs.push((3, "readonly", None));
+                    attrs.push((3, "nonnull", None));
+                    attrs.push((3, "dereferenceable", Some(32u64)));
+                    (llty, attrs)
+                }
+                "release" => {
+                    debug!(target: "runtime", "Declaring release function {fn_name}");
+                    // release(address: &AnyValue, type: &MoveType, type_tag);
+                    let ret_ty = llvm_cx.void_type();
+                    let tydesc_ty = llvm_cx.ptr_type();
+                    let anyval_ty = llvm_cx.ptr_type();
+                    let tag_ty = llvm_cx.ptr_type();
+                    let param_tys = &[anyval_ty, tydesc_ty, tag_ty];
+                    let llty = llvm::FunctionType::new(ret_ty, param_tys);
+                    let mut attrs = Self::mk_pattrs_for_move_type(1);
+                    attrs.push((2, "readonly", None));
+                    attrs.push((2, "nonnull", None));
+                    attrs.push((3, "readonly", None));
+                    attrs.push((3, "nonnull", None));
+                    attrs.push((3, "dereferenceable", Some(32u64)));
                     (llty, attrs)
                 }
                 n => panic!("unknown runtime function {n}"),

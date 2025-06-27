@@ -23,7 +23,31 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
-pub fn test_storage() -> anyhow::Result<()> {
+pub fn storage_does_not_exist() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(
+            &mut allocator,
+            "does_not_exist",
+            (signer_address,),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+pub fn storage_store_load() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
@@ -46,7 +70,108 @@ pub fn test_storage() -> anyhow::Result<()> {
 }
 
 #[test]
-pub fn test_store_twice() -> anyhow::Result<()> {
+pub fn storage_store_different() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store2", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "load2", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+pub fn storage_borrow() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "borrow", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+pub fn storage_borrow_mut() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "borrow_mut", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    Ok(())
+}
+
+#[test]
+pub fn storage_borrow_mut_twice() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+
+    instance
+        .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store", (signer_address,))
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    let result = instance
+        .call_typed_and_get_result::<(), (u32,)>(
+            &mut allocator,
+            "borrow_mut_twice",
+            (signer_address,),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_err(),
+        "Expected error when borrowing mutably twice, but got: {:?}",
+        result
+    );
+
+    Ok(())
+}
+
+#[test]
+pub fn storage_store_twice() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
@@ -71,7 +196,7 @@ pub fn test_store_twice() -> anyhow::Result<()> {
 }
 
 #[test]
-pub fn test_load_non_existent() -> anyhow::Result<()> {
+pub fn storage_load_non_existent() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
