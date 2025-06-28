@@ -26,10 +26,12 @@ pub trait Storage {
     fn exists(&mut self, address: MoveAddress, typ: StructTagHash) -> Result<bool, ProgramError>;
 
     /// Release a global value at the specified address with the given tag.
-    fn release(&self, address: MoveAddress, tag: StructTagHash);
+    fn release(&mut self, address: MoveAddress, tag: StructTagHash);
 
     /// Release all global resources.
-    fn release_all(&self);
+    fn release_all(&mut self);
+
+    fn is_borrowed(&self, move_signer: MoveAddress, tag: StructTagHash) -> bool;
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -158,17 +160,20 @@ impl Storage for GlobalStorage {
     }
 
     /// Release a global value at the specified address with the given tag.
-    fn release(&self, address: MoveAddress, tag: StructTagHash) {
+    fn release(&mut self, address: MoveAddress, tag: StructTagHash) {
         debug!("Releasing global value at address {address:?} with tag {tag:x?}",);
 
         let key = Key::new(address, tag);
-        if let Some(entry) = self.storage.get(&key) {
+        if let Some(entry) = self.storage.get_mut(&key) {
             if entry.borrow_mut {
                 // If there's a mutable borrow, we can release it
                 debug!("Released mutable borrow for global at {address:?} with type {tag:?}");
-            } else if entry.borrow_count > 0 {
+                entry.borrow_mut = false;
+            }
+            if entry.borrow_count > 0 {
                 // If there are shared borrows, we just decrement the count
                 debug!("Decremented borrow count for global at {address:?} with type {tag:?}");
+                entry.borrow_count -= 1;
             } else {
                 // No active borrows, nothing to do
                 debug!("No active borrows to release for global at {address:?} with type {tag:?}");
@@ -176,14 +181,29 @@ impl Storage for GlobalStorage {
         } else {
             debug!("No global found at {address:?} with type {tag:?} to release");
         }
+        debug!("storage: {:x?}", &self.storage);
     }
 
-    fn release_all(&self) {
+    fn release_all(&mut self) {
         debug!("Releasing all global resources");
-        for entry in self.storage.keys() {
-            let Key(address, tag) = entry;
-            self.release(*address, *tag);
+        let keys: Vec<(MoveAddress, StructTagHash)> = self
+            .storage
+            .keys()
+            .map(|Key(addr, tag)| (*addr, *tag))
+            .collect();
+        for entry in keys {
+            let (address, tag) = entry;
+            self.release(address, tag);
         }
         debug!("All global resources released");
+    }
+
+    fn is_borrowed(&self, address: MoveAddress, tag: StructTagHash) -> bool {
+        let key = Key::new(address, tag);
+        if let Some(entry) = self.storage.get(&key) {
+            entry.borrow_count > 0 || entry.borrow_mut
+        } else {
+            false
+        }
     }
 }

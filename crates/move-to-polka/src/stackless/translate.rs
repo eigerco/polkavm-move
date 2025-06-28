@@ -1339,24 +1339,42 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             Operation::Drop => {
                 debug!(target: "dwarf", "translate_call Drop dst {dst:#?} src {src:#?}");
                 assert!(dst.is_empty());
-                assert_eq!(src.len(), 1);
-                let idx = src[0];
-                let mty = &self.locals[idx].mty;
-                match mty {
-                    mty::Type::Primitive(_) => ( /* nop */ ),
-                    mty::Type::Struct(m_id, struct_id, types) => {
-                        debug!(target: "dwarf", "Drop mty {mty:?}");
-                        let mty = Type::Struct(*m_id, *struct_id, types.clone());
-                        let idx_llval = self.locals[idx].clone();
-                        self.emit_rtcall(
-                            RtCall::Release(idx_llval.llval.as_any_value(), mty),
-                            &[],
-                            instr,
-                        );
+                if src.len() == 2 {
+                    let address_idx = src[0];
+                    let struct_idx = src[1];
+                    let mty = &self.locals[struct_idx].mty;
+                    debug!(target: "dwarf", "Drop mty {mty:?}");
+                    match mty {
+                        mty::Type::Primitive(_) => ( /* nop */ ),
+                        mty::Type::Struct(m_id, struct_id, types) => {
+                            debug!(target: "dwarf", "Drop mty {mty:?}");
+                            let mty = Type::Struct(*m_id, *struct_id, types.clone());
+                            let idx_llval = self.locals[address_idx].clone();
+                            self.emit_rtcall(
+                                RtCall::Release(idx_llval.llval.as_any_value(), mty),
+                                &[],
+                                instr,
+                            );
+                        }
+                        mty::Type::Reference(kind, typ) => {
+                            debug!(target: "dwarf", "Drop reference mty {mty:?}, kind {kind:?}, typ {typ:?}");
+                            match **typ {
+                                mty::Type::Struct(m_id, struct_id, _) => {
+                                    debug!(target: "dwarf", "Drop reference struct mty {mty:?}");
+                                    let mty = Type::Struct(m_id, struct_id, vec![]);
+                                    let idx_llval = self.locals[address_idx].clone();
+                                    self.emit_rtcall(
+                                        RtCall::Release(idx_llval.llval.as_any_value(), mty),
+                                        &[],
+                                        instr,
+                                    );
+                                }
+                                _ => ( /* nop */ ),
+                            }
+                        }
+                        mty::Type::Vector(_) => {}
+                        _ => todo!("{mty:?}"),
                     }
-                    mty::Type::Reference(_, _) => { /* nop */ }
-                    mty::Type::Vector(_) => {}
-                    _ => todo!("{mty:?}"),
                 }
             }
             Operation::Release => {

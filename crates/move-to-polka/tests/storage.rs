@@ -112,6 +112,14 @@ pub fn storage_borrow() -> anyhow::Result<()> {
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "borrow", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
+    // should have released the borrow
+    let tag: [u8; 32] = [
+        140, 175, 104, 51, 93, 103, 176, 59, 233, 233, 62, 75, 146, 109, 86, 116, 156, 138, 197,
+        255, 19, 217, 64, 48, 181, 63, 171, 97, 181, 234, 157, 250,
+    ];
+    let is_borrowed = allocator.is_borrowed(move_signer.0, tag);
+    assert!(!is_borrowed);
+
     Ok(())
 }
 
@@ -134,6 +142,14 @@ pub fn storage_borrow_mut() -> anyhow::Result<()> {
     instance
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "borrow_mut", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+    // should have released the borrow
+    let tag: [u8; 32] = [
+        140, 175, 104, 51, 93, 103, 176, 59, 233, 233, 62, 75, 146, 109, 86, 116, 156, 138, 197,
+        255, 19, 217, 64, 48, 181, 63, 171, 97, 181, 234, 157, 250,
+    ];
+    let is_borrowed = allocator.is_borrowed(move_signer.0, tag);
+    assert!(!is_borrowed);
 
     Ok(())
 }
