@@ -1,4 +1,3 @@
-use log::info;
 use move_to_polka::{
     initialize_logger,
     linker::{create_blob, create_instance, run_lowlevel},
@@ -34,7 +33,6 @@ pub fn test_run_lowlevel() -> anyhow::Result<()> {
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
     let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
-    info!("Signer address: {signer_address:x?}");
     instance.set_reg(Reg::A0, signer_address as u64);
 
     run_lowlevel(&mut instance, &mut allocator, "pvm_start")?;

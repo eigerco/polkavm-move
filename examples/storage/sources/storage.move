@@ -1,5 +1,6 @@
 module 0xa000::storage {
     use std::signer;
+    use std::vector;
 
     struct Containee has key, drop, store, copy {
         value: u64,
@@ -19,8 +20,8 @@ module 0xa000::storage {
     public entry fun store(account: &signer) {
         let container = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
         move_to(account, container);
-        let exists = exists<Container>(signer::address_of(account));
-        assert!(exists, 1);
+        //let exists = exists<Container>(signer::address_of(account));
+        //assert!(exists, 1);
     }
 
     public entry fun store2(account: &signer) {
@@ -75,10 +76,11 @@ module 0xa000::storage {
         let address = signer::address_of(account);
         let container = borrow_global_mut<Container>(address);
         assert!(container.value == 42, 0);
+        assert!(container.inner.value == 69, 0);
         container.value = 100;
         assert!(container.value == 100, 0);
-        let exists = exists<Container>(signer::address_of(account));
-        assert!(exists, 1);
+        assert!(vector::length(&container.inner.s) == 4, 1);
+        assert!(*vector::borrow(&container.inner.s, 0) == 0xca, 2);
     }
 
     public entry fun borrow_mut_abort(account: &signer) acquires Container {

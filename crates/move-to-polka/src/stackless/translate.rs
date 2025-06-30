@@ -1347,11 +1347,15 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     debug!(target: "dwarf", "Release mty {mty:?}");
                     match mty {
                         mty::Type::Struct(m_id, struct_id, types) => {
-                            debug!(target: "dwarf", "Release mty {mty:?}");
+                            debug!(target: "dwarf", "Release mty {mty:?}, m_id {m_id:?}, struct_id {struct_id:?}, types {types:?}");
                             let mty = Type::Struct(*m_id, *struct_id, types.clone());
                             let idx_llval = self.locals[address_idx].clone();
+                            let slot_ptr = self.locals[struct_idx].llval;
+                            let struct_ty = self.module_cx.llvm_cx.ptr_type();
+                            let struct_ref =
+                                builder.build_load(struct_ty, slot_ptr, "load_struct_ref");
                             self.emit_rtcall(
-                                RtCall::Release(idx_llval.llval.as_any_value(), mty),
+                                RtCall::Release(idx_llval.llval.as_any_value(), struct_ref, mty),
                                 &[],
                                 instr,
                             );
@@ -1359,11 +1363,20 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                         mty::Type::Reference(kind, typ) => {
                             debug!(target: "dwarf", "Release reference mty {mty:?}, kind {kind:?}, typ {typ:?}");
                             if let mty::Type::Struct(m_id, struct_id, _) = **typ {
-                                debug!(target: "dwarf", "Release reference struct mty {mty:?}");
+                                debug!(target: "dwarf", "Release reference struct mty {mty:?}, m_id {m_id:?}, struct_id {struct_id:?}");
                                 let mty = Type::Struct(m_id, struct_id, vec![]);
                                 let idx_llval = self.locals[address_idx].clone();
+                                let slot_ptr = self.locals[struct_idx].llval;
+                                // let struct_ty = self.locals[struct_idx].llty.clone();
+                                let struct_ty = self.module_cx.llvm_cx.ptr_type();
+                                let struct_ref =
+                                    builder.build_load(struct_ty, slot_ptr, "load_struct_ref");
                                 self.emit_rtcall(
-                                    RtCall::Release(idx_llval.llval.as_any_value(), mty),
+                                    RtCall::Release(
+                                        idx_llval.llval.as_any_value(),
+                                        struct_ref,
+                                        mty,
+                                    ),
                                     &[],
                                     instr,
                                 );
@@ -2101,8 +2114,8 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 );
                 self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
             }
-            RtCall::Release(address, ll_type) => {
-                debug!(target: "rtcall", "Release ll_type {ll_type:?}");
+            RtCall::Release(address, struct_val, ll_type) => {
+                debug!(target: "rtcall", "Release ll_type {ll_type:?}: address {address:?} struct_val {struct_val:?}");
                 let llfn = ModuleContext::get_runtime_function(
                     self.module_cx.llvm_cx,
                     self.module_cx.llvm_module,
@@ -2117,6 +2130,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .map(|llval| llval.as_any_value())
                     .collect();
                 typarams.push(*address);
+                typarams.push(*struct_val);
                 let struct_id = match ll_type {
                     mty::Type::Struct(_, struct_id, _) => struct_id,
                     _ => panic!("Expected a struct type for Release call"),
@@ -2195,7 +2209,7 @@ pub enum RtCall {
     MoveFrom(llvm::AnyValue, mty::Type),
     BorrowGlobal(llvm::AnyValue, mty::Type, u32),
     Exists(llvm::AnyValue, mty::Type),
-    Release(llvm::AnyValue, mty::Type),
+    Release(llvm::AnyValue, llvm::AnyValue, mty::Type),
 }
 
 /// Compile the module to object file.

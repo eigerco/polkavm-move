@@ -233,6 +233,7 @@ pub mod conv;
 pub mod guest;
 #[cfg(feature = "host")]
 pub mod host;
+#[cfg(feature = "polkavm")]
 pub mod serialization;
 #[cfg(feature = "host")]
 pub mod storage;
