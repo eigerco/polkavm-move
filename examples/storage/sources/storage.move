@@ -81,6 +81,12 @@ module 0xa000::storage {
         assert!(exists, 1);
     }
 
+    public entry fun borrow_mut_abort(account: &signer) acquires Container {
+        let address = signer::address_of(account);
+        let _container = borrow_global_mut<Container>(address);
+        abort 0;
+    }
+
     public entry fun borrow_mut_twice(account: &signer) acquires Container {
         let address = signer::address_of(account);
         let _container = borrow_global_mut<Container>(address);
