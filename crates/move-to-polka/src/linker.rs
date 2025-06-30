@@ -217,7 +217,11 @@ pub fn create_instance(
         },
     )?;
 
-    linker.define_typed("abort", |code: u64| guest_abort(code))?;
+    linker.define_typed("abort", |caller: Caller<MemAllocator>, code: u64| {
+        let allocator = caller.user_data;
+        let instance = caller.instance;
+        guest_abort(allocator, instance, code)
+    })?;
 
     linker.define_typed(
         "guest_alloc",
@@ -433,7 +437,7 @@ fn handle_ecalli(
         }
         "abort" => {
             let code = instance.reg(Reg::A0);
-            guest_abort(code).ok();
+            guest_abort(allocator, instance, code).ok();
         }
         _ => {}
     }
@@ -457,7 +461,12 @@ fn hash_sha2_256(
     Result::<u32, ProgramError>::Ok(address)
 }
 
-fn guest_abort(code: u64) -> Result<(), ProgramError> {
+fn guest_abort(
+    allocator: &mut MemAllocator,
+    instance: &mut RawInstance,
+    code: u64,
+) -> Result<(), ProgramError> {
+    hexdump(allocator, instance);
     let program_error = match code {
         PANIC_CODE => ProgramError::NativeLibPanic,
         ALLOC_CODE => ProgramError::NativeLibAllocatorCall,
@@ -522,7 +531,6 @@ fn move_from(
     debug!("move_from loaded value: {value:x?}");
     let address = to_move_byte_vector(instance, allocator, value.to_vec())?;
     debug!("move_from returned address: 0x{address:X}");
-    hexdump(allocator, instance);
     Result::<u32, ProgramError>::Ok(address)
 }
 
