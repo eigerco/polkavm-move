@@ -191,8 +191,13 @@ impl MemAllocator {
         self.storage.is_borrowed(move_signer, tag)
     }
 
-    pub fn update(&mut self, address: MoveAddress, tag: [u8; 32], value: Vec<u8>) {
-        self.storage.update(address, tag, value);
+    pub fn update(
+        &mut self,
+        address: MoveAddress,
+        tag: [u8; 32],
+        value: Vec<u8>,
+    ) -> Result<(), ProgramError> {
+        self.storage.update(address, tag, value)
     }
 }
 

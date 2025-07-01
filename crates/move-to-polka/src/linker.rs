@@ -224,7 +224,7 @@ pub fn create_instance(
                 ptr_to_addr,
                 ptr_to_struct,
                 ptr_to_tag,
-            );
+            )
         },
     )?;
 
@@ -493,7 +493,7 @@ fn release(
     ptr_to_addr: u32,
     ptr_to_struct: u32,
     ptr_to_tag: u32,
-) {
+) -> Result<(), ProgramError> {
     debug!(
         "release called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}, value ptr: 0x{ptr_to_struct:X}",
     );
@@ -503,8 +503,9 @@ fn release(
     debug!(
         "release called with type ptr: 0x{ptr_to_type:X}, address: {address:?}, tag: {tag:?}, value: {value:x?}",
     );
-    allocator.update(address, tag, value);
+    allocator.update(address, tag, value)?;
     allocator.release(address, tag);
+    Result::<(), ProgramError>::Ok(())
 }
 
 fn exists(

@@ -33,7 +33,15 @@ pub trait Storage {
 
     fn is_borrowed(&self, move_signer: MoveAddress, tag: StructTagHash) -> bool;
 
-    fn update(&mut self, address: MoveAddress, typ: StructTagHash, value: Vec<u8>);
+    fn update(
+        &mut self,
+        address: MoveAddress,
+        typ: StructTagHash,
+        value: Vec<u8>,
+    ) -> Result<(), ProgramError> {
+        debug!("Updating global value of type {typ:x?} at address {address:?}");
+        self.store(address, typ, value)
+    }
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -113,15 +121,26 @@ impl Storage for GlobalStorage {
     }
 
     /// Update a global value at the specified address with the given type.
-    fn update(&mut self, address: MoveAddress, tag: StructTagHash, value: Vec<u8>) {
+    fn update(
+        &mut self,
+        address: MoveAddress,
+        tag: StructTagHash,
+        value: Vec<u8>,
+    ) -> Result<(), ProgramError> {
         debug!("Storing global value of type {tag:x?} at address {address:?}",);
 
         let key = Key::new(address, tag);
 
-        // update the value in the storage map
-        self.storage.insert(key, GlobalResourceEntry::new(value));
+        let entry = self.storage.get(&key).ok_or_else(|| {
+            ProgramError::MemoryAccess(format!("global not found at {address:?}"))
+        })?;
+        if entry.borrow_mut {
+            // update the value in the storage map if it was mutably borrowed
+            self.storage.insert(key, GlobalResourceEntry::new(value));
+        }
 
-        debug!("storage: {:x?}", &self.storage);
+        debug!("updated storage: {:x?}", &self.storage);
+        Ok(())
     }
 
     /// Load a global value from the specified address with the given type.
