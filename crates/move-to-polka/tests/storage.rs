@@ -125,7 +125,7 @@ pub fn storage_borrow() -> anyhow::Result<()> {
 }
 
 #[test]
-pub fn storage_borrow_mut() -> anyhow::Result<()> {
+pub fn storage_borrow_mut_once() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
@@ -147,6 +147,10 @@ pub fn storage_borrow_mut() -> anyhow::Result<()> {
     // should have released the borrow
     let is_borrowed = allocator.is_borrowed(move_signer.0, TAG);
     assert!(!is_borrowed);
+    let value = allocator
+        .load_global(move_signer.0, TAG, false, false)
+        .unwrap();
+    assert_eq!(value[0], 100);
 
     Ok(())
 }
@@ -206,8 +210,7 @@ pub fn storage_borrow_mut_twice() -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_err(),
-        "Expected error when borrowing mutably twice, but got: {:?}",
-        result
+        "Expected error when borrowing mutably twice, but got: {result:?}",
     );
 
     Ok(())

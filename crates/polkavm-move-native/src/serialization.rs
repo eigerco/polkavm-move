@@ -222,11 +222,13 @@ unsafe fn deserialize_vector(type_elt: &MoveType, bytes: &mut &[u8]) -> MoveUnty
 }
 
 unsafe fn serialize_struct(t: &MoveType, v: &AnyValue, buf: &mut Vec<u8>) {
+    // print_str("serialize_struct");
     assert_eq!(t.type_desc, TypeDesc::Struct);
     let structinfo = &(*(t.type_info)).struct_;
     for (ft, fv, _) in crate::structs::walk_fields(structinfo, v) {
         serialize_to_buf(ft, fv, buf);
     }
+    // print_str("serialize_struct done");
 }
 
 unsafe fn deserialize_struct(t: &MoveType, bytes: &mut &[u8], v: *mut AnyValue) {

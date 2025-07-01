@@ -32,6 +32,8 @@ pub trait Storage {
     fn release_all(&mut self);
 
     fn is_borrowed(&self, move_signer: MoveAddress, tag: StructTagHash) -> bool;
+
+    fn update(&mut self, address: MoveAddress, typ: StructTagHash, value: Vec<u8>);
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -108,6 +110,18 @@ impl Storage for GlobalStorage {
         debug!("storage: {:x?}", &self.storage);
 
         Ok(())
+    }
+
+    /// Update a global value at the specified address with the given type.
+    fn update(&mut self, address: MoveAddress, tag: StructTagHash, value: Vec<u8>) {
+        debug!("Storing global value of type {tag:x?} at address {address:?}",);
+
+        let key = Key::new(address, tag);
+
+        // update the value in the storage map
+        self.storage.insert(key, GlobalResourceEntry::new(value));
+
+        debug!("storage: {:x?}", &self.storage);
     }
 
     /// Load a global value from the specified address with the given type.

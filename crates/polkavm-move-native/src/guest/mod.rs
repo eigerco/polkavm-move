@@ -86,9 +86,9 @@ unsafe extern "C" fn borrow_global(
 ) {
     let address = imports::move_from(type_ve, s1, 0, tag, is_mut);
     let bytevec = &*(address as *const MoveByteVector);
-    // allocate a boxed slice of bytevec.length bytes, deserialized should be smaller so this is safe
+    // allocate a boxed slice of 2*bytevec.length bytes (due to alignment)
     let boxed: alloc::boxed::Box<[u8]> =
-        alloc::vec![0u8; bytevec.length as usize].into_boxed_slice();
+        alloc::vec![0u8; (bytevec.length * 2) as usize].into_boxed_slice();
     let raw = alloc::boxed::Box::into_raw(boxed);
     // Deserialize into the boxed location
     crate::serialization::deserialize(type_ve, bytevec, raw as *mut AnyValue);
@@ -103,8 +103,14 @@ unsafe extern "C" fn exists(type_ve: &MoveType, s: &AnyValue, tag: &AnyValue) ->
 }
 
 #[export_name = "move_rt_release"]
-unsafe extern "C" fn release(type_ve: &MoveType, s: &AnyValue, tag: &AnyValue) {
-    imports::release(type_ve, s, tag);
+unsafe extern "C" fn release(
+    type_ve: &MoveType,
+    s: &AnyValue,
+    struct_ref: &AnyValue,
+    tag: &AnyValue,
+) {
+    let bytes = crate::serialization::serialize(type_ve, struct_ref);
+    imports::release(type_ve, s, &bytes, tag);
 }
 
 #[export_name = "move_native_signer_borrow_address"]
@@ -275,7 +281,7 @@ unsafe fn print_vec(vec: &MoveByteVector) {
 }
 
 #[allow(dead_code)]
-unsafe fn print_str(info: &str) {
+pub unsafe fn print_str(info: &str) {
     let typ_string = MoveType::vec();
     let s = MoveAsciiString {
         bytes: MoveByteVector::from_rust_vec(info.as_bytes().to_vec()),

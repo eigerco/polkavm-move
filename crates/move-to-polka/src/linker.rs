@@ -210,10 +210,21 @@ pub fn create_instance(
 
     linker.define_typed(
         "release",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, ptr_to_tag: u32| {
+        |caller: Caller<MemAllocator>,
+         ptr_to_type: u32,
+         ptr_to_addr: u32,
+         ptr_to_struct: u32,
+         ptr_to_tag: u32| {
             let allocator = caller.user_data;
             let instance = caller.instance;
-            release(allocator, instance, ptr_to_type, ptr_to_addr, ptr_to_tag);
+            release(
+                allocator,
+                instance,
+                ptr_to_type,
+                ptr_to_addr,
+                ptr_to_struct,
+                ptr_to_tag,
+            );
         },
     )?;
 
@@ -480,13 +491,19 @@ fn release(
     instance: &mut RawInstance,
     ptr_to_type: u32,
     ptr_to_addr: u32,
+    ptr_to_struct: u32,
     ptr_to_tag: u32,
 ) {
     debug!(
-        "release called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",
+        "release called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}, value ptr: 0x{ptr_to_struct:X}",
     );
     let address: MoveAddress = copy_from_guest(instance, ptr_to_addr).unwrap();
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag).unwrap_or([0; 32]);
+    let value = from_move_byte_vector(instance, ptr_to_struct).unwrap_or_default();
+    debug!(
+        "release called with type ptr: 0x{ptr_to_type:X}, address: {address:?}, tag: {tag:?}, value: {value:x?}",
+    );
+    allocator.update(address, tag, value);
     allocator.release(address, tag);
 }
 
@@ -671,11 +688,16 @@ fn hexdump(allocator: &MemAllocator, instance: &mut RawInstance) {
         .read_memory(ro_base, 256)
         .unwrap_or_else(|_| vec![]);
     print_mem(ro, ro_base as usize, " RO  ");
-    // let stack_base = 0xfffcf000;
-    // let stack = instance
-    //     .read_memory(stack_base, 4096)
-    //     .unwrap_or_else(|_| vec![]);
-    // print_mem(stack, stack_base as usize, " STACK ");
+    let stack_base = 0xfffcf940;
+    let stack_end = 0xfffd0000;
+    println!(
+        "Stack base: 0x{stack_base:X}, Stack end: 0x{stack_end:X}: len: {}",
+        stack_end - stack_base
+    );
+    let stack = instance
+        .read_memory(stack_base, stack_end - stack_base)
+        .unwrap_or_else(|_| vec![]);
+    print_mem(stack, stack_base as usize, " STACK ");
     let aux = allocator.dump_aux(instance).unwrap_or_else(|_| vec![]);
     let aux_base = allocator.base() as usize;
     print_mem(aux, aux_base, " AUX ");

@@ -190,6 +190,10 @@ impl MemAllocator {
     pub fn is_borrowed(&self, move_signer: MoveAddress, tag: [u8; 32]) -> bool {
         self.storage.is_borrowed(move_signer, tag)
     }
+
+    pub fn update(&mut self, address: MoveAddress, tag: [u8; 32], value: Vec<u8>) {
+        self.storage.update(address, tag, value);
+    }
 }
 
 /// Copy memory guest (aux) -> host
