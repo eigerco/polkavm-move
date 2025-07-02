@@ -320,7 +320,7 @@ pub fn run_lowlevel(
             ALLOWED_IMPORTS
                 .iter()
                 .find(|&&allowed| allowed == import.as_bytes())
-                .map(|&name| (i, std::str::from_utf8(name).unwrap()))
+                .map(|&name| (i, std::str::from_utf8(name).unwrap())) // safe to unwrap since we control the names
         })
         .collect();
 
@@ -497,7 +497,8 @@ fn release(
     debug!(
         "release called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}, value ptr: 0x{ptr_to_struct:X}",
     );
-    let address: MoveAddress = copy_from_guest(instance, ptr_to_addr).unwrap();
+    let address: MoveAddress =
+        copy_from_guest(instance, ptr_to_addr).expect("Failed to copy address from guest");
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag).unwrap_or([0; 32]);
     let value = from_move_byte_vector(instance, ptr_to_struct).unwrap_or_default();
     debug!(
@@ -629,11 +630,8 @@ fn debug_print(
 fn guest_alloc(allocator: &mut MemAllocator, size: u64, align: u64) -> Result<u32, ProgramError> {
     trace!("guest_alloc called with size: {size}, align: {align}");
     let address = allocator
-        .alloc(
-            size.try_into().unwrap(),
-            align.try_into().expect("failed to allocate"),
-        )
-        .unwrap();
+        .alloc(size as usize, align as usize)
+        .expect("Failed to allocate memory");
     trace!("guest_alloc allocated address: 0x{address:X}");
     Result::<u32, ProgramError>::Ok(address)
 }

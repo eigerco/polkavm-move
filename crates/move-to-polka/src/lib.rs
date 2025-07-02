@@ -138,7 +138,9 @@ pub fn get_env_from_source<W: WriteColor>(
 
     for module in env.get_modules() {
         debug!("Move module: {}", module.get_full_name_str());
-        let bytecode = module.get_verified_module().unwrap();
+        let bytecode = module
+            .get_verified_module()
+            .expect("No bytecode attached to module");
         let mut bytes = Vec::with_capacity(2048);
         bytecode.serialize(&mut bytes).ok();
         let path = Path::new(&options.output)
