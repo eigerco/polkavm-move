@@ -1,8 +1,15 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap, fs::create_dir_all, num::NonZero, path::Path, sync::atomic::AtomicBool,
+};
 
 use crate::{options::Options, run_to_polka};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use gix::{
+    progress::Discard,
+    remote::{fetch::Shallow, Direction},
+};
 use log::{debug, info, trace, warn};
+use move_package::source_package::{manifest_parser, parsed_manifest::SubstOrRename};
 use polkavm::{
     Caller, Config, Engine, Instance, InterruptKind, Linker, MemoryAccessError, Module,
     ModuleConfig, ProgramBlob, RawInstance, Reg,
@@ -29,6 +36,7 @@ pub fn parse_to_blob(program_bytes: &[u8]) -> anyhow::Result<ProgramBlob> {
     ProgramBlob::parse(program_bytes.into()).map_err(|e| anyhow::anyhow!("{e:?}"))
 }
 
+#[derive(Debug, Default)]
 pub struct BuildOptions {
     options: Options,
 }
@@ -48,8 +56,8 @@ impl BuildOptions {
         self
     }
 
-    pub fn address_mapping(mut self, mapping: &str) -> Self {
-        self.options.named_address_mapping.push(mapping.to_string());
+    pub fn address_mapping(mut self, mapping: String) -> Self {
+        self.options.named_address_mapping.push(mapping);
         self
     }
 
@@ -94,7 +102,7 @@ pub type MoveProgramLinker = Linker<MemAllocator, ProgramError>;
 pub fn new_move_program(
     output: &str,
     source: &str,
-    mapping: Vec<&str>,
+    mapping: Vec<String>,
 ) -> Result<(Instance<MemAllocator, ProgramError>, MemAllocator), anyhow::Error> {
     create_instance(create_blob(output, source, mapping)?)
 }
@@ -103,20 +111,99 @@ pub fn new_move_program(
 pub fn create_blob(
     output: &str,
     source: &str,
-    mapping: Vec<&str>,
+    mut mapping: Vec<String>,
 ) -> Result<ProgramBlob, anyhow::Error> {
-    pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
-    let move_src = format!("{MOVE_STDLIB_PATH}/sources");
-    let mut build_options = BuildOptions::new(output)
-        .dependency(&move_src)
-        .source(source)
-        .address_mapping("std=0x1");
+    let mut build_options = BuildOptions::new(output);
+    build_options = build_options.source(source);
+    let path = std::path::Path::new(source);
+    let mut dep_sources = vec![];
+    if path.is_dir() {
+        // we've been given a directory, so we assume it's a Move package
+        let toml = path.join("Move.toml");
+        if !toml.exists() {
+            return Err(anyhow::anyhow!(
+                "Move.toml not found in the specified directory: {source}"
+            ));
+        }
+        let manifest = manifest_parser::parse_move_manifest_from_file(&toml)
+            .map_err(|e| anyhow::anyhow!("Failed to parse Move manifest: {e}"))?;
+        manifest
+            .dependencies
+            .values()
+            .chain(manifest.dev_dependencies.values())
+            .for_each(|dep| {
+                let git_url = dep
+                    .git_info
+                    .as_ref()
+                    .map(|g| g.git_url.as_str())
+                    .expect("Dependency must have git_info with git_url");
+                fetch_git_dep(&mut mapping, &mut dep_sources, dep, git_url);
+            });
+    } else {
+        pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
+        let move_src = format!("{MOVE_STDLIB_PATH}/sources");
+        dep_sources.push(move_src.clone());
+        mapping.push("std=0x1".to_owned());
+    };
+    for source in dep_sources {
+        build_options = build_options.dependency(&source);
+    }
     for m in mapping {
         build_options = build_options.address_mapping(m);
     }
     let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
     Ok(blob)
+}
+
+fn fetch_git_dep(
+    mapping: &mut Vec<String>,
+    dep_sources: &mut Vec<String>,
+    dep: &move_package::source_package::parsed_manifest::Dependency,
+    git_url: &str,
+) {
+    let path = Path::new("/tmp/move-deps");
+    create_dir_all(path).expect("Failed to create temporary directory for dependencies");
+    match gix::open(path) {
+        Ok(repo) => {
+            let remote = repo
+                .find_default_remote(Direction::Fetch)
+                .expect("Failed to find default remote")
+                .expect("No default remote found");
+
+            remote
+                .connect(Direction::Fetch)
+                .expect("Failed to connect to remote")
+                .prepare_fetch(Discard, gix::remote::ref_map::Options::default())
+                .expect("Failed to prepare fetch")
+                .with_shallow(Shallow::DepthAtRemote(NonZero::new(1).unwrap()))
+                .receive(Discard, &AtomicBool::new(false))
+                .expect("Failed to fetch from remote");
+        }
+        Err(_) => {
+            let mut prep = gix::prepare_clone(git_url, path)
+                .expect("Failed to prepare clone")
+                .with_shallow(Shallow::DepthAtRemote(NonZero::new(1).unwrap()));
+
+            let (mut checkout, _) = prep
+                .fetch_then_checkout(Discard, &AtomicBool::new(false))
+                .expect("Failed to fetch and checkout");
+            let (_, _) = checkout
+                .main_worktree(Discard, &AtomicBool::new(false))
+                .expect("Failed to checkout main worktree");
+        }
+    };
+    let git_info = dep.git_info.as_ref().unwrap();
+    let source = format!("/tmp/move-deps/{}/sources", git_info.subdir.display());
+    dep_sources.push(source);
+    if let Some(dep_mapping) = dep.subst.as_ref() {
+        for m in dep_mapping {
+            if let SubstOrRename::Assign(ref addr) = m.1 {
+                let mapping_str = format!("{}={}", m.0, addr.to_standard_string());
+                mapping.push(mapping_str);
+            }
+        }
+    }
 }
 
 /// Creates a new PolkaVM instance with the Move program blob.

@@ -9,7 +9,7 @@ module 0x1235::tuplebasic {
         (x as u64) + y
     }
 
-    public entry fun main() {
+    public entry fun main_tuple() {
         let a: u32 = 10;
         let b: u64 = 20;
         let res = add(a, b);

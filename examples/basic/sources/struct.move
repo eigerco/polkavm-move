@@ -8,7 +8,7 @@ module 0x1234::structbasic {
         c.value
     }
 
-    public entry fun main() {
+    public entry fun main_struct() {
         let x: u64 = 10;
         let y: u64 = 20;
         let res = create_counter(x, y);

@@ -1,9 +1,9 @@
 [package]
-name = "entry"
+name = "project"
 version = "1.0.0"
 
 [addresses]
-entry = "0xeeee"
+multi_module = "0x7"
 
 [dependencies]
 MoveStdlib = { git = "https://github.com/joske/move-on-aptos.git", subdir = "language/move-stdlib", rev = "main", addr_subst = { "std" = "0x1" } }
