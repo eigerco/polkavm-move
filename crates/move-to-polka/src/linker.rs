@@ -9,7 +9,9 @@ use gix::{
     remote::{fetch::Shallow, Direction},
 };
 use log::{debug, info, trace, warn};
-use move_package::source_package::{manifest_parser, parsed_manifest::SubstOrRename};
+use move_package::source_package::{
+    layout::SourcePackageLayout, manifest_parser, parsed_manifest::SubstOrRename,
+};
 use polkavm::{
     Caller, Config, Engine, Instance, InterruptKind, Linker, MemoryAccessError, Module,
     ModuleConfig, ProgramBlob, RawInstance, Reg,
@@ -120,13 +122,7 @@ pub fn create_blob(
             "Source must be a directory containing Move.toml: {source}"
         ));
     }
-    // we've been given a directory, so we assume it's a Move package
-    let toml = path.join("Move.toml");
-    if !toml.exists() {
-        return Err(anyhow::anyhow!(
-            "Move.toml not found in the specified directory: {source}"
-        ));
-    }
+    let toml = SourcePackageLayout::try_find_root(path)?;
     let manifest = manifest_parser::parse_move_manifest_from_file(&toml)
         .map_err(|e| anyhow::anyhow!("Failed to parse Move manifest: {e}"))?;
     manifest
@@ -139,7 +135,8 @@ pub fn create_blob(
                 .as_ref()
                 .map(|g| g.git_url.as_str())
                 .expect("Dependency must have git_info with git_url");
-            fetch_git_dep(&mut mapping, &mut dep_sources, dep, git_url);
+            fetch_git_dep(&mut mapping, &mut dep_sources, dep, git_url)
+                .expect("Failed to fetch git dependency");
         });
     for source in dep_sources {
         build_options = build_options.dependency(&source);
@@ -157,49 +154,42 @@ fn fetch_git_dep(
     dep_sources: &mut Vec<String>,
     dep: &move_package::source_package::parsed_manifest::Dependency,
     git_url: &str,
-) {
+) -> Result<(), anyhow::Error> {
     let path = Path::new("/tmp/move-deps");
     create_dir_all(path).expect("Failed to create temporary directory for dependencies");
     match gix::open(path) {
         Ok(repo) => {
             let remote = repo
                 .find_default_remote(Direction::Fetch)
-                .expect("Failed to find default remote")
-                .expect("No default remote found");
+                .expect("Failed to find default remote")?;
 
             remote
-                .connect(Direction::Fetch)
-                .expect("Failed to connect to remote")
-                .prepare_fetch(Discard, gix::remote::ref_map::Options::default())
-                .expect("Failed to prepare fetch")
+                .connect(Direction::Fetch)?
+                .prepare_fetch(Discard, gix::remote::ref_map::Options::default())?
                 .with_shallow(Shallow::DepthAtRemote(NonZero::new(1).unwrap()))
-                .receive(Discard, &AtomicBool::new(false))
-                .expect("Failed to fetch from remote");
+                .receive(Discard, &AtomicBool::new(false))?;
         }
         Err(_) => {
             let mut prep = gix::prepare_clone(git_url, path)
                 .expect("Failed to prepare clone")
                 .with_shallow(Shallow::DepthAtRemote(NonZero::new(1).unwrap()));
 
-            let (mut checkout, _) = prep
-                .fetch_then_checkout(Discard, &AtomicBool::new(false))
-                .expect("Failed to fetch and checkout");
-            let (_, _) = checkout
-                .main_worktree(Discard, &AtomicBool::new(false))
-                .expect("Failed to checkout main worktree");
+            let (mut checkout, _) = prep.fetch_then_checkout(Discard, &AtomicBool::new(false))?;
+            let (_, _) = checkout.main_worktree(Discard, &AtomicBool::new(false))?;
         }
     };
     let git_info = dep.git_info.as_ref().unwrap();
     let source = format!("/tmp/move-deps/{}/sources", git_info.subdir.display());
     dep_sources.push(source);
     if let Some(dep_mapping) = dep.subst.as_ref() {
-        for m in dep_mapping {
-            if let SubstOrRename::Assign(ref addr) = m.1 {
-                let mapping_str = format!("{}={}", m.0, addr.to_standard_string());
+        for (name, subst) in dep_mapping {
+            if let SubstOrRename::Assign(ref addr) = subst {
+                let mapping_str = format!("{}={}", name, addr.to_standard_string());
                 mapping.push(mapping_str);
             }
         }
     }
+    Ok(())
 }
 
 /// Creates a new PolkaVM instance with the Move program blob.
