@@ -8,7 +8,7 @@ module 0xa001::arith {
         a * b
     }
 
-    public entry fun main() {
+    public entry fun main_arith() {
         let mul = mul(10, 20);
         assert!(mul == 200, 0x1002);
         let div = div(100, 20);

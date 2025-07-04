@@ -13,7 +13,7 @@ fn create_blob_once() -> ProgramBlob {
             initialize_logger();
             create_blob(
                 "output/hash_tests/hash_tests.polkavm",
-                "../../examples/hash_tests/sources/hash_tests.move",
+                "../../examples/hash_tests/",
                 vec![],
             )
             .expect("Failed to compile Move source to PolkaVM bytecode")

@@ -1,37 +1,48 @@
-use move_to_polka::{initialize_logger, linker::new_move_program};
-use polkavm::CallError;
+use move_to_polka::{
+    initialize_logger,
+    linker::{create_blob, create_instance},
+};
+use once_cell::sync::OnceCell;
+use polkavm::{CallError, ProgramBlob};
 
 use polkavm_move_native::{
     host::ProgramError,
     types::{MoveAddress, MoveSigner, ACCOUNT_ADDRESS_LENGTH},
 };
-use serial_test::serial;
+
+static COMPILE_ONCE: OnceCell<ProgramBlob> = OnceCell::new();
+
+fn create_blob_once() -> ProgramBlob {
+    COMPILE_ONCE
+        .get_or_init(|| {
+            initialize_logger();
+            create_blob(
+                "output/basic/basic.polkavm",
+                "../../examples/basic/",
+                vec![],
+            )
+            .expect("Failed to compile Move source to PolkaVM bytecode")
+        })
+        .clone()
+}
 
 #[test]
-#[serial]
 pub fn test_void_program_execution() -> anyhow::Result<()> {
     initialize_logger();
-    let (mut instance, mut allocator) = new_move_program(
-        "output/basic/void.polkavm",
-        "../../examples/basic/sources/void.move",
-        vec![],
-    )?;
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "foo", ())
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "main_void", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())
 }
 
 #[test]
-#[serial]
 pub fn test_error() -> anyhow::Result<()> {
     initialize_logger();
-    let (mut instance, mut allocator) = new_move_program(
-        "output/basic/error.polkavm",
-        "../../examples/basic/sources/error.move",
-        vec![],
-    )?;
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
     instance
         .call_typed_and_get_result::<(), ()>(&mut allocator, "error", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -41,16 +52,12 @@ pub fn test_error() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 pub fn test_arith() -> anyhow::Result<()> {
     initialize_logger();
-    let (mut instance, mut allocator) = new_move_program(
-        "output/basic/arith.polkavm",
-        "../../examples/basic/sources/arith.move",
-        vec![],
-    )?;
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<u64, ()>(&mut allocator, "main", ())
+        .call_typed_and_get_result::<u64, ()>(&mut allocator, "main_arith", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     let result = instance
@@ -62,14 +69,10 @@ pub fn test_arith() -> anyhow::Result<()> {
 }
 
 #[test]
-#[serial]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
     initialize_logger();
-    let (mut instance, mut allocator) = new_move_program(
-        "output/basic/basic.polkavm",
-        "../../examples/basic/sources/basic.move",
-        vec![],
-    )?;
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
     let result =
         instance.call_typed_and_get_result::<(), (u64,)>(&mut allocator, "abort_with_code", (42,));
     assert!(matches!(
@@ -87,57 +90,31 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
     let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
 
     instance
-        .call_typed_and_get_result::<(), _>(&mut allocator, "foo", (signer_address,))
+        .call_typed_and_get_result::<(), _>(&mut allocator, "main_basic", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())
 }
 
 #[test]
-#[serial]
 pub fn test_tuple_implementation() -> anyhow::Result<()> {
     initialize_logger();
-    let (mut instance, mut allocator) = new_move_program(
-        "output/basic/tuple.polkavm",
-        "../../examples/basic/sources/tuple.move",
-        vec![],
-    )?;
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<u64, ()>(&mut allocator, "main", ())
+        .call_typed_and_get_result::<u64, ()>(&mut allocator, "main_tuple", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())
 }
 
 #[test]
-#[serial]
 pub fn test_struct() -> anyhow::Result<()> {
     initialize_logger();
-    let (mut instance, mut allocator) = new_move_program(
-        "output/basic/struct.polkavm",
-        "../../examples/basic/sources/struct.move",
-        vec![],
-    )?;
-    // Grab the function and call it.
+    let blob = create_blob_once();
+    let (mut instance, mut allocator) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "main", ())
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-
-    Ok(())
-}
-
-#[test]
-#[serial]
-pub fn test_multi_module_call() -> anyhow::Result<()> {
-    initialize_logger();
-    let (mut instance, mut allocator) = new_move_program(
-        "output/multi_module/multi_module_call.polkavm",
-        "../../examples/multi_module/sources/modules.move",
-        vec![],
-    )?;
-
-    instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "main", ())
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "main_struct", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())

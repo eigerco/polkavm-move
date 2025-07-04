@@ -12,8 +12,8 @@ fn create_blob_once() -> ProgramBlob {
         .get_or_init(|| {
             initialize_logger();
             create_blob(
-                "output/entry/entry.polkavm",
-                "../../examples/entry/",
+                "output/project/project.polkavm",
+                "../../examples/project/",
                 vec![],
             )
             .expect("Failed to compile Move source to PolkaVM bytecode")
@@ -22,12 +22,13 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
-pub fn entry() -> anyhow::Result<()> {
+pub fn test_project() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
-    instance
-        .call_typed_and_get_result::<u32, ()>(&mut allocator, "main", ())
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "main", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_ok());
 
     Ok(())
 }

@@ -89,10 +89,10 @@ Install `move-to-polka` binary:
 cargo install --path crates/move-to-polka
 ```
 
-Compile the given move source file into a PolkaVM module (`output.polkavm` by default):
+Compile the given move project (should contain Move.toml) into a PolkaVM module (`output.polkavm` by default):
 
 ```bash
-move-to-polka examples/basic/sources/vector.move
+move-to-polka examples/vector
 ```
 
 ### `polkavm-wrapper` installation and usage
@@ -112,7 +112,7 @@ polkavm-wrapper -m output.polkavm -e vecnew
 The `polkavm-wrapper` can now also compile the given Move source and link with the Move stdlib and all native functions in one go.
 
 ```bash
-polkavm-wrapper -s examples/basic/sources/vector.move -e vecnew
+polkavm-wrapper -s examples/vector -e vecnew
 ```
 
 The expected output is in both cases similar to:

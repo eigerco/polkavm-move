@@ -1,5 +1,5 @@
 module 0xb000::void {
 
-    public entry fun foo() {
+    public entry fun main_void() {
     }
 }
