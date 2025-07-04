@@ -21,8 +21,6 @@ use polkavm_move_native::{
 };
 use sha2::Digest;
 
-pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
-
 pub fn create_colored_stdout() -> StandardStream {
     let color = if atty::is(atty::Stream::Stderr) && atty::is(atty::Stream::Stdout) {
         ColorChoice::Auto
@@ -117,34 +115,32 @@ pub fn create_blob(
     build_options = build_options.source(source);
     let path = std::path::Path::new(source);
     let mut dep_sources = vec![];
-    if path.is_dir() {
-        // we've been given a directory, so we assume it's a Move package
-        let toml = path.join("Move.toml");
-        if !toml.exists() {
-            return Err(anyhow::anyhow!(
-                "Move.toml not found in the specified directory: {source}"
-            ));
-        }
-        let manifest = manifest_parser::parse_move_manifest_from_file(&toml)
-            .map_err(|e| anyhow::anyhow!("Failed to parse Move manifest: {e}"))?;
-        manifest
-            .dependencies
-            .values()
-            .chain(manifest.dev_dependencies.values())
-            .for_each(|dep| {
-                let git_url = dep
-                    .git_info
-                    .as_ref()
-                    .map(|g| g.git_url.as_str())
-                    .expect("Dependency must have git_info with git_url");
-                fetch_git_dep(&mut mapping, &mut dep_sources, dep, git_url);
-            });
-    } else {
-        pub const MOVE_STDLIB_PATH: &str = env!("MOVE_STDLIB_PATH");
-        let move_src = format!("{MOVE_STDLIB_PATH}/sources");
-        dep_sources.push(move_src.clone());
-        mapping.push("std=0x1".to_owned());
-    };
+    if !path.is_dir() {
+        return Err(anyhow::anyhow!(
+            "Source must be a directory containing Move.toml: {source}"
+        ));
+    }
+    // we've been given a directory, so we assume it's a Move package
+    let toml = path.join("Move.toml");
+    if !toml.exists() {
+        return Err(anyhow::anyhow!(
+            "Move.toml not found in the specified directory: {source}"
+        ));
+    }
+    let manifest = manifest_parser::parse_move_manifest_from_file(&toml)
+        .map_err(|e| anyhow::anyhow!("Failed to parse Move manifest: {e}"))?;
+    manifest
+        .dependencies
+        .values()
+        .chain(manifest.dev_dependencies.values())
+        .for_each(|dep| {
+            let git_url = dep
+                .git_info
+                .as_ref()
+                .map(|g| g.git_url.as_str())
+                .expect("Dependency must have git_info with git_url");
+            fetch_git_dep(&mut mapping, &mut dep_sources, dep, git_url);
+        });
     for source in dep_sources {
         build_options = build_options.dependency(&source);
     }
