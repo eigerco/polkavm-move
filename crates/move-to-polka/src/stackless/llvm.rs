@@ -346,6 +346,7 @@ impl Module {
 
     pub fn add_function(
         &self,
+        exports: &mut Vec<String>,
         module: &str,
         name: &str,
         ty: FunctionType,
@@ -370,7 +371,7 @@ impl Module {
             // TODO: it doesnt feel like the right place for polka section generation just on the fly
             // on any function we need to declare. Its looks more like additional pass when finalizing module
             // but we leave this for now to move forward
-            if polka_export {
+            if polka_export && !exports.contains(&symbol) {
                 let context = LLVMGetModuleContext(self.0);
                 let num_args = LLVMCountParams(function) as u8;
                 add_polkavm_metadata(
@@ -382,6 +383,7 @@ impl Module {
                     num_args,
                     self.1.clone(),
                 );
+                exports.push(symbol.clone());
             }
             Function(function)
         }
@@ -441,20 +443,20 @@ impl Module {
         }
     }
 
-    pub fn declare_known_functions(&self) {
-        // Declare i32 @memcmp(ptr, ptr, i64).
-        unsafe {
-            let cx = LLVMGetModuleContext(self.0);
-            let memcmp_arg_tys: Vec<Type> = vec![
-                Type(LLVMPointerTypeInContext(cx, 0 as libc::c_uint)),
-                Type(LLVMPointerTypeInContext(cx, 0 as libc::c_uint)),
-                Type(LLVMInt64TypeInContext(cx)),
-            ];
-            let memcmp_rty = Type(LLVMInt32TypeInContext(cx));
-            let memcmp_fty = FunctionType::new(memcmp_rty, &memcmp_arg_tys);
-            self.add_function("native", "memcmp", memcmp_fty, false);
-        }
-    }
+    // pub fn declare_known_functions(&self) {
+    //     // Declare i32 @memcmp(ptr, ptr, i64).
+    //     unsafe {
+    //         let cx = LLVMGetModuleContext(self.0);
+    //         let memcmp_arg_tys: Vec<Type> = vec![
+    //             Type(LLVMPointerTypeInContext(cx, 0 as libc::c_uint)),
+    //             Type(LLVMPointerTypeInContext(cx, 0 as libc::c_uint)),
+    //             Type(LLVMInt64TypeInContext(cx)),
+    //         ];
+    //         let memcmp_rty = Type(LLVMInt32TypeInContext(cx));
+    //         let memcmp_fty = FunctionType::new(memcmp_rty, &memcmp_arg_tys);
+    //         self.add_function("native", "memcmp", memcmp_fty, false);
+    //     }
+    // }
 
     pub fn verify(&self) {
         use llvm_sys::analysis::*;
@@ -1710,6 +1712,7 @@ unsafe fn add_polkavm_metadata(
     num_args: u8,
     asm: Rc<RefCell<String>>,
 ) {
+    debug!("Adding PolkaVM metadata for function: {fn_name} in module: {module_name}");
     // Create the metadata symbol
     let i8_type = LLVMInt8TypeInContext(context);
     let array_ty = LLVMArrayType2(i8_type, fn_name.len() as u64);

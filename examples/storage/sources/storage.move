@@ -20,8 +20,8 @@ module 0xa000::storage {
     public entry fun store(account: &signer) {
         let container = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
         move_to(account, container);
-        //let exists = exists<Container>(signer::address_of(account));
-        //assert!(exists, 1);
+        let exists = exists<Container>(signer::address_of(account));
+        assert!(exists, 1);
     }
 
     public entry fun store2(account: &signer) {
