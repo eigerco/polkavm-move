@@ -55,6 +55,10 @@ jobs:
           which ld.lld
           ld.lld --version
 
+      - name: Check ulimit
+        run: |
+          ulimit -a
+
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
