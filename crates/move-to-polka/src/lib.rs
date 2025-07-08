@@ -272,6 +272,8 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
     } else {
         0
     };
+    // Keep a list of exported functions to avoid generating the polkaVM sections multiple times.
+    let mut exports: Vec<String> = vec![];
     // Note: don't reverse order of modules, since DI may be inter module dependent and needs the direct order.
     for mod_id in global_env
         .get_modules()
@@ -287,7 +289,7 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
         let module_source_path = module.get_source_path().to_str().expect("utf-8");
         let mod_cx =
             &mut global_cx.create_module_context(mod_id, &llmod, options, module_source_path);
-        mod_cx.translate();
+        mod_cx.translate(&mut exports);
 
         let mut out_path = out_path.join(&modname);
         out_path.set_extension(&options.output_file_extension);

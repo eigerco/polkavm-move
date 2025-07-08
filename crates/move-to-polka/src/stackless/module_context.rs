@@ -44,7 +44,7 @@ pub struct ModuleContext<'mm: 'up, 'up> {
 }
 
 impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
-    pub fn translate(&mut self) {
+    pub fn translate(&mut self, exports: &mut Vec<String>) {
         let filename = self.env.get_source_path().to_str().expect("utf-8");
         self.llvm_module.set_source_file_name(filename);
         self.llvm_module.set_target(self.target.triple());
@@ -60,7 +60,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
         // Declaring functions will populate list `expanded_functions` containing all
         // concrete Move functions and expanded concrete instances of generic Move functions.
-        self.declare_functions();
+        self.declare_functions(exports);
 
         for fn_qiid in &self.expanded_functions {
             let fn_env = self.env.env.get_function(fn_qiid.to_qualified_id());
@@ -369,7 +369,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
     /// Create LLVM function decls for all local functions and
     /// all extern functions that might be called.
-    fn declare_functions(&mut self) {
+    fn declare_functions(&mut self, exports: &mut Vec<String>) {
         let mod_env = self.env.clone(); // fixme bad clone
 
         // We have previously discovered through experience that some of the model-provided
@@ -385,7 +385,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         // While this results in yet another linear walk over all the code, it seems to be the
         // simplest way to work around the model inconsistencies.
         for fn_env in mod_env.get_functions() {
-            self.declare_functions_walk(&mod_env, &fn_env, vec![]);
+            self.declare_functions_walk(&mod_env, &fn_env, vec![], exports);
         }
     }
 
@@ -394,6 +394,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         mod_env: &mm::ModuleEnv,
         curr_fn_env: &mm::FunctionEnv,
         curr_type_vec: Vec<mty::Type>,
+        exports: &mut Vec<String>,
     ) {
         let g_env = &mod_env.env;
 
@@ -440,7 +441,13 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             return;
         } else if curr_fn_env.get_type_parameter_count() == 0 {
             let curr_fn_qiid = curr_fn_qid.module_id.qualified_inst(curr_fn_qid.id, vec![]);
-            self.declare_move_function(curr_fn_env, &[], &fn_data, curr_fn_env.llvm_linkage());
+            self.declare_move_function(
+                curr_fn_env,
+                &[],
+                &fn_data,
+                curr_fn_env.llvm_linkage(),
+                exports,
+            );
             if curr_fn_qid.module_id != mod_env.get_id() {
                 // True foreign functions are only declared in our module, don't process further.
                 return;
@@ -466,6 +473,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 &curr_type_vec,
                 &fn_data,
                 llvm::LLVMLinkage::LLVMPrivateLinkage,
+                exports,
             );
             self.expanded_functions.push(curr_fn_qiid);
         }
@@ -487,7 +495,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
                 // Recursively discover/declare more functions on this call path.
                 let called_fn_env = g_env.get_function((*mod_id).qualified(*fun_id));
-                self.declare_functions_walk(mod_env, &called_fn_env, types);
+                self.declare_functions_walk(mod_env, &called_fn_env, types, exports);
             }
         }
     }
@@ -498,6 +506,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         tyvec: &[mty::Type],
         fn_data: &FunctionData,
         linkage: llvm::LLVMLinkage,
+        exports: &mut Vec<String>,
     ) {
         let mut linkage = linkage;
         let ll_sym_name = fn_env.llvm_symbol_name(tyvec);
@@ -550,6 +559,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 linkage = llvm::LLVMLinkage::LLVMExternalLinkage;
             }
             let tfn = self.llvm_module.add_function(
+                exports,
                 &fn_env.module_env.llvm_module_name(),
                 &ll_sym_name,
                 ll_fnty,
@@ -621,8 +631,13 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             };
             // native functions are functions imported by guest program and exported by polkavm
             // we don't need to export polka sections for those
-            self.llvm_module
-                .add_function("native", &ll_native_sym_name, ll_fnty, false)
+            self.llvm_module.add_function(
+                &mut vec![],
+                "native",
+                &ll_native_sym_name,
+                ll_fnty,
+                false,
+            )
         };
 
         ll_fn.as_gv().set_linkage(linkage);
@@ -933,7 +948,8 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                         llvm_cx.get_anonymous_struct_type(&[ptr_ty, int_ty, int_ty]),
                     ]);
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);
-                    let ll_fn = llvm_module.add_function("native", &fn_name, llty, false);
+                    let ll_fn =
+                        llvm_module.add_function(&mut vec![], "native", &fn_name, llty, false);
                     llvm_module.add_type_attribute(ll_fn, 1, "sret", ll_sret);
                     return ll_fn;
                 }
@@ -1121,7 +1137,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 n => panic!("unknown runtime function {n}"),
             };
 
-            let ll_fn = llvm_module.add_function("native", &fn_name, llty, false);
+            let ll_fn = llvm_module.add_function(&mut vec![], "native", &fn_name, llty, false);
             llvm_module.add_attributes(ll_fn, &attrs);
             ll_fn
         }

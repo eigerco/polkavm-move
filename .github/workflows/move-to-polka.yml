@@ -4,6 +4,7 @@ permissions:
   contents: read
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -55,6 +56,10 @@ jobs:
           which ld.lld
           ld.lld --version
 
+      - name: Check ulimit
+        run: |
+          ulimit -a
+
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
@@ -76,7 +81,25 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo sysctl -w vm.unprivileged_userfaultfd=1
 
+      - name: Enable core dumps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # allow unlimited-size core files
+          ulimit -c unlimited
+          # choose a place to store them
+          mkdir -p $GITHUB_WORKSPACE/cores
+          # write core files into that dir, with a clear name
+          echo "$GITHUB_WORKSPACE/cores/core.%e.%p.%t" | sudo tee /proc/sys/kernel/core_pattern
+
       - name: Run tests
         env:
           RUST_BACKTRACE: full
         run: cargo test --verbose
+        continue-on-error: true
+
+      - name: Archive core dumps
+        if: matrix.os == 'ubuntu-latest' && failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-dumps
+          path: cores/

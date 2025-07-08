@@ -4,6 +4,7 @@ use move_to_polka::{
 };
 use once_cell::sync::OnceCell;
 use polkavm::ProgramBlob;
+use polkavm_move_native::types::{MoveAddress, MoveSigner, ACCOUNT_ADDRESS_LENGTH};
 
 static COMPILE_ONCE: OnceCell<ProgramBlob> = OnceCell::new();
 
@@ -25,8 +26,17 @@ fn create_blob_once() -> ProgramBlob {
 pub fn test_project() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    // set markers for debug displaying
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+
+    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+
     let result = instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "main", ())
+        .call_typed_and_get_result::<(), _>(&mut allocator, "main", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(result.is_ok());
 

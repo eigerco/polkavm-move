@@ -130,20 +130,42 @@ pub fn create_blob(
         .values()
         .chain(manifest.dev_dependencies.values())
         .for_each(|dep| {
-            let git_url = dep
-                .git_info
-                .as_ref()
-                .map(|g| g.git_url.as_str())
-                .expect("Dependency must have git_info with git_url");
-            fetch_git_dep(&mut mapping, &mut dep_sources, dep, git_url)
-                .expect("Failed to fetch git dependency");
+            if let Some(git_url) = dep.git_info.as_ref().map(|g| g.git_url.as_str()) {
+                fetch_git_dep(&mut mapping, &mut dep_sources, dep, git_url)
+                    .expect("Failed to fetch git dependency");
+            } else {
+                let local_path = path.join(Path::new(&dep.local));
+                if local_path.exists() && local_path.is_dir() {
+                    // check if the directory contains Move.toml
+                    let _toml = SourcePackageLayout::try_find_root(&local_path)
+                        .expect("Failed to find Move.toml in dependency");
+                    if let Some(dep_mapping) = dep.subst.as_ref() {
+                        for (name, subst) in dep_mapping {
+                            if let SubstOrRename::Assign(ref addr) = subst {
+                                let mapping_str = format!("{}={}", name, addr.to_standard_string());
+                                mapping.push(mapping_str);
+                            }
+                        }
+                    }
+                    dep_sources.push(local_path.to_string_lossy().to_string());
+                }
+            }
         });
+    if let Some(addresses) = &manifest.addresses {
+        for (name, addr) in addresses.iter() {
+            if let Some(addr) = addr {
+                let mapping_str = format!("{}={}", name.as_str(), addr.to_standard_string());
+                mapping.push(mapping_str);
+            }
+        }
+    }
     for source in dep_sources {
         build_options = build_options.dependency(&source);
     }
     for m in mapping {
         build_options = build_options.address_mapping(m);
     }
+    debug!("Build options: {build_options:?}");
     let program_bytes = build_polka_from_move(build_options)?;
     let blob = parse_to_blob(&program_bytes)?;
     Ok(blob)
