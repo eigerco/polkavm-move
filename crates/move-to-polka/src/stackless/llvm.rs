@@ -1753,7 +1753,7 @@ unsafe fn add_polkavm_metadata(
         byte_consts_field0.push(LLVMConstInt(i8_type, 0, 0));
     }
     // function name length
-    let bytes_field0 = (fn_name.len() as u32).to_le_bytes();
+    let bytes_field0 = (fn_name.len() as u64).to_le_bytes();
     for &b in &bytes_field0 {
         byte_consts_field0.push(LLVMConstInt(i8_type, b as u64, 0));
     }
@@ -1794,7 +1794,7 @@ unsafe fn add_polkavm_metadata(
 
     asm.borrow_mut().push_str(
         format!(
-        ".pushsection .polkavm_exports,\"R\",@note\n.byte 1\n.4byte {mangled}\n.4byte {mangled_fn_name}\n.popsection\n"
+        ".pushsection .polkavm_exports,\"R\",@note\n.byte 1\n.8byte {mangled}\n.8byte {mangled_fn_name}\n.popsection\n"
     )
         .as_str(),
     );
