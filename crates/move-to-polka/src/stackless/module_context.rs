@@ -14,8 +14,10 @@ use crate::{
 };
 use codespan::Location;
 use llvm_sys::core::{
-    LLVMAppendBasicBlockInContext, LLVMBuildRet, LLVMCreateBuilderInContext,
-    LLVMPositionBuilderAtEnd,
+    LLVMAddCase, LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildCall2, LLVMBuildRet,
+    LLVMBuildSwitch, LLVMBuildUnreachable, LLVMConstInt, LLVMCreateBuilderInContext,
+    LLVMDisposeBuilder, LLVMFunctionType, LLVMGetElementType, LLVMGetParam,
+    LLVMPositionBuilderAtEnd, LLVMTypeOf, LLVMVoidTypeInContext,
 };
 use log::debug;
 use move_binary_format::file_format::SignatureToken;
@@ -26,7 +28,11 @@ use move_stackless_bytecode::{
     stackless_bytecode_generator::StacklessBytecodeGenerator,
 };
 use polkavm_move_native::types::{MOVE_TYPE_DESC_SIZE, MOVE_UNTYPED_VEC_DESC_SIZE};
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::{
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    ffi::CString,
+};
+use tiny_keccak::{Hasher, Keccak};
 
 pub struct ModuleContext<'mm: 'up, 'up> {
     pub env: mm::ModuleEnv<'mm>,
@@ -589,6 +595,15 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         self.fn_decls.insert(fn_env.get_full_name_str(), ll_fn);
     }
 
+    /// Generate the call selector function.
+    /// pallet-revive calls 2 functions: `deploy` and `call`.
+    /// The `call` is implemented in rust to get the input from the
+    /// host and then call `call_selector` to select which actual function to call.
+    /// The input to the contract contains a keccak hash of the function name (first 4 bytes of the keccak hash),
+    /// and `call_selector` will select the function to call based on that hash.
+    /// This method will loop over all declared functions check if the keccak hash of the function name
+    /// matches the input hash, and if so, it will call the function. If no match is found, the
+    /// function should abort.
     fn generate_call_selector(&mut self, exports: &mut Vec<String>) {
         let llvm_cx = self.llvm_cx;
         let llvm_module = self.llvm_module;
@@ -613,12 +628,83 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             let builder = LLVMCreateBuilderInContext(llvm_cx.0);
             LLVMPositionBuilderAtEnd(builder, entry_bb);
             LLVMBuildRet(builder, std::ptr::null_mut());
-            for (name, ll_fn) in &self.fn_decls {
+            // let entry_fn = self
+            //     .fn_decls
+            //     .clone()
+            //     .iter()
+            //     .filter(|(k, v)| *v.is_entry())
+            //     .collect();
+            // get the second parameter, which is the selector
+            let selector = LLVMGetParam(ll_fn.0, 1);
+
+            // build the switch statement
+            let default_bb =
+                LLVMAppendBasicBlockInContext(llvm_cx.0, ll_fn.0, b"default\0".as_ptr() as _);
+            let switch_inst =
+                LLVMBuildSwitch(builder, selector, default_bb, self.fn_decls.len() as u32);
+            for (name, func) in self.fn_decls.iter() {
                 debug!("Adding call selector function {name} to exports");
+                let mut keccak = Keccak::v256();
+                keccak.update(name.as_bytes());
+                let mut hash = [0u8; 32];
+                keccak.finalize(&mut hash);
+                let sel = u32::from_be_bytes([hash[0], hash[1], hash[2], hash[3]]);
+                debug!("Adding call selector function {name} with selector {sel:x?} to exports");
+                // ---- BB for this case --------------------------------------------------
+                let bb_name = CString::new(format!("case_{name}")).unwrap();
+                let case_bb = LLVMAppendBasicBlockInContext(llvm_cx.0, ll_fn.0, bb_name.as_ptr());
+                debug!("Adding case for function {name} with selector {sel:x?} to call selector");
+                LLVMAddCase(
+                    switch_inst,
+                    LLVMConstInt(i64_t.0, sel as u64, /*sign*/ 0),
+                    case_bb,
+                );
+                debug!("Added case for function {name} with selector {sel:x?} to call selector");
+
+                // ---- Build:   ret entry_fn(calldata)  ----------------------------------
+                LLVMPositionBuilderAtEnd(builder, case_bb);
+
+                // Adapt this to your ABI – here I pass calldata pointer only
+                // let args = [LLVMGetParam(ll_fn.0, 0)]; // calldata *const u8
+                // debug!("got argument: {:?}: len {}", args[0], args.len());
+                let fn_type = LLVMGetElementType(LLVMTypeOf(func.0)).cast();
+                debug!("Function type: {:?}", fn_type);
+                LLVMBuildCall2(
+                    builder,
+                    fn_type, // callee's fn type
+                    func.0,
+                    // args.as_ptr() as *mut _,
+                    std::ptr::null_mut(), // no args for now
+                    // args.len() as u32,
+                    0,
+                    b"call_selected\0".as_ptr() as _,
+                );
+                debug!("built call");
+                LLVMBuildRet(builder, std::ptr::null_mut());
+                debug!("built return");
             }
+            debug!("Added all cases to call selector");
+            // === default: revert(0) or unreachable() ===============================
+            LLVMPositionBuilderAtEnd(builder, default_bb);
+
+            // simplest: call `abort()` import PolkaVM already provides
+            let abort_ty =
+                LLVMFunctionType(LLVMVoidTypeInContext(llvm_cx.0), std::ptr::null_mut(), 0, 0);
+            let abort_fn = LLVMAddFunction(llvm_module.0, b"abort\0".as_ptr() as _, abort_ty);
+            LLVMBuildCall2(
+                builder,
+                abort_ty,
+                abort_fn,
+                std::ptr::null_mut(),
+                0,
+                b"call_abort\0".as_ptr() as _,
+            );
+            LLVMBuildUnreachable(builder);
+            LLVMDisposeBuilder(builder);
         }
         exports.push("call_selector".to_string());
     }
+
     /// Declare native functions.
     ///
     /// Native functions are unlike Move functions in that they
