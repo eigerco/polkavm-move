@@ -218,15 +218,15 @@ fn fetch_git_dep(
 pub fn create_instance(
     blob: ProgramBlob,
 ) -> Result<(Instance<MemAllocator, ProgramError>, MemAllocator), anyhow::Error> {
+    // AUX segment is used to inject data into the guest. The guest allocates on the heap
+    // using the LeakingAllocator.
     const AUX_DATA_SIZE: u32 = 4 * 1024;
-    let mut config = Config::from_env()?;
-    config.set_allow_dynamic_paging(true);
+    let config = Config::from_env()?;
 
     let mut module_config = ModuleConfig::new();
     // enforce module loading fail if not all host functions are provided
     module_config.set_strict(true);
     module_config.set_aux_data_size(AUX_DATA_SIZE);
-    module_config.set_dynamic_paging(true);
 
     let engine = Engine::new(&config)?;
     let module = Module::from_blob(&engine, &module_config, blob.clone())?;
@@ -360,22 +360,18 @@ pub fn create_instance(
 
     // Instantiate the module.
     let mut instance = instance_pre.instantiate()?;
-    // zero stack
-    let stack_size = module.memory_map().stack_size();
-    instance.zero_memory(module.memory_map().stack_address_low(), stack_size)?;
-    // write RW data
-    let blob = blob.clone();
-    let data = blob.rw_data();
-    instance.write_memory(module.memory_map().rw_data_address(), data)?;
-    // write RO data to memory.
-    let blob = blob.clone();
-    let data = blob.ro_data();
-    instance.write_memory(module.memory_map().ro_data_address(), data)?;
     // zero aux data
     instance.zero_memory(
         module.memory_map().aux_data_address(),
         module.memory_map().aux_data_size(),
     )?;
+    debug!(
+        "Module loaded with RW data size: {}, RO data size: {}, aux data size: {}, heap start: {:x?}",
+        module.memory_map().rw_data_size(),
+        module.memory_map().ro_data_size(),
+        module.memory_map().aux_data_size(),
+        module.memory_map().heap_base(),
+    );
     Ok((instance, allocator))
 }
 
@@ -792,6 +788,11 @@ fn hexdump(allocator: &MemAllocator, instance: &mut RawInstance) {
         .read_memory(stack_base, stack_end - stack_base)
         .unwrap_or_else(|_| vec![]);
     print_mem(stack, stack_base as usize, " STACK ");
+    let heap_base = instance.module().memory_map().heap_base();
+    let heap = instance
+        .read_memory(heap_base, 256)
+        .unwrap_or_else(|_| vec![]);
+    print_mem(heap, heap_base as usize, " HEAP ");
     let aux = allocator.dump_aux(instance).unwrap_or_else(|_| vec![]);
     let aux_base = allocator.base() as usize;
     print_mem(aux, aux_base, " AUX ");
