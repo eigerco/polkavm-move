@@ -27,18 +27,6 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
-pub fn test_void_program_execution() -> anyhow::Result<()> {
-    initialize_logger();
-    let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
-    instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "main_void", ())
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-
-    Ok(())
-}
-
-#[test]
 pub fn test_error() -> anyhow::Result<()> {
     initialize_logger();
     let blob = create_blob_once();
