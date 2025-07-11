@@ -66,15 +66,24 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         // concrete Move functions and expanded concrete instances of generic Move functions.
         self.declare_functions(exports);
 
+        let mut has_entry = false;
+
         for fn_qiid in &self.expanded_functions {
             let fn_env = self.env.env.get_function(fn_qiid.to_qualified_id());
+            if fn_env.is_entry() {
+                has_entry = true;
+            }
             assert!(!fn_env.is_native());
             self.rtty_cx.reset_func(fn_qiid);
             let fn_cx = self.create_fn_context(fn_env, self, &fn_qiid.inst);
             fn_cx.translate();
         }
 
-        Self::generate_call_selector(&self.llvm_module, &self.llvm_cx, exports);
+        if has_entry {
+            // only generate the call selector if there is an entry function (this is likely the
+            // main module).
+            self.generate_call_selector(exports);
+        }
 
         self.llvm_di_builder
             .print_log_unresoled_types(UnresolvedPrintLogLevel::Warning);
@@ -580,6 +589,36 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         self.fn_decls.insert(fn_env.get_full_name_str(), ll_fn);
     }
 
+    fn generate_call_selector(&mut self, exports: &mut Vec<String>) {
+        let llvm_cx = self.llvm_cx;
+        let llvm_module = self.llvm_module;
+        if exports.contains(&"call_selector".to_string()) {
+            debug!("call_selector already declared, skipping");
+            return;
+        }
+        let i64_t = llvm_cx.int_type(64);
+        let i8_p = llvm_cx.ptr_type();
+        let ret_ty = llvm_cx.void_type();
+
+        let param_tys = [i8_p, i64_t];
+        let llty = llvm::FunctionType::new(ret_ty, &param_tys);
+        let ll_fn = llvm_module.add_function(&mut vec![], "native", "call_selector", llty, false);
+        let mut attrs = Vec::new();
+        attrs.push((1, "readonly", None));
+        attrs.push((1, "nonnull", None));
+        llvm_module.add_attributes(ll_fn, &attrs);
+        unsafe {
+            let entry_bb =
+                LLVMAppendBasicBlockInContext(llvm_cx.0, ll_fn.0, b"entry\0".as_ptr() as _);
+            let builder = LLVMCreateBuilderInContext(llvm_cx.0);
+            LLVMPositionBuilderAtEnd(builder, entry_bb);
+            LLVMBuildRet(builder, std::ptr::null_mut());
+            for (name, ll_fn) in &self.fn_decls {
+                debug!("Adding call selector function {name} to exports");
+            }
+        }
+        exports.push("call_selector".to_string());
+    }
     /// Declare native functions.
     ///
     /// Native functions are unlike Move functions in that they
@@ -1183,35 +1222,5 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             attrs.push((attr_idx, "readonly", None));
         }
         attrs
-    }
-
-    fn generate_call_selector(
-        llvm_module: &'up llvm::Module,
-        llvm_cx: &'up llvm::Context,
-        exports: &mut Vec<String>,
-    ) {
-        if exports.contains(&"call_selector".to_string()) {
-            debug!("call_selector already declared, skipping");
-            return;
-        }
-        let i64_t = llvm_cx.int_type(64);
-        let i8_p = llvm_cx.ptr_type();
-        let ret_ty = llvm_cx.void_type();
-
-        let param_tys = [i8_p, i64_t];
-        let llty = llvm::FunctionType::new(ret_ty, &param_tys);
-        let ll_fn = llvm_module.add_function(&mut vec![], "native", "call_selector", llty, false);
-        let mut attrs = Vec::new();
-        attrs.push((1, "readonly", None));
-        attrs.push((1, "nonnull", None));
-        llvm_module.add_attributes(ll_fn, &attrs);
-        unsafe {
-            let entry_bb =
-                LLVMAppendBasicBlockInContext(llvm_cx.0, ll_fn.0, b"entry\0".as_ptr() as _);
-            let builder = LLVMCreateBuilderInContext(llvm_cx.0);
-            LLVMPositionBuilderAtEnd(builder, entry_bb);
-            LLVMBuildRet(builder, std::ptr::null_mut());
-        }
-        exports.push("call_selector".to_string());
     }
 }
