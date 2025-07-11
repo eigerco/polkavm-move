@@ -23,7 +23,7 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "call", ())
+        .call_typed_and_get_result::<(), ()>(&mut allocator, "main_void", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())

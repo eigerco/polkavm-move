@@ -13,6 +13,10 @@ use crate::{
     },
 };
 use codespan::Location;
+use llvm_sys::core::{
+    LLVMAppendBasicBlockInContext, LLVMBuildRet, LLVMCreateBuilderInContext,
+    LLVMPositionBuilderAtEnd,
+};
 use log::debug;
 use move_binary_format::file_format::SignatureToken;
 use move_core_types::u256::U256;
@@ -69,6 +73,8 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             let fn_cx = self.create_fn_context(fn_env, self, &fn_qiid.inst);
             fn_cx.translate();
         }
+
+        Self::generate_call_selector(&self.llvm_module, &self.llvm_cx, exports);
 
         self.llvm_di_builder
             .print_log_unresoled_types(UnresolvedPrintLogLevel::Warning);
@@ -1177,5 +1183,35 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             attrs.push((attr_idx, "readonly", None));
         }
         attrs
+    }
+
+    fn generate_call_selector(
+        llvm_module: &'up llvm::Module,
+        llvm_cx: &'up llvm::Context,
+        exports: &mut Vec<String>,
+    ) {
+        if exports.contains(&"call_selector".to_string()) {
+            debug!("call_selector already declared, skipping");
+            return;
+        }
+        let i64_t = llvm_cx.int_type(64);
+        let i8_p = llvm_cx.ptr_type();
+        let ret_ty = llvm_cx.void_type();
+
+        let param_tys = [i8_p, i64_t];
+        let llty = llvm::FunctionType::new(ret_ty, &param_tys);
+        let ll_fn = llvm_module.add_function(&mut vec![], "native", "call_selector", llty, false);
+        let mut attrs = Vec::new();
+        attrs.push((1, "readonly", None));
+        attrs.push((1, "nonnull", None));
+        llvm_module.add_attributes(ll_fn, &attrs);
+        unsafe {
+            let entry_bb =
+                LLVMAppendBasicBlockInContext(llvm_cx.0, ll_fn.0, b"entry\0".as_ptr() as _);
+            let builder = LLVMCreateBuilderInContext(llvm_cx.0);
+            LLVMPositionBuilderAtEnd(builder, entry_bb);
+            LLVMBuildRet(builder, std::ptr::null_mut());
+        }
+        exports.push("call_selector".to_string());
     }
 }

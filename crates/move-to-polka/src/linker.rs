@@ -252,6 +252,22 @@ pub fn create_instance(
         },
     )?;
 
+    const CALL_DATA: &[u8] = &hex_literal::hex!(
+        "a9059cbb000000000000000000000000f24ff3a9cf04c71dbc94d0b566f7a27b94566cac\
+     0000000000000000000000000000000000000000000000000000000000000000"
+    );
+    linker.define_typed("call_data_size", || CALL_DATA.len() as u64)?;
+    linker.define_typed("call_selector", || {})?;
+
+    linker.define_typed(
+        "call_data_load",
+        |caller: Caller<MemAllocator>, ptr_to_buf: u32, _offset: u32| {
+            let instance = caller.instance;
+            instance.write_memory(ptr_to_buf, CALL_DATA)?;
+            Result::<(), ProgramError>::Ok(())
+        },
+    )?;
+
     linker.define_typed(
         "move_to",
         |caller: Caller<MemAllocator>,
@@ -323,11 +339,16 @@ pub fn create_instance(
         },
     )?;
 
-    linker.define_typed("abort", |caller: Caller<MemAllocator>, code: u64| {
-        let allocator = caller.user_data;
-        let instance = caller.instance;
-        guest_abort(allocator, instance, code)
-    })?;
+    linker.define_typed(
+        "terminate",
+        |caller: Caller<MemAllocator>, ptr_to_beneficiary: u32| {
+            let allocator = caller.user_data;
+            let instance = caller.instance;
+            let beneficiary = copy_bytes_from_guest(instance, ptr_to_beneficiary, 20)
+                .expect("Failed to copy beneficiary address from guest");
+            guest_abort(allocator, instance, beneficiary[0] as u64)
+        },
+    )?;
 
     linker.define_typed(
         "hash_sha2_256",
@@ -387,7 +408,7 @@ pub fn run_lowlevel(
     const ALLOWED_IMPORTS: &[&[u8]] = &[
         b"debug_print",
         b"hex_dump",
-        b"abort",
+        b"terminate",
         b"move_to",
         b"move_from",
         b"exists",
@@ -522,7 +543,7 @@ fn handle_ecalli(
                 hash_sha3_256(allocator, instance, ptr_to_vec).expect("Failed calculate hash");
             instance.set_reg(Reg::A0, result as u64);
         }
-        "abort" => {
+        "terminate" => {
             let code = instance.reg(Reg::A0);
             guest_abort(allocator, instance, code).ok();
         }
