@@ -12,11 +12,6 @@ extern "C" {
 
 #[polkavm_derive::polkavm_import]
 extern "C" {
-    pub fn guest_alloc(size: u64, align: u64) -> u32;
-}
-
-#[polkavm_derive::polkavm_import]
-extern "C" {
     pub(crate) fn hash_sha2_256(v: *const MoveByteVector) -> u32;
 }
 

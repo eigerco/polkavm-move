@@ -8,7 +8,7 @@ use gix::{
     progress::Discard,
     remote::{fetch::Shallow, Direction},
 };
-use log::{debug, info, trace, warn};
+use log::{debug, info, warn};
 use move_package::source_package::{
     layout::SourcePackageLayout, manifest_parser, parsed_manifest::SubstOrRename,
 };
@@ -330,13 +330,6 @@ pub fn create_instance(
     })?;
 
     linker.define_typed(
-        "guest_alloc",
-        |caller: Caller<MemAllocator>, size: u64, align: u64| {
-            guest_alloc(caller.user_data, size, align)
-        },
-    )?;
-
-    linker.define_typed(
         "hash_sha2_256",
         |caller: Caller<MemAllocator>, ptr_to_buf: u32| {
             let allocator = caller.user_data;
@@ -394,7 +387,6 @@ pub fn run_lowlevel(
     const ALLOWED_IMPORTS: &[&[u8]] = &[
         b"debug_print",
         b"hex_dump",
-        b"guest_alloc",
         b"abort",
         b"move_to",
         b"move_from",
@@ -516,13 +508,6 @@ fn handle_ecalli(
             let ptr_to_tag = instance.reg(Reg::A2) as u32;
             let result = exists(allocator, instance, ptr_to_type, ptr_to_signer, ptr_to_tag)
                 .expect("Failed to check if global exists");
-            instance.set_reg(Reg::A0, result as u64);
-        }
-        "guest_alloc" => {
-            let size = instance.reg(Reg::A0);
-            let align = instance.reg(Reg::A1);
-            let result =
-                guest_alloc(allocator, size, align).expect("Failed to allocate guest memory");
             instance.set_reg(Reg::A0, result as u64);
         }
         "hash_sha2_256" => {
@@ -716,15 +701,6 @@ fn debug_print(
         debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
     }
     Result::<(), ProgramError>::Ok(())
-}
-
-fn guest_alloc(allocator: &mut MemAllocator, size: u64, align: u64) -> Result<u32, ProgramError> {
-    trace!("guest_alloc called with size: {size}, align: {align}");
-    let address = allocator
-        .alloc(size as usize, align as usize)
-        .expect("Failed to allocate memory");
-    trace!("guest_alloc allocated address: 0x{address:X}");
-    Result::<u32, ProgramError>::Ok(address)
 }
 
 fn hash_sha3_256(
