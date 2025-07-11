@@ -24,7 +24,7 @@ module 0xe::entry_bar {
         debug::print(&rv);
     }
 
-    public entry fun main() {
+    public entry fun main(account: &signer) {
         let t = 0xc::token::new(@0x1);
         let coin = Coin { token: t, value: 100 };
         bar(&coin);

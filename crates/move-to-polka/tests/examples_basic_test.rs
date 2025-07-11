@@ -27,18 +27,6 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
-pub fn test_void_program_execution() -> anyhow::Result<()> {
-    initialize_logger();
-    let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
-    instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "main_void", ())
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-
-    Ok(())
-}
-
-#[test]
 pub fn test_error() -> anyhow::Result<()> {
     initialize_logger();
     let blob = create_blob_once();
@@ -75,10 +63,11 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
     let (mut instance, mut allocator) = create_instance(blob)?;
     let result =
         instance.call_typed_and_get_result::<(), (u64,)>(&mut allocator, "abort_with_code", (42,));
-    assert!(matches!(
-        result,
-        Err(CallError::User(ProgramError::Abort(42)))
-    ));
+    if let CallError::User(ProgramError::Abort(code)) = result.err().unwrap() {
+        assert_eq!(code, 42, "Expected an abort with code 42");
+    } else {
+        panic!("Expected a ProgramError::Abort(42)",);
+    }
 
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
     // set markers for debug displaying

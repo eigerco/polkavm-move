@@ -8,7 +8,7 @@ use gix::{
     progress::Discard,
     remote::{fetch::Shallow, Direction},
 };
-use log::{debug, info, trace, warn};
+use log::{debug, info, warn};
 use move_package::source_package::{
     layout::SourcePackageLayout, manifest_parser, parsed_manifest::SubstOrRename,
 };
@@ -218,15 +218,15 @@ fn fetch_git_dep(
 pub fn create_instance(
     blob: ProgramBlob,
 ) -> Result<(Instance<MemAllocator, ProgramError>, MemAllocator), anyhow::Error> {
+    // AUX segment is used to inject data into the guest. The guest allocates on the heap
+    // using the LeakingAllocator.
     const AUX_DATA_SIZE: u32 = 4 * 1024;
-    let mut config = Config::from_env()?;
-    config.set_allow_dynamic_paging(true);
+    let config = Config::from_env()?;
 
     let mut module_config = ModuleConfig::new();
     // enforce module loading fail if not all host functions are provided
     module_config.set_strict(true);
     module_config.set_aux_data_size(AUX_DATA_SIZE);
-    module_config.set_dynamic_paging(true);
 
     let engine = Engine::new(&config)?;
     let module = Module::from_blob(&engine, &module_config, blob.clone())?;
@@ -249,6 +249,21 @@ pub fn create_instance(
         |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_data: u32| {
             let instance = caller.instance;
             debug_print(instance, ptr_to_type, ptr_to_data)
+        },
+    )?;
+
+    const CALL_DATA: &[u8] = &hex_literal::hex!(
+        "1e01a479000000000000000000000000f24ff3a9cf04c71dbc94d0b566f7a27b94566cac0000000000000000000000000000000000000000000000000000000000000000"
+    );
+    linker.define_typed("call_data_size", || CALL_DATA.len() as u64)?;
+    linker.define_typed("call_selector", || {})?;
+
+    linker.define_typed(
+        "call_data_copy",
+        |caller: Caller<MemAllocator>, ptr_to_buf: u32, _size: u32, _offset: u32| {
+            let instance = caller.instance;
+            instance.write_memory(ptr_to_buf, CALL_DATA)?;
+            Result::<(), ProgramError>::Ok(())
         },
     )?;
 
@@ -277,9 +292,9 @@ pub fn create_instance(
         |caller: Caller<MemAllocator>,
          ptr_to_type: u32,
          ptr_to_addr: u32,
-         remove_u32: u32,
+         remove: u32,
          ptr_to_tag: u32,
-         is_mut_u32: u32| {
+         is_mut: u32| {
             let instance = caller.instance;
             let allocator = caller.user_data;
             move_from(
@@ -287,9 +302,9 @@ pub fn create_instance(
                 instance,
                 ptr_to_type,
                 ptr_to_addr,
-                remove_u32,
+                remove,
                 ptr_to_tag,
-                is_mut_u32,
+                is_mut,
             )
         },
     )?;
@@ -323,16 +338,14 @@ pub fn create_instance(
         },
     )?;
 
-    linker.define_typed("abort", |caller: Caller<MemAllocator>, code: u64| {
-        let allocator = caller.user_data;
-        let instance = caller.instance;
-        guest_abort(allocator, instance, code)
-    })?;
-
     linker.define_typed(
-        "guest_alloc",
-        |caller: Caller<MemAllocator>, size: u64, align: u64| {
-            guest_alloc(caller.user_data, size, align)
+        "terminate",
+        |caller: Caller<MemAllocator>, ptr_to_beneficiary: u32| {
+            let allocator = caller.user_data;
+            let instance = caller.instance;
+            let beneficiary = copy_bytes_from_guest(instance, ptr_to_beneficiary, 20)
+                .expect("Failed to copy beneficiary address from guest");
+            guest_abort(allocator, instance, beneficiary[0] as u64)
         },
     )?;
 
@@ -360,22 +373,18 @@ pub fn create_instance(
 
     // Instantiate the module.
     let mut instance = instance_pre.instantiate()?;
-    // zero stack
-    let stack_size = module.memory_map().stack_size();
-    instance.zero_memory(module.memory_map().stack_address_low(), stack_size)?;
-    // write RW data
-    let blob = blob.clone();
-    let data = blob.rw_data();
-    instance.write_memory(module.memory_map().rw_data_address(), data)?;
-    // write RO data to memory.
-    let blob = blob.clone();
-    let data = blob.ro_data();
-    instance.write_memory(module.memory_map().ro_data_address(), data)?;
     // zero aux data
     instance.zero_memory(
         module.memory_map().aux_data_address(),
         module.memory_map().aux_data_size(),
     )?;
+    debug!(
+        "Module loaded with RW data size: {}, RO data size: {}, aux data size: {}, heap start: {:x?}",
+        module.memory_map().rw_data_size(),
+        module.memory_map().ro_data_size(),
+        module.memory_map().aux_data_size(),
+        module.memory_map().heap_base(),
+    );
     Ok((instance, allocator))
 }
 
@@ -398,8 +407,7 @@ pub fn run_lowlevel(
     const ALLOWED_IMPORTS: &[&[u8]] = &[
         b"debug_print",
         b"hex_dump",
-        b"guest_alloc",
-        b"abort",
+        b"terminate",
         b"move_to",
         b"move_from",
         b"exists",
@@ -522,13 +530,6 @@ fn handle_ecalli(
                 .expect("Failed to check if global exists");
             instance.set_reg(Reg::A0, result as u64);
         }
-        "guest_alloc" => {
-            let size = instance.reg(Reg::A0);
-            let align = instance.reg(Reg::A1);
-            let result =
-                guest_alloc(allocator, size, align).expect("Failed to allocate guest memory");
-            instance.set_reg(Reg::A0, result as u64);
-        }
         "hash_sha2_256" => {
             let ptr_to_vec = instance.reg(Reg::A0) as u32;
             let result =
@@ -541,7 +542,7 @@ fn handle_ecalli(
                 hash_sha3_256(allocator, instance, ptr_to_vec).expect("Failed calculate hash");
             instance.set_reg(Reg::A0, result as u64);
         }
-        "abort" => {
+        "terminate" => {
             let code = instance.reg(Reg::A0);
             guest_abort(allocator, instance, code).ok();
         }
@@ -722,15 +723,6 @@ fn debug_print(
     Result::<(), ProgramError>::Ok(())
 }
 
-fn guest_alloc(allocator: &mut MemAllocator, size: u64, align: u64) -> Result<u32, ProgramError> {
-    trace!("guest_alloc called with size: {size}, align: {align}");
-    let address = allocator
-        .alloc(size as usize, align as usize)
-        .expect("Failed to allocate memory");
-    trace!("guest_alloc allocated address: 0x{address:X}");
-    Result::<u32, ProgramError>::Ok(address)
-}
-
 fn hash_sha3_256(
     allocator: &mut MemAllocator,
     instance: &mut RawInstance,
@@ -792,6 +784,11 @@ fn hexdump(allocator: &MemAllocator, instance: &mut RawInstance) {
         .read_memory(stack_base, stack_end - stack_base)
         .unwrap_or_else(|_| vec![]);
     print_mem(stack, stack_base as usize, " STACK ");
+    let heap_base = instance.module().memory_map().heap_base();
+    let heap = instance
+        .read_memory(heap_base, 256)
+        .unwrap_or_else(|_| vec![]);
+    print_mem(heap, heap_base as usize, " HEAP ");
     let aux = allocator.dump_aux(instance).unwrap_or_else(|_| vec![]);
     let aux_base = allocator.base() as usize;
     print_mem(aux, aux_base, " AUX ");

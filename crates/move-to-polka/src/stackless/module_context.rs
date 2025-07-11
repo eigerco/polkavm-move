@@ -23,6 +23,7 @@ use move_stackless_bytecode::{
 };
 use polkavm_move_native::types::{MOVE_TYPE_DESC_SIZE, MOVE_UNTYPED_VEC_DESC_SIZE};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use tiny_keccak::{Hasher, Keccak};
 
 pub struct ModuleContext<'mm: 'up, 'up> {
     pub env: mm::ModuleEnv<'mm>,
@@ -35,6 +36,7 @@ pub struct ModuleContext<'mm: 'up, 'up> {
     /// All functions that might be called are declared prior to function translation.
     /// This includes local functions and dependencies.
     pub fn_decls: BTreeMap<String, llvm::Function>,
+    pub fn_is_entry: BTreeMap<String, bool>,
     pub expanded_functions: Vec<mm::QualifiedInstId<mm::FunId>>,
     pub target: TargetPlatform,
     pub target_machine: &'up TargetMachine,
@@ -62,12 +64,23 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         // concrete Move functions and expanded concrete instances of generic Move functions.
         self.declare_functions(exports);
 
+        let mut has_entry = false;
+
         for fn_qiid in &self.expanded_functions {
             let fn_env = self.env.env.get_function(fn_qiid.to_qualified_id());
+            if fn_env.is_entry() {
+                has_entry = true;
+            }
             assert!(!fn_env.is_native());
             self.rtty_cx.reset_func(fn_qiid);
             let fn_cx = self.create_fn_context(fn_env, self, &fn_qiid.inst);
             fn_cx.translate();
+        }
+
+        if has_entry {
+            // only generate the call selector if there is an entry function
+            // Assumption: no other module contains an entry function
+            self.generate_call_selector(exports);
         }
 
         self.llvm_di_builder
@@ -572,6 +585,95 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         ll_fn.as_gv().set_linkage(linkage);
         debug!("Adding declared {ll_sym_name} to current module");
         self.fn_decls.insert(fn_env.get_full_name_str(), ll_fn);
+        self.fn_is_entry
+            .insert(fn_env.get_full_name_str(), fn_env.is_entry());
+    }
+
+    /// Generate the call selector function.
+    /// pallet-revive calls 2 functions: `deploy` and `call`.
+    /// The `call` is implemented in rust to get the input from the
+    /// host and then call `call_selector` to select which actual function to call.
+    /// The input to the contract contains a keccak hash of the function name (first 4 bytes of the keccak hash),
+    /// and `call_selector` will select the function to call based on that hash.
+    /// This method will loop over all declared functions check if the keccak hash of the function name
+    /// matches the input hash, and if so, it will call the function. If no match is found, the
+    /// function should abort.
+    fn generate_call_selector(&mut self, exports: &mut Vec<String>) {
+        let llvm_cx = self.llvm_cx;
+        let llvm_module = self.llvm_module;
+        if exports.contains(&"call_selector".to_string()) {
+            debug!("call_selector already declared, skipping");
+            return;
+        }
+        let i64_t = llvm_cx.int_type(64);
+        let i32_t = llvm_cx.int_type(32);
+        let i8_p = llvm_cx.ptr_type();
+        let ret_ty = llvm_cx.void_type();
+
+        let param_tys = [i8_p, i64_t];
+        let llty = llvm::FunctionType::new(ret_ty, &param_tys);
+        let ll_fn = llvm_module.add_function(&mut vec![], "native", "call_selector", llty, false);
+        let attrs = vec![(1, "readonly", None), (1, "nonnull", None)];
+        llvm_module.add_attributes(ll_fn, &attrs);
+        let builder = llvm_cx.create_builder();
+        let entry_bb = ll_fn.append_basic_block("entry");
+        builder.position_at_end(entry_bb);
+        let buf_ptr = ll_fn.get_param(0);
+
+        // cast `i8*` → `i32*` so we can load a 4‐byte selector
+        let sel_ptr = builder.build_unary_bitcast(buf_ptr.as_any_value(), i8_p, "sel_ptr");
+        let raw_sel = builder.load(sel_ptr, i32_t, "raw_sel");
+        let sel64 = builder.build_zext(raw_sel, i64_t, "sel64");
+
+        // build the switch
+        let default_bb = ll_fn.append_basic_block("default");
+        let switch_inst = builder.build_switch(sel64, default_bb, self.fn_decls.len() as u32);
+        for (name, func) in self.fn_decls.iter() {
+            if !self.fn_is_entry.get(name).unwrap_or(&false) {
+                debug!("Skipping function {name} as it is not an entry function");
+                continue;
+            }
+            debug!("Adding call selector function {name} to exports");
+            let mut keccak = Keccak::v256();
+            keccak.update(name.as_bytes());
+            let mut hash = [0u8; 32];
+            keccak.finalize(&mut hash);
+            let sel = u32::from_be_bytes([hash[0], hash[1], hash[2], hash[3]]);
+            debug!("Adding call selector function {name} with selector {sel:x?} to exports");
+
+            // create a basic block for this case
+            let bb_name = format!("case_{name}");
+            let case_bb = ll_fn.append_basic_block(&bb_name);
+            debug!("Adding case for function {name} with selector {sel:x?} to call selector");
+            switch_inst.add_case(llvm::Constant::const_int(i64_t, sel as u64, 0), case_bb);
+            debug!("Added case for function {name} with selector {sel:x?} to call selector");
+
+            builder.position_at_end(case_bb);
+
+            let four = llvm::Constant::const_int(i64_t, 4, 0);
+            let signer_ptr = builder.build_address_with_indices(
+                llvm_cx.int_type(8),
+                buf_ptr.as_any_value(),
+                &[four.as_any_value()],
+                "signer",
+            );
+            let args = &[signer_ptr];
+            builder.call(*func, args);
+            debug!("built call");
+            builder.build_return_void();
+            debug!("built return");
+        }
+        debug!("Added all cases to call selector");
+
+        // create basic block for the default case which will call abort, this triggers terminate
+        // on pallet-revive
+        builder.position_at_end(default_bb);
+        let abort_args = &[llvm::Constant::const_int(i64_t, 2, 0).as_any_value()];
+        let abort_fn =
+            Self::get_runtime_function_by_name(llvm_cx, llvm_module, &self.rtty_cx, "abort");
+        builder.call(abort_fn, abort_args);
+        builder.build_unreachable();
+        exports.push("call_selector".to_string());
     }
 
     /// Declare native functions.

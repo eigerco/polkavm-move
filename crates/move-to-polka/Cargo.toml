@@ -45,10 +45,12 @@ once_cell = "1.21"
 sha2 = "0.10"
 sha3 = "0.10"
 hex = "0.4"
+hex-literal = "1.0"
 gix = { version = "0.72", features = [
   "blocking-network-client",
   "blocking-http-transport-reqwest-rust-tls",
 ] }
+tiny-keccak = { version = "2.0", features = ["keccak"] }
 
 [dev-dependencies]
 serial_test = "3.2.0"

@@ -578,6 +578,20 @@ impl Module {
     }
 }
 
+pub struct Switch(pub LLVMValueRef);
+
+impl Switch {
+    pub fn add_case(&self, value: Constant, bb: BasicBlock) {
+        unsafe {
+            LLVMAddCase(self.0, value.0, bb.0);
+        }
+    }
+
+    pub fn get_default_dest(&self) -> BasicBlock {
+        unsafe { BasicBlock(LLVMGetSwitchDefaultDest(self.0)) }
+    }
+}
+
 pub struct Builder(pub LLVMBuilderRef);
 
 impl Drop for Builder {
@@ -617,6 +631,13 @@ impl Builder {
     pub fn store_param_to_alloca(&self, param: Parameter, alloca: Alloca) {
         unsafe {
             LLVMBuildStore(self.0, param.0, alloca.0);
+        }
+    }
+
+    pub fn build_switch(&self, val: AnyValue, else_bb: BasicBlock, num_cases: u32) -> Switch {
+        unsafe {
+            let switch = LLVMBuildSwitch(self.0, val.0, else_bb.0, num_cases);
+            Switch(switch)
         }
     }
 
@@ -1123,6 +1144,10 @@ impl Builder {
     pub fn wrap_as_any_value(&self, val: LLVMValueRef) -> AnyValue {
         AnyValue(val)
     }
+
+    pub fn build_pointer_to_int(&self, val: AnyValue, dest_ty: Type, name: &str) -> AnyValue {
+        unsafe { AnyValue(LLVMBuildPtrToInt(self.0, val.0, dest_ty.0, name.cstr())) }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -1558,6 +1583,10 @@ pub struct Constant(LLVMValueRef);
 impl Constant {
     pub fn as_any_value(&self) -> AnyValue {
         AnyValue(self.0)
+    }
+
+    pub fn const_int(ty: Type, v: u64, sign_extend: i32) -> Constant {
+        unsafe { Constant(LLVMConstInt(ty.0, v, sign_extend)) }
     }
 
     pub fn int(ty: Type, v: u256::U256) -> Constant {

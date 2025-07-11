@@ -98,7 +98,7 @@ pub fn storage_store_different() -> anyhow::Result<()> {
 }
 
 #[test]
-pub fn storage_borrow() -> anyhow::Result<()> {
+pub fn storage_borrow_once() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
