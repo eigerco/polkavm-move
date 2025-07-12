@@ -22,9 +22,10 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
     initialize_logger();
     let blob = create_blob_once();
     let (mut instance, mut allocator) = create_instance(blob)?;
-    instance
+    let result = instance
         .call_typed_and_get_result::<(), ()>(&mut allocator, "main_void", ())
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_ok());
 
     Ok(())
 }

@@ -13,11 +13,15 @@ use crate::{
     },
 };
 use codespan::Location;
-use llvm_sys::core::{
-    LLVMAddCase, LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildCall2, LLVMBuildRet,
-    LLVMBuildSwitch, LLVMBuildUnreachable, LLVMConstInt, LLVMCreateBuilderInContext,
-    LLVMDisposeBuilder, LLVMFunctionType, LLVMGetElementType, LLVMGetParam,
-    LLVMPositionBuilderAtEnd, LLVMTypeOf, LLVMVoidTypeInContext,
+use llvm_sys::{
+    core::{
+        LLVMAddCase, LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildBitCast,
+        LLVMBuildCall2, LLVMBuildLoad2, LLVMBuildRetVoid, LLVMBuildSwitch, LLVMBuildUnreachable,
+        LLVMBuildZExt, LLVMConstInt, LLVMCreateBuilderInContext, LLVMDisposeBuilder,
+        LLVMFunctionType, LLVMGetParam, LLVMPointerType, LLVMPositionBuilderAtEnd,
+        LLVMSetAlignment, LLVMTypeOf, LLVMVoidTypeInContext,
+    },
+    prelude::LLVMValueRef,
 };
 use log::debug;
 use move_binary_format::file_format::SignatureToken;
@@ -45,6 +49,7 @@ pub struct ModuleContext<'mm: 'up, 'up> {
     /// All functions that might be called are declared prior to function translation.
     /// This includes local functions and dependencies.
     pub fn_decls: BTreeMap<String, llvm::Function>,
+    pub fn_is_entry: BTreeMap<String, bool>,
     pub expanded_functions: Vec<mm::QualifiedInstId<mm::FunId>>,
     pub target: TargetPlatform,
     pub target_machine: &'up TargetMachine,
@@ -593,6 +598,8 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         ll_fn.as_gv().set_linkage(linkage);
         debug!("Adding declared {ll_sym_name} to current module");
         self.fn_decls.insert(fn_env.get_full_name_str(), ll_fn);
+        self.fn_is_entry
+            .insert(fn_env.get_full_name_str(), fn_env.is_entry());
     }
 
     /// Generate the call selector function.
@@ -612,37 +619,45 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             return;
         }
         let i64_t = llvm_cx.int_type(64);
+        let i32_t = llvm_cx.int_type(32);
         let i8_p = llvm_cx.ptr_type();
         let ret_ty = llvm_cx.void_type();
 
         let param_tys = [i8_p, i64_t];
         let llty = llvm::FunctionType::new(ret_ty, &param_tys);
         let ll_fn = llvm_module.add_function(&mut vec![], "native", "call_selector", llty, false);
-        let mut attrs = Vec::new();
-        attrs.push((1, "readonly", None));
-        attrs.push((1, "nonnull", None));
+        let attrs = vec![(1, "readonly", None), (1, "nonnull", None)];
         llvm_module.add_attributes(ll_fn, &attrs);
         unsafe {
             let entry_bb =
-                LLVMAppendBasicBlockInContext(llvm_cx.0, ll_fn.0, b"entry\0".as_ptr() as _);
+                LLVMAppendBasicBlockInContext(llvm_cx.0, ll_fn.0, c"entry".as_ptr() as _);
             let builder = LLVMCreateBuilderInContext(llvm_cx.0);
             LLVMPositionBuilderAtEnd(builder, entry_bb);
-            LLVMBuildRet(builder, std::ptr::null_mut());
-            // let entry_fn = self
-            //     .fn_decls
-            //     .clone()
-            //     .iter()
-            //     .filter(|(k, v)| *v.is_entry())
-            //     .collect();
-            // get the second parameter, which is the selector
-            let selector = LLVMGetParam(ll_fn.0, 1);
+            let buf_ptr = LLVMGetParam(ll_fn.0, 0);
+            let _buf_len = LLVMGetParam(ll_fn.0, 1);
 
-            // build the switch statement
+            // cast `i8*` → `i32*` so we can load a 4‐byte selector
+            let sel_ptr = LLVMBuildBitCast(
+                builder,
+                buf_ptr,
+                LLVMPointerType(i32_t.0, 0),
+                c"sel_ptr".as_ptr().cast(),
+            );
+            let raw_sel = LLVMBuildLoad2(builder, i32_t.0, sel_ptr, c"raw_sel".as_ptr().cast());
+            LLVMSetAlignment(raw_sel, 1);
+            let sel64 = LLVMBuildZExt(builder, raw_sel, i64_t.0, c"sel64".as_ptr().cast());
+
+            // build the switch
             let default_bb =
-                LLVMAppendBasicBlockInContext(llvm_cx.0, ll_fn.0, b"default\0".as_ptr() as _);
+                LLVMAppendBasicBlockInContext(llvm_cx.0, ll_fn.0, c"default".as_ptr().cast());
             let switch_inst =
-                LLVMBuildSwitch(builder, selector, default_bb, self.fn_decls.len() as u32);
+                LLVMBuildSwitch(builder, sel64, default_bb, self.fn_decls.len() as u32);
+            debug!("functions: {:?}", self.expanded_functions);
             for (name, func) in self.fn_decls.iter() {
+                if !self.fn_is_entry.get(name).unwrap_or(&false) {
+                    debug!("Skipping function {name} as it is not an entry function");
+                    continue;
+                }
                 debug!("Adding call selector function {name} to exports");
                 let mut keccak = Keccak::v256();
                 keccak.update(name.as_bytes());
@@ -664,42 +679,39 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 // ---- Build:   ret entry_fn(calldata)  ----------------------------------
                 LLVMPositionBuilderAtEnd(builder, case_bb);
 
-                // Adapt this to your ABI – here I pass calldata pointer only
-                // let args = [LLVMGetParam(ll_fn.0, 0)]; // calldata *const u8
-                // debug!("got argument: {:?}: len {}", args[0], args.len());
-                let fn_type = LLVMGetElementType(LLVMTypeOf(func.0)).cast();
-                debug!("Function type: {:?}", fn_type);
+                let fn_type = LLVMFunctionType(LLVMTypeOf(func.0), std::ptr::null_mut(), 0, 0);
+                let mut empty_args: [LLVMValueRef; 0] = [];
                 LLVMBuildCall2(
                     builder,
-                    fn_type, // callee's fn type
+                    fn_type,
                     func.0,
-                    // args.as_ptr() as *mut _,
-                    std::ptr::null_mut(), // no args for now
-                    // args.len() as u32,
+                    empty_args.as_mut_ptr(),
                     0,
-                    b"call_selected\0".as_ptr() as _,
+                    c"".as_ptr() as _,
                 );
                 debug!("built call");
-                LLVMBuildRet(builder, std::ptr::null_mut());
+                LLVMBuildRetVoid(builder);
                 debug!("built return");
             }
             debug!("Added all cases to call selector");
-            // === default: revert(0) or unreachable() ===============================
+
+            // ---- Default BB: abort -------------------------------------------------
             LLVMPositionBuilderAtEnd(builder, default_bb);
 
-            // simplest: call `abort()` import PolkaVM already provides
             let abort_ty =
                 LLVMFunctionType(LLVMVoidTypeInContext(llvm_cx.0), std::ptr::null_mut(), 0, 0);
-            let abort_fn = LLVMAddFunction(llvm_module.0, b"abort\0".as_ptr() as _, abort_ty);
+            let abort_fn = LLVMAddFunction(llvm_module.0, c"move_rt_abort".as_ptr() as _, abort_ty);
             LLVMBuildCall2(
                 builder,
                 abort_ty,
                 abort_fn,
                 std::ptr::null_mut(),
                 0,
-                b"call_abort\0".as_ptr() as _,
+                c"".as_ptr() as _,
             );
             LLVMBuildUnreachable(builder);
+
+            // done
             LLVMDisposeBuilder(builder);
         }
         exports.push("call_selector".to_string());
