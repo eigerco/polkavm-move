@@ -1,6 +1,6 @@
 use move_to_polka::{
     initialize_logger,
-    linker::{create_blob, create_instance},
+    linker::{copy_to_guest, create_blob, create_instance},
 };
 use once_cell::sync::OnceCell;
 use polkavm::ProgramBlob;
@@ -38,7 +38,7 @@ pub fn storage_does_not_exist() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     instance
         .call_typed_and_get_result::<(), (u32,)>(
@@ -62,7 +62,7 @@ pub fn storage_store_load() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     instance
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store", (signer_address,))
@@ -85,7 +85,7 @@ pub fn storage_store_different() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     instance
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store2", (signer_address,))
@@ -108,7 +108,7 @@ pub fn storage_borrow_once() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     instance
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store", (signer_address,))
@@ -135,7 +135,7 @@ pub fn storage_borrow_mut_once() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     instance
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store", (signer_address,))
@@ -166,7 +166,7 @@ pub fn storage_borrow_mut_abort() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     instance
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store", (signer_address,))
@@ -196,7 +196,7 @@ pub fn storage_borrow_mut_twice() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     instance
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store", (signer_address,))
@@ -227,7 +227,7 @@ pub fn storage_store_twice() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     let restul = instance
         .call_typed_and_get_result::<(), (u32,)>(&mut allocator, "store_twice", (signer_address,))
@@ -252,7 +252,7 @@ pub fn storage_load_non_existent() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     let restul = instance
         .call_typed_and_get_result::<(), (u32,)>(

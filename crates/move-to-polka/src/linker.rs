@@ -1,14 +1,11 @@
-use std::{
-    collections::HashMap, fs::create_dir_all, num::NonZero, path::Path, sync::atomic::AtomicBool,
-};
-
 use crate::{options::Options, run_to_polka};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use core::mem::MaybeUninit;
 use gix::{
     progress::Discard,
     remote::{fetch::Shallow, Direction},
 };
-use log::{debug, info, warn};
+use log::{debug, info, trace, warn};
 use move_package::source_package::{
     layout::SourcePackageLayout, manifest_parser, parsed_manifest::SubstOrRename,
 };
@@ -17,11 +14,14 @@ use polkavm::{
     ModuleConfig, ProgramBlob, RawInstance, Reg,
 };
 use polkavm_move_native::{
-    host::{copy_bytes_from_guest, copy_from_guest, MemAllocator, ProgramError},
+    host::{MemAllocator, ProgramError},
     types::{MoveAddress, MoveByteVector, MoveSigner, MoveType, TypeDesc},
     ALLOC_CODE, PANIC_CODE,
 };
 use sha2::Digest;
+use std::{
+    collections::HashMap, fs::create_dir_all, num::NonZero, path::Path, sync::atomic::AtomicBool,
+};
 
 pub fn create_colored_stdout() -> StandardStream {
     let color = if atty::is(atty::Stream::Stderr) && atty::is(atty::Stream::Stdout) {
@@ -253,7 +253,7 @@ pub fn create_instance(
     )?;
 
     const CALL_DATA: &[u8] = &hex_literal::hex!(
-        "1e01a479000000000000000000000000f24ff3a9cf04c71dbc94d0b566f7a27b94566cac0000000000000000000000000000000000000000000000000000000000000000"
+        "1e01a479ab010101010101010101010101010101010101010101010101010101010101ce"
     );
     linker.define_typed("call_data_size", || CALL_DATA.len() as u64)?;
     linker.define_typed("call_selector", || {})?;
@@ -386,6 +386,86 @@ pub fn create_instance(
         module.memory_map().heap_base(),
     );
     Ok((instance, allocator))
+}
+
+/// Copy memory host -> guest (aux)
+pub fn copy_to_guest<T: Sized + Copy>(
+    instance: &mut RawInstance,
+    allocator: &mut MemAllocator,
+    value: &T,
+) -> Result<u32, MemoryAccessError> {
+    trace!(
+        "Copying value of type {} to guest memory",
+        core::any::type_name::<T>()
+    );
+    let size_to_write = core::mem::size_of::<T>();
+    let address = allocator.alloc(size_to_write, core::mem::align_of::<T>())?;
+
+    // safety: we know we have memory, we just checked
+    let slice =
+        unsafe { core::slice::from_raw_parts((value as *const T) as *const u8, size_to_write) };
+
+    instance.write_memory(address, slice)?;
+
+    Ok(address)
+}
+
+/// Copy a byte slice (host -> guest aux memory)
+pub fn copy_bytes_to_guest(
+    instance: &mut RawInstance,
+    allocator: &mut MemAllocator,
+    bytes: &[u8],
+) -> Result<u32, MemoryAccessError> {
+    let size = bytes.len();
+    let align = core::mem::align_of::<u8>(); // usually 1, but explicit for clarity
+
+    trace!("Copying {size} bytes to guest memory with alignment {align}");
+
+    let address = allocator.alloc(size, align)?;
+
+    instance.write_memory(address, bytes)?;
+
+    Ok(address)
+}
+
+/// Copy memory guest (aux) -> host
+pub fn copy_from_guest<T: Sized + Copy>(
+    instance: &mut RawInstance,
+    address: u32,
+) -> Result<T, MemoryAccessError> {
+    trace!(
+        "Copying value of type {} from guest memory at address 0x{:X}",
+        core::any::type_name::<T>(),
+        address
+    );
+    let mut uninit = MaybeUninit::<T>::uninit();
+    unsafe {
+        let dst_bytes: &mut [u8] =
+            core::slice::from_raw_parts_mut(uninit.as_mut_ptr() as *mut u8, size_of::<T>());
+        trace!(
+            "Reading {} bytes from guest memory at address 0x{:X}",
+            size_of::<T>(),
+            address
+        );
+        instance.read_memory_into(address, dst_bytes)?;
+        Ok(uninit.assume_init())
+    }
+}
+
+/// Copy memory guest (aux) -> host into a Vec<u8>
+pub fn copy_bytes_from_guest(
+    instance: &mut RawInstance,
+    address: u32,
+    length: usize,
+) -> Result<std::vec::Vec<u8>, MemoryAccessError> {
+    trace!("Copying {length} bytes from guest memory at address 0x{address:X}");
+    let mut uninit: std::boxed::Box<[MaybeUninit<u8>]> = std::boxed::Box::new_uninit_slice(length);
+
+    // Step 2: let `read_memory_into` initialize it
+    let initialized: &mut [u8] = instance.read_memory_into(address, &mut *uninit)?;
+
+    // Step 3: create a Vec<u8> from the slice
+    Ok(initialized.to_vec())
 }
 
 /// Different way to run the program, which allows to handle low-level interrupts
@@ -757,7 +837,7 @@ fn to_move_byte_vector(
     bytes: Vec<u8>,
 ) -> Result<u32, ProgramError> {
     let len = bytes.len();
-    let data_ptr = allocator.copy_bytes_to_guest(instance, bytes.as_slice())?;
+    let data_ptr = copy_bytes_to_guest(instance, allocator, bytes.as_slice())?;
     debug!("Data copied to guest memory at address: 0x{data_ptr:X}, length: {len}",);
     let move_byte_vec = MoveByteVector {
         ptr: data_ptr as *mut u8,
@@ -765,7 +845,7 @@ fn to_move_byte_vector(
         length: len as u64,
     };
     debug!("move_byte_vec: {move_byte_vec:?}");
-    Ok(allocator.copy_to_guest(instance, &move_byte_vec)?)
+    Ok(copy_to_guest(instance, allocator, &move_byte_vec)?)
 }
 
 fn hexdump(allocator: &MemAllocator, instance: &mut RawInstance) {
@@ -789,7 +869,11 @@ fn hexdump(allocator: &MemAllocator, instance: &mut RawInstance) {
         .read_memory(heap_base, 256)
         .unwrap_or_else(|_| vec![]);
     print_mem(heap, heap_base as usize, " HEAP ");
-    let aux = allocator.dump_aux(instance).unwrap_or_else(|_| vec![]);
+    let address = instance.module().memory_map().aux_data_address();
+    let length = instance.module().memory_map().aux_data_size();
+    let aux = instance
+        .read_memory(address, length)
+        .unwrap_or_else(|_| vec![]);
     let aux_base = allocator.base() as usize;
     print_mem(aux, aux_base, " AUX ");
 }

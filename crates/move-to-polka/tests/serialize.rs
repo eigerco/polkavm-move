@@ -1,6 +1,6 @@
 use move_to_polka::{
     initialize_logger,
-    linker::{create_blob, create_instance},
+    linker::{copy_to_guest, create_blob, create_instance},
 };
 use once_cell::sync::OnceCell;
 use polkavm::ProgramBlob;
@@ -44,7 +44,7 @@ pub fn test_serialize_signer() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     instance
         .call_typed_and_get_result::<u32, (u32,)>(&mut allocator, "ser_signer", (signer_address,))

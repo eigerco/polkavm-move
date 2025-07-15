@@ -1,6 +1,6 @@
 use move_to_polka::{
     initialize_logger,
-    linker::{create_blob, create_instance},
+    linker::{copy_to_guest, create_blob, create_instance},
 };
 use once_cell::sync::OnceCell;
 use polkavm::{CallError, ProgramBlob};
@@ -76,7 +76,7 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     instance
         .call_typed_and_get_result::<(), _>(&mut allocator, "main_basic", (signer_address,))

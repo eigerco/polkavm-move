@@ -1,6 +1,6 @@
 use move_to_polka::{
     initialize_logger,
-    linker::{create_blob, create_instance},
+    linker::{copy_bytes_to_guest, copy_to_guest, create_blob, create_instance},
 };
 use once_cell::sync::OnceCell;
 use polkavm::ProgramBlob;
@@ -25,7 +25,7 @@ pub fn test_selector() -> anyhow::Result<()> {
     let (mut instance, mut allocator) = create_instance(blob)?;
 
     let bytes = hex::decode("79a4011e000000000000000000000000f24ff3a9cf04c71dbc94d0b566f7a27b94566cac0000000000000000000000000000000000000000000000000000000000000000")?;
-    let addr = allocator.copy_bytes_to_guest(&mut instance, bytes.as_slice())?;
+    let addr = copy_bytes_to_guest(&mut instance, &mut allocator, bytes.as_slice())?;
 
     let result = instance
         .call_typed_and_get_result::<(), _>(&mut allocator, "call", (addr, bytes.len() as u64))
@@ -46,7 +46,7 @@ pub fn test_void_program_execution() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = allocator.copy_to_guest(&mut instance, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
 
     let result = instance
         .call_typed_and_get_result::<(), _>(&mut allocator, "main_void", (signer_address,))

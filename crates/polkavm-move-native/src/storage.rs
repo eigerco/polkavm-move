@@ -1,6 +1,8 @@
+extern crate std;
+
 use crate::{host::ProgramError, types::MoveAddress};
 use log::debug;
-use std::collections::HashMap;
+use std::{collections::HashMap, vec::Vec};
 
 pub type StructTagHash = [u8; 32];
 

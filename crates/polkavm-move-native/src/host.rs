@@ -1,8 +1,7 @@
 extern crate std;
 
-use core::mem::MaybeUninit;
 use log::{debug, trace};
-use polkavm::{MemoryAccessError, MemoryMap, RawInstance};
+use polkavm::{MemoryAccessError, MemoryMap};
 use std::vec::Vec;
 
 use crate::{
@@ -35,6 +34,16 @@ pub struct MemAllocator {
     storage: GlobalStorage,
 }
 
+impl Default for MemAllocator {
+    fn default() -> Self {
+        Self {
+            base: 0xfffe0000,
+            size: 4096,
+            offset: 0,
+            storage: GlobalStorage::new(),
+        }
+    }
+}
 impl MemAllocator {
     /// Initialize the memory allocator with the module's auxiliary data memory map.
     /// This must be called after the module is loaded and before any memory operations.
@@ -137,51 +146,6 @@ impl MemAllocator {
         Ok(address)
     }
 
-    /// Copy memory host -> guest (aux)
-    pub fn copy_to_guest<T: Sized + Copy>(
-        &mut self,
-        instance: &mut RawInstance,
-        value: &T,
-    ) -> Result<u32, MemoryAccessError> {
-        trace!(
-            "Copying value of type {} to guest memory",
-            core::any::type_name::<T>()
-        );
-        let size_to_write = core::mem::size_of::<T>();
-        let address = self.alloc(size_to_write, core::mem::align_of::<T>())?;
-
-        // safety: we know we have memory, we just checked
-        let slice =
-            unsafe { core::slice::from_raw_parts((value as *const T) as *const u8, size_to_write) };
-
-        instance.write_memory(address, slice)?;
-
-        Ok(address)
-    }
-
-    /// Copy a byte slice (host -> guest aux memory)
-    pub fn copy_bytes_to_guest(
-        &mut self,
-        instance: &mut RawInstance,
-        bytes: &[u8],
-    ) -> Result<u32, MemoryAccessError> {
-        let size = bytes.len();
-        let align = core::mem::align_of::<u8>(); // usually 1, but explicit for clarity
-
-        trace!("Copying {size} bytes to guest memory with alignment {align}");
-
-        let address = self.alloc(size, align)?;
-
-        instance.write_memory(address, bytes)?;
-
-        Ok(address)
-    }
-
-    pub fn dump_aux(&self, instance: &mut RawInstance) -> Result<Vec<u8>, MemoryAccessError> {
-        let memory = instance.read_memory(self.base, self.offset)?;
-        Ok(memory)
-    }
-
     pub fn release_all(&mut self) {
         debug!("Releasing all global storage");
         self.storage.release_all();
@@ -199,44 +163,4 @@ impl MemAllocator {
     ) -> Result<(), ProgramError> {
         self.storage.update(address, tag, value)
     }
-}
-
-/// Copy memory guest (aux) -> host
-pub fn copy_from_guest<T: Sized + Copy>(
-    instance: &mut RawInstance,
-    address: u32,
-) -> Result<T, MemoryAccessError> {
-    trace!(
-        "Copying value of type {} from guest memory at address 0x{:X}",
-        core::any::type_name::<T>(),
-        address
-    );
-    let mut uninit = MaybeUninit::<T>::uninit();
-    unsafe {
-        let dst_bytes: &mut [u8] =
-            core::slice::from_raw_parts_mut(uninit.as_mut_ptr() as *mut u8, size_of::<T>());
-        trace!(
-            "Reading {} bytes from guest memory at address 0x{:X}",
-            size_of::<T>(),
-            address
-        );
-        instance.read_memory_into(address, dst_bytes.as_mut())?;
-        Ok(uninit.assume_init())
-    }
-}
-
-/// Copy memory guest (aux) -> host into a Vec<u8>
-pub fn copy_bytes_from_guest(
-    instance: &mut RawInstance,
-    address: u32,
-    length: usize,
-) -> Result<std::vec::Vec<u8>, MemoryAccessError> {
-    trace!("Copying {length} bytes from guest memory at address 0x{address:X}");
-    let mut uninit: std::boxed::Box<[MaybeUninit<u8>]> = std::boxed::Box::new_uninit_slice(length);
-
-    // Step 2: let `read_memory_into` initialize it
-    let initialized: &mut [u8] = instance.read_memory_into(address, &mut *uninit)?;
-
-    // Step 3: create a Vec<u8> from the slice
-    Ok(initialized.to_vec())
 }
