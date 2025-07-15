@@ -11,6 +11,7 @@ use core::str;
 mod allocator;
 mod imports;
 mod panic;
+mod polkavm_imports;
 
 #[macro_export]
 macro_rules! heapless_format {
@@ -26,7 +27,9 @@ macro_rules! heapless_format {
 
 #[export_name = "move_rt_abort"]
 unsafe extern "C" fn move_rt_abort(code: u64) {
-    imports::abort(code);
+    let mut beneficiary = [0u8; 20];
+    beneficiary[0] = code as u8;
+    imports::terminate(beneficiary.as_ptr() as *const [u8; 20]);
 }
 
 #[export_name = "move_native_debug_print"]

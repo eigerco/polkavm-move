@@ -68,13 +68,13 @@ pub enum TargetPlatform {
 impl TargetPlatform {
     pub fn triple(&self) -> &'static str {
         match self {
-            TargetPlatform::PVM => "riscv32--none-ilp32e",
+            TargetPlatform::PVM => "riscv64--none-lp64e",
         }
     }
 
     pub fn llvm_cpu(&self) -> &'static str {
         match self {
-            TargetPlatform::PVM => "generic-rv32",
+            TargetPlatform::PVM => "generic-rv64",
         }
     }
 
@@ -158,6 +158,7 @@ impl<'up> GlobalContext<'up> {
             llvm_builder,
             llvm_di_builder,
             fn_decls: BTreeMap::new(),
+            fn_is_entry: BTreeMap::new(),
             expanded_functions: Vec::new(),
             target: self.target,
             target_machine: self.target_machine,
