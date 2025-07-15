@@ -23,11 +23,13 @@ module 0xb000::void {
     }
 
     fun store(account: &signer) {
-        //let container = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
-        //move_to(account, container);
+        let container = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
+        debug::print(&container);
+        debug::print(account);
+        move_to(account, container);
         let exists = exists<Container>(signer::address_of(account));
         debug::print(&exists);
-        assert!(!exists, 1);
+        assert!(exists, 1);
     }
 
     public entry fun main_void(account: &signer) {
