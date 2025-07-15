@@ -269,17 +269,12 @@ pub fn create_instance(
 
     linker.define_typed(
         "move_to",
-        |caller: Caller<MemAllocator>,
-         ptr_to_type: u32,
-         ptr_to_signer: u32,
-         ptr_to_struct: u32,
-         ptr_to_tag: u32| {
+        |caller: Caller<MemAllocator>, ptr_to_signer: u32, ptr_to_struct: u32, ptr_to_tag: u32| {
             let allocator = caller.user_data;
             let instance = caller.instance;
             move_to(
                 allocator,
                 instance,
-                ptr_to_type,
                 ptr_to_signer,
                 ptr_to_struct,
                 ptr_to_tag,
@@ -570,14 +565,12 @@ fn handle_ecalli(
             hexdump(allocator, instance);
         }
         "move_to" => {
-            let ptr_to_type = instance.reg(Reg::A0) as u32;
-            let ptr_to_signer = instance.reg(Reg::A1) as u32;
-            let ptr_to_struct = instance.reg(Reg::A2) as u32;
-            let ptr_to_tag = instance.reg(Reg::A3) as u32;
+            let ptr_to_signer = instance.reg(Reg::A0) as u32;
+            let ptr_to_struct = instance.reg(Reg::A1) as u32;
+            let ptr_to_tag = instance.reg(Reg::A2) as u32;
             move_to(
                 allocator,
                 instance,
-                ptr_to_type,
                 ptr_to_signer,
                 ptr_to_struct,
                 ptr_to_tag,
@@ -732,22 +725,18 @@ fn move_from(
 fn move_to(
     allocator: &mut MemAllocator,
     instance: &mut RawInstance,
-    ptr_to_type: u32,
     ptr_to_signer: u32,
     ptr_to_struct: u32,
     ptr_to_tag: u32,
 ) -> Result<(), ProgramError> {
-    debug!(
-        "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}"
-    );
-    let move_type: MoveType = copy_from_guest(instance, ptr_to_type)?;
+    debug!("move_to called with address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}");
     let signer_ptr: u32 = copy_from_guest(instance, ptr_to_signer)?;
     let signer: MoveSigner = copy_from_guest(instance, signer_ptr)?;
     let address = signer.0;
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
     let value = from_move_byte_vector(instance, ptr_to_struct)?;
     debug!(
-        "move_to called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}, type: {move_type}, address: {address:?}, value: {value:x?}",
+        "move_to called with address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}, address: {address:?}, value: {value:x?}",
     );
     allocator.store_global(address, tag, value.to_vec())?;
     Result::<(), ProgramError>::Ok(())

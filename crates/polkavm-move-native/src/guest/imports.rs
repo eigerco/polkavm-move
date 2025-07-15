@@ -23,7 +23,6 @@ extern "C" {
 #[polkavm_derive::polkavm_import]
 extern "C" {
     pub(crate) fn move_to(
-        type_ve: *const MoveType,
         signer_ref: *const AnyValue,
         struct_ref: *const MoveByteVector,
         tag: *const AnyValue,

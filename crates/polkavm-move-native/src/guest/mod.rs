@@ -64,7 +64,7 @@ unsafe extern "C" fn move_to(
     tag: &AnyValue,
 ) {
     let bytes = crate::serialization::serialize(type_ve, struct_ref);
-    imports::move_to(type_ve, signer_ref, &bytes, tag);
+    imports::move_to(signer_ref, &bytes, tag);
 }
 
 #[export_name = "move_rt_move_from"]

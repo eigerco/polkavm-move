@@ -1147,7 +1147,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     let tydesc_ty = llvm_cx.ptr_type();
                     let anyval_ty = llvm_cx.ptr_type();
                     let tag_ty = llvm_cx.ptr_type();
-                    let param_tys = &[anyval_ty, anyval_ty, tydesc_ty, tag_ty];
+                    let param_tys = &[tydesc_ty, anyval_ty, anyval_ty, tag_ty];
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);
                     let mut attrs = Self::mk_pattrs_for_move_type(1);
                     attrs.push((2, "readonly", None));
@@ -1167,12 +1167,11 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     let anyval_ty = llvm_cx.ptr_type();
                     let retval_ty = llvm_cx.ptr_type();
                     let tag_ty = llvm_cx.ptr_type();
-                    let param_tys = &[anyval_ty, tydesc_ty, retval_ty, tag_ty];
+                    let param_tys = &[tydesc_ty, anyval_ty, retval_ty, tag_ty];
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);
                     let mut attrs = Self::mk_pattrs_for_move_type(1);
                     attrs.push((2, "readonly", None));
                     attrs.push((2, "nonnull", None));
-                    attrs.push((3, "readonly", None));
                     attrs.push((3, "nonnull", None));
                     attrs.push((4, "readonly", None));
                     attrs.push((4, "nonnull", None));
@@ -1224,7 +1223,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     let tydesc_ty = llvm_cx.ptr_type();
                     let anyval_ty = llvm_cx.ptr_type();
                     let tag_ty = llvm_cx.ptr_type();
-                    let param_tys = &[anyval_ty, anyval_ty, tydesc_ty, tag_ty];
+                    let param_tys = &[tydesc_ty, anyval_ty, anyval_ty, tag_ty];
                     let llty = llvm::FunctionType::new(ret_ty, param_tys);
                     let mut attrs = Self::mk_pattrs_for_move_type(1);
                     attrs.push((2, "readonly", None));
