@@ -638,7 +638,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             keccak.update(name.as_bytes());
             let mut hash = [0u8; 32];
             keccak.finalize(&mut hash);
-            let sel = u32::from_be_bytes([hash[0], hash[1], hash[2], hash[3]]);
+            let sel = u32::from_be_bytes([hash[3], hash[2], hash[1], hash[0]]);
             debug!("Adding call selector function {name} with selector {sel:x?} to exports");
 
             // create a basic block for this case

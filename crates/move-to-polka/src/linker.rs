@@ -253,7 +253,7 @@ pub fn create_instance(
     )?;
 
     const CALL_DATA: &[u8] = &hex_literal::hex!(
-        "1e01a479ab010101010101010101010101010101010101010101010101010101010101ce"
+        "79a4011eab010101010101010101010101010101010101010101010101010101010101ce"
     );
     linker.define_typed("call_data_size", || CALL_DATA.len() as u64)?;
     linker.define_typed("call_selector", || {})?;
