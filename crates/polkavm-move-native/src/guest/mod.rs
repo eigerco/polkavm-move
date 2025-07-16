@@ -64,7 +64,7 @@ unsafe extern "C" fn move_to(
     tag: &AnyValue,
 ) {
     let bytes = crate::serialization::serialize(type_ve, struct_ref);
-    imports::move_to(type_ve, signer_ref, &bytes, tag);
+    imports::move_to(signer_ref, &bytes, tag);
 }
 
 #[export_name = "move_rt_move_from"]
@@ -74,7 +74,7 @@ unsafe extern "C" fn move_from(
     out: *mut AnyValue,
     tag: &AnyValue,
 ) {
-    let address = imports::move_from(type_ve, s1, 1, tag, 0);
+    let address = imports::move_from(s1, 1, tag, 0);
     let bytevec = &*(address as *const MoveByteVector);
     crate::serialization::deserialize(type_ve, bytevec, out);
 }
@@ -87,7 +87,7 @@ unsafe extern "C" fn borrow_global(
     tag: &AnyValue,
     is_mut: u32,
 ) {
-    let address = imports::move_from(type_ve, s1, 0, tag, is_mut);
+    let address = imports::move_from(s1, 0, tag, is_mut);
     let bytevec = &*(address as *const MoveByteVector);
     // allocate a boxed slice of 2*bytevec.length bytes (due to alignment)
     let boxed: alloc::boxed::Box<[u8]> =
@@ -101,8 +101,8 @@ unsafe extern "C" fn borrow_global(
 }
 
 #[export_name = "move_rt_exists"]
-unsafe extern "C" fn exists(type_ve: &MoveType, s: &AnyValue, tag: &AnyValue) -> u32 {
-    imports::exists(type_ve, s, tag)
+unsafe extern "C" fn exists(_type_ve: &MoveType, s: &AnyValue, tag: &AnyValue) -> u32 {
+    imports::exists(s, tag)
 }
 
 #[export_name = "move_rt_release"]
@@ -113,7 +113,7 @@ unsafe extern "C" fn release(
     tag: &AnyValue,
 ) {
     let bytes = crate::serialization::serialize(type_ve, struct_ref);
-    imports::release(type_ve, s, &bytes, tag);
+    imports::release(s, &bytes, tag);
 }
 
 #[export_name = "move_native_signer_borrow_address"]

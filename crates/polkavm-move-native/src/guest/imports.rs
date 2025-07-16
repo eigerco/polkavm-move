@@ -23,7 +23,6 @@ extern "C" {
 #[polkavm_derive::polkavm_import]
 extern "C" {
     pub(crate) fn move_to(
-        type_ve: *const MoveType,
         signer_ref: *const AnyValue,
         struct_ref: *const MoveByteVector,
         tag: *const AnyValue,
@@ -33,7 +32,6 @@ extern "C" {
 #[polkavm_derive::polkavm_import]
 extern "C" {
     pub(crate) fn move_from(
-        type_ve: *const MoveType,
         s1: *const AnyValue,
         remove: u32,
         tag: *const AnyValue,
@@ -43,17 +41,12 @@ extern "C" {
 
 #[polkavm_derive::polkavm_import]
 extern "C" {
-    pub(crate) fn exists(
-        type_ve: *const MoveType,
-        s1: *const AnyValue,
-        tag: *const AnyValue,
-    ) -> u32;
+    pub(crate) fn exists(s1: *const AnyValue, tag: *const AnyValue) -> u32;
 }
 
 #[polkavm_derive::polkavm_import]
 extern "C" {
     pub(crate) fn release(
-        type_ve: *const MoveType,
         s1: *const AnyValue,
         struct_ref: *const MoveByteVector,
         tag: *const AnyValue,

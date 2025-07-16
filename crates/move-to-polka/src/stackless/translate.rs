@@ -2041,7 +2041,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     struct_tag.as_slice(),
                 );
                 typarams.push(tag_ptr.as_any_value());
-                self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
+                self.module_cx.llvm_builder.call(llfn, &typarams);
             }
             RtCall::MoveFrom(address, ll_type) => {
                 debug!(target: "rtcall", "MoveFrom ll_type {ll_type:?}");
@@ -2075,7 +2075,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     struct_tag.as_slice(),
                 );
                 typarams.push(tag_ptr.as_any_value());
-                self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
+                self.module_cx.llvm_builder.call(llfn, &typarams);
             }
             RtCall::BorrowGlobal(address, ll_type, is_mut) => {
                 debug!(target: "rtcall", "BorrowGlobal ll_type {ll_type:?}");
@@ -2113,7 +2113,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     llvm::Constant::int(self.module_cx.llvm_cx.int_type(1), U256::from(*is_mut))
                         .as_any_value(),
                 );
-                self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
+                self.module_cx.llvm_builder.call(llfn, &typarams);
             }
             RtCall::Release(address, struct_val, ll_type) => {
                 debug!(target: "rtcall", "Release ll_type {ll_type:?}: address {address:?} struct_val {struct_val:?}");
@@ -2146,7 +2146,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     struct_tag.as_slice(),
                 );
                 typarams.push(tag_ptr.as_any_value());
-                self.module_cx.llvm_builder.call_store(llfn, &typarams, &[]);
+                self.module_cx.llvm_builder.call(llfn, &typarams);
             }
             RtCall::Exists(address, ll_type) => {
                 debug!(target: "rtcall", "Exists ll_type {ll_type:?}");

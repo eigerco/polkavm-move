@@ -241,6 +241,11 @@ pub mod structs;
 pub mod types;
 pub mod vector;
 
+// Define the base heap address. The actual heap start address is probably lower, but we have no
+// way to know it at compile time, so we use a fixed address that is guaranteed to be above the
+// heap start address.
+pub const HEAP_BASE: u32 = 0x30500;
+
 // abort codes used by native lib
 pub const PANIC_CODE: u64 = 0xdead;
 pub const ALLOC_CODE: u64 = 0xca11;
