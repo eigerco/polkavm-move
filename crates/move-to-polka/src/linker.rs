@@ -285,51 +285,31 @@ pub fn create_instance(
     linker.define_typed(
         "move_from",
         |caller: Caller<MemAllocator>,
-         ptr_to_type: u32,
          ptr_to_addr: u32,
          remove: u32,
          ptr_to_tag: u32,
          is_mut: u32| {
             let instance = caller.instance;
             let allocator = caller.user_data;
-            move_from(
-                allocator,
-                instance,
-                ptr_to_type,
-                ptr_to_addr,
-                remove,
-                ptr_to_tag,
-                is_mut,
-            )
+            move_from(allocator, instance, ptr_to_addr, remove, ptr_to_tag, is_mut)
         },
     )?;
 
     linker.define_typed(
         "exists",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_addr: u32, ptr_to_tag: u32| {
+        |caller: Caller<MemAllocator>, ptr_to_addr: u32, ptr_to_tag: u32| {
             let allocator = caller.user_data;
             let instance = caller.instance;
-            exists(allocator, instance, ptr_to_type, ptr_to_addr, ptr_to_tag)
+            exists(allocator, instance, ptr_to_addr, ptr_to_tag)
         },
     )?;
 
     linker.define_typed(
         "release",
-        |caller: Caller<MemAllocator>,
-         ptr_to_type: u32,
-         ptr_to_addr: u32,
-         ptr_to_struct: u32,
-         ptr_to_tag: u32| {
+        |caller: Caller<MemAllocator>, ptr_to_addr: u32, ptr_to_struct: u32, ptr_to_tag: u32| {
             let allocator = caller.user_data;
             let instance = caller.instance;
-            release(
-                allocator,
-                instance,
-                ptr_to_type,
-                ptr_to_addr,
-                ptr_to_struct,
-                ptr_to_tag,
-            )
+            release(allocator, instance, ptr_to_addr, ptr_to_struct, ptr_to_tag)
         },
     )?;
 
@@ -578,15 +558,13 @@ fn handle_ecalli(
             .expect("Failed to print debug info");
         }
         "move_from" => {
-            let ptr_to_type = instance.reg(Reg::A0) as u32;
-            let ptr_to_signer = instance.reg(Reg::A1) as u32;
-            let remove = instance.reg(Reg::A2) as u32;
-            let ptr_to_tag = instance.reg(Reg::A3) as u32;
-            let is_mut = instance.reg(Reg::A4) as u32;
+            let ptr_to_signer = instance.reg(Reg::A0) as u32;
+            let remove = instance.reg(Reg::A1) as u32;
+            let ptr_to_tag = instance.reg(Reg::A2) as u32;
+            let is_mut = instance.reg(Reg::A3) as u32;
             let result = move_from(
                 allocator,
                 instance,
-                ptr_to_type,
                 ptr_to_signer,
                 remove,
                 ptr_to_tag,
@@ -596,10 +574,9 @@ fn handle_ecalli(
             instance.set_reg(Reg::A0, result as u64);
         }
         "exists" => {
-            let ptr_to_type = instance.reg(Reg::A0) as u32;
-            let ptr_to_signer = instance.reg(Reg::A1) as u32;
-            let ptr_to_tag = instance.reg(Reg::A2) as u32;
-            let result = exists(allocator, instance, ptr_to_type, ptr_to_signer, ptr_to_tag)
+            let ptr_to_signer = instance.reg(Reg::A0) as u32;
+            let ptr_to_tag = instance.reg(Reg::A1) as u32;
+            let result = exists(allocator, instance, ptr_to_signer, ptr_to_tag)
                 .expect("Failed to check if global exists");
             instance.set_reg(Reg::A0, result as u64);
         }
@@ -658,21 +635,18 @@ fn guest_abort(
 fn release(
     allocator: &mut MemAllocator,
     instance: &mut RawInstance,
-    ptr_to_type: u32,
     ptr_to_addr: u32,
     ptr_to_struct: u32,
     ptr_to_tag: u32,
 ) -> Result<(), ProgramError> {
     debug!(
-        "release called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}, value ptr: 0x{ptr_to_struct:X}",
+        "release called with address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}, value ptr: 0x{ptr_to_struct:X}",
     );
     let address: MoveAddress =
         copy_from_guest(instance, ptr_to_addr).expect("Failed to copy address from guest");
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag).unwrap_or([0; 32]);
     let value = from_move_byte_vector(instance, ptr_to_struct).unwrap_or_default();
-    debug!(
-        "release called with type ptr: 0x{ptr_to_type:X}, address: {address:?}, tag: {tag:?}, value: {value:x?}",
-    );
+    debug!("release called with type address: {address:?}, tag: {tag:?}, value: {value:x?}",);
     allocator.update(address, tag, value)?;
     allocator.release(address, tag);
     Result::<(), ProgramError>::Ok(())
@@ -681,16 +655,15 @@ fn release(
 fn exists(
     allocator: &mut MemAllocator,
     instance: &mut RawInstance,
-    ptr_to_type: u32,
     ptr_to_addr: u32,
     ptr_to_tag: u32,
 ) -> Result<u32, ProgramError> {
     debug!(
-        "exists called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",
+        "exists called with type ptr: address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",
     );
     let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
-    debug!("exists called with type ptr: 0x{ptr_to_type:X}, address: {address:?}, tag: {tag:?}",);
+    debug!("exists called with type address: {address:?}, tag: {tag:?}",);
     let value = allocator.exists(address, tag)?;
     Result::<u32, ProgramError>::Ok(value as u32)
 }
@@ -698,23 +671,19 @@ fn exists(
 fn move_from(
     allocator: &mut MemAllocator,
     instance: &mut RawInstance,
-    ptr_to_type: u32,
     ptr_to_addr: u32,
     remove_u32: u32,
     ptr_to_tag: u32,
     is_mut_u32: u32,
 ) -> Result<u32, ProgramError> {
     debug!(
-        "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, remove: {remove_u32}, is_mut: {is_mut_u32}",
+        "move_from called with type address ptr: 0x{ptr_to_addr:X}, remove: {remove_u32}, is_mut: {is_mut_u32}",
     );
     let remove = remove_u32 != 0;
     let is_mut = is_mut_u32 != 0;
-    let move_type: MoveType = copy_from_guest(instance, ptr_to_type)?;
     let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
-    debug!(
-        "move_from called with type ptr: 0x{ptr_to_type:X}, address ptr: 0x{ptr_to_addr:X}, type: {move_type}, address: {address:?}",
-    );
+    debug!("move_from called with type address ptr: 0x{ptr_to_addr:X}, address: {address:?}",);
     let value = allocator.load_global(address, tag, remove, is_mut)?;
     debug!("move_from loaded value: {value:x?}");
     let address = to_move_byte_vector(instance, allocator, value.to_vec())?;
