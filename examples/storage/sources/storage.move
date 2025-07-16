@@ -1,11 +1,6 @@
-module 0x10::debug {
-    native public fun hex_dump();
-}
-
 module 0xa000::storage {
     use std::signer;
     use std::vector;
-    use 0x10::debug;
 
     struct Containee has key, drop, store, copy {
         value: u64,
@@ -24,7 +19,6 @@ module 0xa000::storage {
 
     public entry fun store(account: &signer) {
         let container = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
-        debug::hex_dump();
         move_to(account, container);
         let exists = exists<Container>(signer::address_of(account));
         assert!(exists, 1);
@@ -50,7 +44,6 @@ module 0xa000::storage {
 
     public entry fun load(account: &signer) acquires Container {
         let address = signer::address_of(account);
-        debug::hex_dump();
         let container: Container = move_from(address);
         assert!(container.value == 42, 0);
         let expected = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
