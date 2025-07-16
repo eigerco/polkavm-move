@@ -16,7 +16,7 @@ use polkavm::{
 use polkavm_move_native::{
     host::{MemAllocator, ProgramError},
     types::{MoveAddress, MoveByteVector, MoveSigner, MoveType, TypeDesc},
-    ALLOC_CODE, PANIC_CODE,
+    ALLOC_CODE, HEAP_BASE, PANIC_CODE,
 };
 use sha2::Digest;
 use std::{
@@ -820,11 +820,10 @@ fn hexdump(instance: &mut RawInstance) {
         .read_memory(stack_base, stack_end - stack_base)
         .unwrap_or_else(|_| vec![]);
     print_mem(stack, stack_base as usize, " STACK ");
-    let heap_base = 0x30500;
     let heap = instance
-        .read_memory(heap_base, 256)
+        .read_memory(HEAP_BASE, 256)
         .unwrap_or_else(|_| vec![]);
-    print_mem(heap, heap_base as usize, " HEAP ");
+    print_mem(heap, HEAP_BASE as usize, " HEAP ");
     let address = instance.module().memory_map().aux_data_address();
     let length = 100;
     let aux = instance

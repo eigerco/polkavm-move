@@ -1,11 +1,7 @@
 use core::alloc::{GlobalAlloc, Layout};
 
-/// Base of the guest heap.
-const HEAP_BASE: u32 = 0x30500;
-/// End of the reserved heap region (exclusive).
-// const HEAP_LIMIT: u32 = 0x30200 + 0x10000; // 64 KiB
-/// Cursor lives in `.bss`; zeroed on every fresh `call`/`deploy`.
-// static CURSOR: AtomicU32 = AtomicU32::new(0);
+use crate::HEAP_BASE;
+
 static mut OFFSET: u32 = 0;
 
 pub struct BumpAlloc;
