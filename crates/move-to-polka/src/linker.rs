@@ -239,9 +239,9 @@ pub fn create_instance(
     // but the program loop must handle the `Ecalli` interrupts and call these functions manually
     // setting up the parameters in the registers.
     linker.define_typed("hex_dump", |caller: Caller<MemAllocator>| {
-        let allocator = caller.user_data;
+        let _allocator = caller.user_data;
         let instance = caller.instance;
-        hexdump(allocator, instance);
+        hexdump(instance);
     })?;
 
     linker.define_typed(
@@ -423,6 +423,7 @@ pub fn copy_from_guest<T: Sized + Copy>(
             address
         );
         instance.read_memory_into(address, dst_bytes)?;
+        trace!("read:: {dst_bytes:x?}");
         Ok(uninit.assume_init())
     }
 }
@@ -438,7 +439,7 @@ pub fn copy_bytes_from_guest(
 
     // Step 2: let `read_memory_into` initialize it
     let initialized: &mut [u8] = instance.read_memory_into(address, &mut *uninit)?;
-
+    trace!("read: {initialized:x?}");
     // Step 3: create a Vec<u8> from the slice
     Ok(initialized.to_vec())
 }
@@ -542,7 +543,7 @@ fn handle_ecalli(
             debug_print(instance, ptr_to_type, ptr_to_data).expect("Failed to print debug info");
         }
         "hex_dump" => {
-            hexdump(allocator, instance);
+            hexdump(instance);
         }
         "move_to" => {
             let ptr_to_signer = instance.reg(Reg::A0) as u32;
@@ -619,11 +620,11 @@ fn hash_sha2_256(
 }
 
 fn guest_abort(
-    allocator: &mut MemAllocator,
+    _allocator: &mut MemAllocator,
     instance: &mut RawInstance,
     code: u64,
 ) -> Result<(), ProgramError> {
-    hexdump(allocator, instance);
+    hexdump(instance);
     let program_error = match code {
         PANIC_CODE => ProgramError::NativeLibPanic,
         ALLOC_CODE => ProgramError::NativeLibAllocatorCall,
@@ -806,7 +807,7 @@ fn to_move_byte_vector(
     Ok(copy_to_guest(instance, allocator, &move_byte_vec)?)
 }
 
-fn hexdump(allocator: &MemAllocator, instance: &mut RawInstance) {
+fn hexdump(instance: &mut RawInstance) {
     let ro_base = 0x10000u32;
     let ro = instance
         .read_memory(ro_base, 256)
@@ -822,18 +823,17 @@ fn hexdump(allocator: &MemAllocator, instance: &mut RawInstance) {
         .read_memory(stack_base, stack_end - stack_base)
         .unwrap_or_else(|_| vec![]);
     print_mem(stack, stack_base as usize, " STACK ");
-    let heap_base = instance.module().memory_map().heap_base();
+    let heap_base = 0x30500;
     let heap = instance
         .read_memory(heap_base, 256)
         .unwrap_or_else(|_| vec![]);
     print_mem(heap, heap_base as usize, " HEAP ");
     let address = instance.module().memory_map().aux_data_address();
-    let length = instance.module().memory_map().aux_data_size();
+    let length = 100;
     let aux = instance
         .read_memory(address, length)
         .unwrap_or_else(|_| vec![]);
-    let aux_base = allocator.base() as usize;
-    print_mem(aux, aux_base, " AUX ");
+    print_mem(aux, address as usize, " AUX ");
 }
 
 fn print_mem(mem: Vec<u8>, base: usize, label: &str) {
