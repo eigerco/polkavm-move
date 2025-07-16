@@ -646,7 +646,7 @@ fn release(
         copy_from_guest(instance, ptr_to_addr).expect("Failed to copy address from guest");
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag).unwrap_or([0; 32]);
     let value = from_move_byte_vector(instance, ptr_to_struct).unwrap_or_default();
-    debug!("release called with type address: {address:?}, tag: {tag:?}, value: {value:x?}",);
+    debug!("release called with address: {address:?}, tag: {tag:?}, value: {value:x?}",);
     allocator.update(address, tag, value)?;
     allocator.release(address, tag);
     Result::<(), ProgramError>::Ok(())
@@ -661,7 +661,7 @@ fn exists(
     debug!("exists called with address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",);
     let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
-    debug!("exists called with type address: {address:?}, tag: {tag:?}",);
+    debug!("exists called with address: {address:?}, tag: {tag:?}",);
     let value = allocator.exists(address, tag)?;
     Result::<u32, ProgramError>::Ok(value as u32)
 }
