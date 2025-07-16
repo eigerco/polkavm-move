@@ -239,7 +239,6 @@ pub fn create_instance(
     // but the program loop must handle the `Ecalli` interrupts and call these functions manually
     // setting up the parameters in the registers.
     linker.define_typed("hex_dump", |caller: Caller<MemAllocator>| {
-        let _allocator = caller.user_data;
         let instance = caller.instance;
         hexdump(instance);
     })?;
@@ -620,7 +619,7 @@ fn hash_sha2_256(
 }
 
 fn guest_abort(
-    _allocator: &mut MemAllocator,
+    _: &mut MemAllocator,
     instance: &mut RawInstance,
     code: u64,
 ) -> Result<(), ProgramError> {
@@ -659,9 +658,7 @@ fn exists(
     ptr_to_addr: u32,
     ptr_to_tag: u32,
 ) -> Result<u32, ProgramError> {
-    debug!(
-        "exists called with type ptr: address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",
-    );
+    debug!("exists called with address ptr: 0x{ptr_to_addr:X}, ptr_to_tag: 0x{ptr_to_tag:X}",);
     let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
     debug!("exists called with type address: {address:?}, tag: {tag:?}",);
@@ -678,13 +675,13 @@ fn move_from(
     is_mut_u32: u32,
 ) -> Result<u32, ProgramError> {
     debug!(
-        "move_from called with type address ptr: 0x{ptr_to_addr:X}, remove: {remove_u32}, is_mut: {is_mut_u32}",
+        "move_from called with address ptr: 0x{ptr_to_addr:X}, remove: {remove_u32}, is_mut: {is_mut_u32}",
     );
     let remove = remove_u32 != 0;
     let is_mut = is_mut_u32 != 0;
     let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
-    debug!("move_from called with type address ptr: 0x{ptr_to_addr:X}, address: {address:?}",);
+    debug!("move_from called with address ptr: 0x{ptr_to_addr:X}, address: {address:?}",);
     let value = allocator.load_global(address, tag, remove, is_mut)?;
     debug!("move_from loaded value: {value:x?}");
     let address = to_move_byte_vector(instance, allocator, value.to_vec())?;

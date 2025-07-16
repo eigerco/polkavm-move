@@ -101,7 +101,7 @@ unsafe extern "C" fn borrow_global(
 }
 
 #[export_name = "move_rt_exists"]
-unsafe extern "C" fn exists(type_ve: &MoveType, s: &AnyValue, tag: &AnyValue) -> u32 {
+unsafe extern "C" fn exists(_type_ve: &MoveType, s: &AnyValue, tag: &AnyValue) -> u32 {
     imports::exists(s, tag)
 }
 
