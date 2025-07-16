@@ -43,6 +43,8 @@ module 0xb000::void {
         debug::print(&len);
         let digest = hash::sha2_256(input);
         debug::print(&digest);
+        let digest = hash::sha3_256(input);
+        debug::print(&digest);
         store(account);
     }
 }
