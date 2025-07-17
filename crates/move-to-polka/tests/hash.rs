@@ -24,9 +24,9 @@ fn create_blob_once() -> ProgramBlob {
 #[test]
 pub fn test_sha2() -> anyhow::Result<()> {
     let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
+    let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "sha2_256_expected_hash", ())
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "sha2_256_expected_hash", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(result.is_ok());
 
@@ -36,9 +36,9 @@ pub fn test_sha2() -> anyhow::Result<()> {
 #[test]
 pub fn test_sha3() -> anyhow::Result<()> {
     let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
+    let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "sha3_256_expected_hash", ())
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "sha3_256_expected_hash", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(result.is_ok());
 

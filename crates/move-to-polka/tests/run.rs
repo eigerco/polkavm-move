@@ -21,17 +21,17 @@ fn create_blob_once() -> ProgramBlob {
 #[test]
 pub fn test_run_lowlevel() -> anyhow::Result<()> {
     let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
+    let (mut instance, mut runtime) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
     address_bytes[0] = 0xab;
     address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut runtime.allocator, &move_signer)?;
     instance.set_reg(Reg::A0, signer_address as u64);
 
-    run_lowlevel(&mut instance, &mut allocator, "pvm_start")?;
+    run_lowlevel(&mut instance, &mut runtime, "pvm_start")?;
 
     Ok(())
 }

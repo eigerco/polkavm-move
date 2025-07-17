@@ -25,9 +25,9 @@ fn create_blob_once() -> ProgramBlob {
 #[test]
 pub fn test_serialize_string() -> anyhow::Result<()> {
     let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
+    let (mut instance, mut runtime) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<u32, ()>(&mut allocator, "ser_string", ())
+        .call_typed_and_get_result::<u32, ()>(&mut runtime, "ser_string", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())
@@ -36,7 +36,7 @@ pub fn test_serialize_string() -> anyhow::Result<()> {
 #[test]
 pub fn test_serialize_signer() -> anyhow::Result<()> {
     let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
+    let (mut instance, mut runtime) = create_instance(blob)?;
     let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
     // set markers for debug displaying
     address_bytes[0] = 0xab;
@@ -44,10 +44,10 @@ pub fn test_serialize_signer() -> anyhow::Result<()> {
 
     let move_signer = MoveSigner(MoveAddress(address_bytes));
 
-    let signer_address = copy_to_guest(&mut instance, &mut allocator, &move_signer)?;
+    let signer_address = copy_to_guest(&mut instance, &mut runtime.allocator, &move_signer)?;
 
     instance
-        .call_typed_and_get_result::<u32, (u32,)>(&mut allocator, "ser_signer", (signer_address,))
+        .call_typed_and_get_result::<u32, (u32,)>(&mut runtime, "ser_signer", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())

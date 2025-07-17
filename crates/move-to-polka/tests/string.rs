@@ -24,9 +24,9 @@ fn create_blob_once() -> ProgramBlob {
 #[test]
 pub fn test_string() -> anyhow::Result<()> {
     let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
+    let (mut instance, mut runtime) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "foo", ())
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "foo", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())
@@ -35,9 +35,9 @@ pub fn test_string() -> anyhow::Result<()> {
 #[test]
 pub fn test_string_index_of() -> anyhow::Result<()> {
     let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
+    let (mut instance, mut runtime) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<u64, ()>(&mut allocator, "index_of", ())
+        .call_typed_and_get_result::<u64, ()>(&mut runtime, "index_of", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())
@@ -46,9 +46,9 @@ pub fn test_string_index_of() -> anyhow::Result<()> {
 #[test]
 pub fn test_string_substring() -> anyhow::Result<()> {
     let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
+    let (mut instance, mut runtime) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "substring", ())
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "substring", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())
@@ -57,9 +57,9 @@ pub fn test_string_substring() -> anyhow::Result<()> {
 #[test]
 pub fn test_append() -> anyhow::Result<()> {
     let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
+    let (mut instance, mut runtime) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<u32, ()>(&mut allocator, "append", ())
+        .call_typed_and_get_result::<u32, ()>(&mut runtime, "append", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())
@@ -68,9 +68,9 @@ pub fn test_append() -> anyhow::Result<()> {
 #[test]
 pub fn test_insert() -> anyhow::Result<()> {
     let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
+    let (mut instance, mut runtime) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<u32, ()>(&mut allocator, "insert", ())
+        .call_typed_and_get_result::<u32, ()>(&mut runtime, "insert", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())

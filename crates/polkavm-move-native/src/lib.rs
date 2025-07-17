@@ -228,6 +228,8 @@
 
 #![cfg_attr(feature = "polkavm", no_std)]
 
+#[cfg(feature = "host")]
+pub mod allocator;
 pub mod conv;
 #[cfg(feature = "polkavm")]
 pub mod guest;

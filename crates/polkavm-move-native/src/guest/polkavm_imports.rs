@@ -25,7 +25,7 @@ extern "C" {
     pub(crate) fn call_data_size() -> u64;
 }
 
-// The call_selector is generated during tranlation
+// The call_selector is generated during translation
 extern "C" {
     pub(crate) fn call_selector(buf: *mut u8, size: u64);
 }

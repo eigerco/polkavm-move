@@ -14,7 +14,8 @@ use polkavm::{
     ModuleConfig, ProgramBlob, RawInstance, Reg,
 };
 use polkavm_move_native::{
-    host::{MemAllocator, ProgramError},
+    allocator::MemAllocator,
+    host::{ProgramError, Runtime},
     types::{MoveAddress, MoveByteVector, MoveSigner, MoveType, TypeDesc},
     ALLOC_CODE, HEAP_BASE, PANIC_CODE,
 };
@@ -95,7 +96,7 @@ pub fn load_from_elf_with_polka_linker(data: &[u8]) -> anyhow::Result<Vec<u8>> {
 pub type PolkaError = polkavm::Error;
 pub type LinkerResult<T> = Result<T, PolkaError>;
 
-pub type MoveProgramLinker = Linker<MemAllocator, ProgramError>;
+pub type MoveProgramLinker = Linker<Runtime, ProgramError>;
 
 /// creates new polkavm instance with native functions prepared for move program
 /// all native functions declared by move std must defined here
@@ -103,7 +104,7 @@ pub fn new_move_program(
     output: &str,
     source: &str,
     mapping: Vec<String>,
-) -> Result<(Instance<MemAllocator, ProgramError>, MemAllocator), anyhow::Error> {
+) -> Result<(Instance<Runtime, ProgramError>, Runtime), anyhow::Error> {
     create_instance(create_blob(output, source, mapping)?)
 }
 
@@ -217,7 +218,7 @@ fn fetch_git_dep(
 /// Creates a new PolkaVM instance with the Move program blob.
 pub fn create_instance(
     blob: ProgramBlob,
-) -> Result<(Instance<MemAllocator, ProgramError>, MemAllocator), anyhow::Error> {
+) -> Result<(Instance<Runtime, ProgramError>, Runtime), anyhow::Error> {
     // AUX segment is used to inject data into the guest. The guest allocates on the heap
     // using the LeakingAllocator.
     const AUX_DATA_SIZE: u32 = 4 * 1024;
@@ -232,20 +233,25 @@ pub fn create_instance(
     let module = Module::from_blob(&engine, &module_config, blob.clone())?;
     // Create a memory allocator for the module.
     let allocator = MemAllocator::init(module.memory_map());
+    let storage = polkavm_move_native::storage::GlobalStorage::default();
+    let runtime = Runtime {
+        allocator,
+        storage: Box::new(storage),
+    };
     let mut linker: MoveProgramLinker = Linker::new();
 
     // Define the host functions that will be used by the Move program.
     // Note: when using the low-level `run_lowlevel` function, these are not called automatically,
     // but the program loop must handle the `Ecalli` interrupts and call these functions manually
     // setting up the parameters in the registers.
-    linker.define_typed("hex_dump", |caller: Caller<MemAllocator>| {
+    linker.define_typed("hex_dump", |caller: Caller<Runtime>| {
         let instance = caller.instance;
         hexdump(instance);
     })?;
 
     linker.define_typed(
         "debug_print",
-        |caller: Caller<MemAllocator>, ptr_to_type: u32, ptr_to_data: u32| {
+        |caller: Caller<Runtime>, ptr_to_type: u32, ptr_to_data: u32| {
             let instance = caller.instance;
             debug_print(instance, ptr_to_type, ptr_to_data)
         },
@@ -259,7 +265,7 @@ pub fn create_instance(
 
     linker.define_typed(
         "call_data_copy",
-        |caller: Caller<MemAllocator>, ptr_to_buf: u32, _size: u32, _offset: u32| {
+        |caller: Caller<Runtime>, ptr_to_buf: u32, _size: u32, _offset: u32| {
             let instance = caller.instance;
             instance.write_memory(ptr_to_buf, CALL_DATA)?;
             Result::<(), ProgramError>::Ok(())
@@ -268,77 +274,64 @@ pub fn create_instance(
 
     linker.define_typed(
         "move_to",
-        |caller: Caller<MemAllocator>, ptr_to_signer: u32, ptr_to_struct: u32, ptr_to_tag: u32| {
-            let allocator = caller.user_data;
+        |caller: Caller<Runtime>, ptr_to_signer: u32, ptr_to_struct: u32, ptr_to_tag: u32| {
+            let runtime = caller.user_data;
             let instance = caller.instance;
-            move_to(
-                allocator,
-                instance,
-                ptr_to_signer,
-                ptr_to_struct,
-                ptr_to_tag,
-            )
+            move_to(runtime, instance, ptr_to_signer, ptr_to_struct, ptr_to_tag)
         },
     )?;
 
     linker.define_typed(
         "move_from",
-        |caller: Caller<MemAllocator>,
-         ptr_to_addr: u32,
-         remove: u32,
-         ptr_to_tag: u32,
-         is_mut: u32| {
+        |caller: Caller<Runtime>, ptr_to_addr: u32, remove: u32, ptr_to_tag: u32, is_mut: u32| {
             let instance = caller.instance;
-            let allocator = caller.user_data;
-            move_from(allocator, instance, ptr_to_addr, remove, ptr_to_tag, is_mut)
+            let runtime = caller.user_data;
+            move_from(runtime, instance, ptr_to_addr, remove, ptr_to_tag, is_mut)
         },
     )?;
 
     linker.define_typed(
         "exists",
-        |caller: Caller<MemAllocator>, ptr_to_addr: u32, ptr_to_tag: u32| {
-            let allocator = caller.user_data;
+        |caller: Caller<Runtime>, ptr_to_addr: u32, ptr_to_tag: u32| {
+            let runtime = caller.user_data;
             let instance = caller.instance;
-            exists(allocator, instance, ptr_to_addr, ptr_to_tag)
+            exists(runtime, instance, ptr_to_addr, ptr_to_tag)
         },
     )?;
 
     linker.define_typed(
         "release",
-        |caller: Caller<MemAllocator>, ptr_to_addr: u32, ptr_to_struct: u32, ptr_to_tag: u32| {
-            let allocator = caller.user_data;
+        |caller: Caller<Runtime>, ptr_to_addr: u32, ptr_to_struct: u32, ptr_to_tag: u32| {
+            let runtime = caller.user_data;
             let instance = caller.instance;
-            release(allocator, instance, ptr_to_addr, ptr_to_struct, ptr_to_tag)
+            release(runtime, instance, ptr_to_addr, ptr_to_struct, ptr_to_tag)
         },
     )?;
 
     linker.define_typed(
         "terminate",
-        |caller: Caller<MemAllocator>, ptr_to_beneficiary: u32| {
-            let allocator = caller.user_data;
+        |caller: Caller<Runtime>, ptr_to_beneficiary: u32| {
             let instance = caller.instance;
             let beneficiary = copy_bytes_from_guest(instance, ptr_to_beneficiary, 20)
                 .expect("Failed to copy beneficiary address from guest");
-            guest_abort(allocator, instance, beneficiary[0] as u64)
+            guest_abort(instance, beneficiary[0] as u64)
         },
     )?;
 
     linker.define_typed(
         "hash_sha2_256",
-        |caller: Caller<MemAllocator>, ptr_to_buf: u32| {
-            let allocator = caller.user_data;
+        |caller: Caller<Runtime>, ptr_to_buf: u32| {
             let instance = caller.instance;
-            hash_sha2_256(allocator, instance, ptr_to_buf)
+            hash_sha2_256(caller.user_data, instance, ptr_to_buf)
         },
     )?;
 
     linker.define_typed(
         "hash_sha3_256",
-        |caller: Caller<MemAllocator>, ptr_to_buf: u32| {
+        |caller: Caller<Runtime>, ptr_to_buf: u32| {
             debug!("hash_sha3_256 called with type: ptr: 0x{ptr_to_buf:X}");
-            let allocator = caller.user_data;
             let instance = caller.instance;
-            hash_sha3_256(allocator, instance, ptr_to_buf)
+            hash_sha3_256(caller.user_data, instance, ptr_to_buf)
         },
     )?;
 
@@ -359,7 +352,7 @@ pub fn create_instance(
         module.memory_map().aux_data_size(),
         module.memory_map().heap_base(),
     );
-    Ok((instance, allocator))
+    Ok((instance, runtime))
 }
 
 /// Copy memory host -> guest (aux)
@@ -446,8 +439,8 @@ pub fn copy_bytes_from_guest(
 /// Different way to run the program, which allows to handle low-level interrupts
 /// The caller must store the parameters to the entrypoint function into registers before calling this function.
 pub fn run_lowlevel(
-    instance: &mut Instance<MemAllocator, ProgramError>,
-    allocator: &mut MemAllocator,
+    instance: &mut Instance<Runtime, ProgramError>,
+    runtime: &mut Runtime,
     entry: &str,
 ) -> Result<(), anyhow::Error> {
     let start = instance
@@ -492,30 +485,30 @@ pub fn run_lowlevel(
         match instance.run()? {
             InterruptKind::Finished => {
                 info!("Program finished successfully.");
-                allocator.release_all();
+                runtime.storage.release_all();
                 break;
             }
             InterruptKind::Ecalli(n) => {
                 let syscall = map.get(&(n as usize)).unwrap_or(&"unknown syscall");
                 debug!("Ecalli interrupt with code: {n}: {syscall}");
-                handle_ecalli(instance, allocator, syscall);
+                handle_ecalli(instance, runtime, syscall);
                 if syscall == &"abort" {
                     let code = instance.reg(Reg::A0);
                     panic!("Aborted: {code}");
                 }
             }
             InterruptKind::Segfault(segfault) => {
-                allocator.release_all();
+                runtime.storage.release_all();
                 panic!("Segfault occurred at address {:x?}", segfault.page_address);
             }
             InterruptKind::Trap => {
                 info!("Trap occurred, releasing all resources.");
-                allocator.release_all();
+                runtime.storage.release_all();
                 panic!("Trap");
             }
             InterruptKind::NotEnoughGas => {
                 warn!("Not enough gas to continue execution, releasing all resources.");
-                allocator.release_all();
+                runtime.storage.release_all();
                 panic!("Not enough gas to continue execution");
             }
             other => {
@@ -528,11 +521,8 @@ pub fn run_lowlevel(
 }
 
 fn handle_ecalli(
-    instance: &mut polkavm::Instance<
-        polkavm_move_native::host::MemAllocator,
-        polkavm_move_native::host::ProgramError,
-    >,
-    allocator: &mut polkavm_move_native::host::MemAllocator,
+    instance: &mut polkavm::Instance<Runtime, ProgramError>,
+    runtime: &mut Runtime,
     syscall: &str,
 ) {
     match syscall {
@@ -548,60 +538,47 @@ fn handle_ecalli(
             let ptr_to_signer = instance.reg(Reg::A0) as u32;
             let ptr_to_struct = instance.reg(Reg::A1) as u32;
             let ptr_to_tag = instance.reg(Reg::A2) as u32;
-            move_to(
-                allocator,
-                instance,
-                ptr_to_signer,
-                ptr_to_struct,
-                ptr_to_tag,
-            )
-            .expect("Failed to print debug info");
+            move_to(runtime, instance, ptr_to_signer, ptr_to_struct, ptr_to_tag)
+                .expect("Failed to print debug info");
         }
         "move_from" => {
             let ptr_to_signer = instance.reg(Reg::A0) as u32;
             let remove = instance.reg(Reg::A1) as u32;
             let ptr_to_tag = instance.reg(Reg::A2) as u32;
             let is_mut = instance.reg(Reg::A3) as u32;
-            let result = move_from(
-                allocator,
-                instance,
-                ptr_to_signer,
-                remove,
-                ptr_to_tag,
-                is_mut,
-            )
-            .expect("Failed to move from global storage");
+            let result = move_from(runtime, instance, ptr_to_signer, remove, ptr_to_tag, is_mut)
+                .expect("Failed to move from global storage");
             instance.set_reg(Reg::A0, result as u64);
         }
         "exists" => {
             let ptr_to_signer = instance.reg(Reg::A0) as u32;
             let ptr_to_tag = instance.reg(Reg::A1) as u32;
-            let result = exists(allocator, instance, ptr_to_signer, ptr_to_tag)
+            let result = exists(runtime, instance, ptr_to_signer, ptr_to_tag)
                 .expect("Failed to check if global exists");
             instance.set_reg(Reg::A0, result as u64);
         }
         "hash_sha2_256" => {
             let ptr_to_vec = instance.reg(Reg::A0) as u32;
             let result =
-                hash_sha2_256(allocator, instance, ptr_to_vec).expect("Failed to calculate hash");
+                hash_sha2_256(runtime, instance, ptr_to_vec).expect("Failed to calculate hash");
             instance.set_reg(Reg::A0, result as u64);
         }
         "hash_sha3_256" => {
             let ptr_to_vec = instance.reg(Reg::A0) as u32;
             let result =
-                hash_sha3_256(allocator, instance, ptr_to_vec).expect("Failed calculate hash");
+                hash_sha3_256(runtime, instance, ptr_to_vec).expect("Failed calculate hash");
             instance.set_reg(Reg::A0, result as u64);
         }
         "terminate" => {
             let code = instance.reg(Reg::A0);
-            guest_abort(allocator, instance, code).ok();
+            guest_abort(instance, code).ok();
         }
         _ => {}
     }
 }
 
 fn hash_sha2_256(
-    allocator: &mut MemAllocator,
+    runtime: &mut Runtime,
     instance: &mut RawInstance,
     ptr_to_buf: u32,
 ) -> Result<u32, ProgramError> {
@@ -613,16 +590,29 @@ fn hash_sha2_256(
         "hash_sha2_256 called with {} bytes, digest: {digest:X?}",
         bytes.len(),
     );
-    let address = to_move_byte_vector(instance, allocator, digest.to_vec())?;
+    let address = to_move_byte_vector(instance, &mut runtime.allocator, digest.to_vec())?;
     debug!("Allocated address for digest: 0x{address:X}");
     Result::<u32, ProgramError>::Ok(address)
 }
 
-fn guest_abort(
-    _: &mut MemAllocator,
+fn hash_sha3_256(
+    runtime: &mut Runtime,
     instance: &mut RawInstance,
-    code: u64,
-) -> Result<(), ProgramError> {
+    ptr_to_buf: u32,
+) -> Result<u32, ProgramError> {
+    let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
+    debug!("bytes: {bytes:?}");
+    let digest = sha3::Sha3_256::digest(&bytes);
+    debug!(
+        "hash_sha3_256 called with {} bytes, digest: {digest:X?}",
+        bytes.len(),
+    );
+    let address = to_move_byte_vector(instance, &mut runtime.allocator, digest.to_vec())?;
+    debug!("Allocated address for digest: 0x{address:X}");
+    Result::<u32, ProgramError>::Ok(address)
+}
+
+fn guest_abort(instance: &mut RawInstance, code: u64) -> Result<(), ProgramError> {
     hexdump(instance);
     let program_error = match code {
         PANIC_CODE => ProgramError::NativeLibPanic,
@@ -633,7 +623,7 @@ fn guest_abort(
 }
 
 fn release(
-    allocator: &mut MemAllocator,
+    runtime: &mut Runtime,
     instance: &mut RawInstance,
     ptr_to_addr: u32,
     ptr_to_struct: u32,
@@ -647,13 +637,13 @@ fn release(
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag).unwrap_or([0; 32]);
     let value = from_move_byte_vector(instance, ptr_to_struct).unwrap_or_default();
     debug!("release called with address: {address:?}, tag: {tag:?}, value: {value:x?}",);
-    allocator.update(address, tag, value)?;
-    allocator.release(address, tag);
+    runtime.storage.update(address, tag, value)?;
+    runtime.storage.release(address, tag);
     Result::<(), ProgramError>::Ok(())
 }
 
 fn exists(
-    allocator: &mut MemAllocator,
+    runtime: &mut Runtime,
     instance: &mut RawInstance,
     ptr_to_addr: u32,
     ptr_to_tag: u32,
@@ -662,12 +652,12 @@ fn exists(
     let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
     debug!("exists called with address: {address:?}, tag: {tag:?}",);
-    let value = allocator.exists(address, tag)?;
+    let value = runtime.storage.exists(address, tag)?;
     Result::<u32, ProgramError>::Ok(value as u32)
 }
 
 fn move_from(
-    allocator: &mut MemAllocator,
+    runtime: &mut Runtime,
     instance: &mut RawInstance,
     ptr_to_addr: u32,
     remove_u32: u32,
@@ -682,15 +672,15 @@ fn move_from(
     let address: MoveAddress = copy_from_guest(instance, ptr_to_addr)?;
     let tag: [u8; 32] = copy_from_guest(instance, ptr_to_tag)?;
     debug!("move_from called with address ptr: 0x{ptr_to_addr:X}, address: {address:?}",);
-    let value = allocator.load_global(address, tag, remove, is_mut)?;
+    let value = runtime.storage.load(address, tag, remove, is_mut)?;
     debug!("move_from loaded value: {value:x?}");
-    let address = to_move_byte_vector(instance, allocator, value.to_vec())?;
+    let address = to_move_byte_vector(instance, &mut runtime.allocator, value.to_vec())?;
     debug!("move_from returned address: 0x{address:X}");
     Result::<u32, ProgramError>::Ok(address)
 }
 
 fn move_to(
-    allocator: &mut MemAllocator,
+    runtime: &mut Runtime,
     instance: &mut RawInstance,
     ptr_to_signer: u32,
     ptr_to_struct: u32,
@@ -705,7 +695,7 @@ fn move_to(
     debug!(
         "move_to called with address ptr: 0x{ptr_to_signer:X}, value ptr: 0x{ptr_to_struct:X}, address: {address:?}, value: {value:x?}",
     );
-    allocator.store_global(address, tag, value.to_vec())?;
+    runtime.storage.store(address, tag, value.to_vec())?;
     Result::<(), ProgramError>::Ok(())
 }
 
@@ -757,23 +747,6 @@ fn debug_print(
         debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
     }
     Result::<(), ProgramError>::Ok(())
-}
-
-fn hash_sha3_256(
-    allocator: &mut MemAllocator,
-    instance: &mut RawInstance,
-    ptr_to_buf: u32,
-) -> Result<u32, ProgramError> {
-    let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
-    debug!("bytes: {bytes:?}");
-    let digest = sha3::Sha3_256::digest(&bytes);
-    debug!(
-        "hash_sha3_256 called with {} bytes, digest: {digest:X?}",
-        bytes.len(),
-    );
-    let address = to_move_byte_vector(instance, allocator, digest.to_vec())?;
-    debug!("Allocated address for digest: 0x{address:X}");
-    Result::<u32, ProgramError>::Ok(address)
 }
 
 fn from_move_byte_vector(

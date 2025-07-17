@@ -25,9 +25,9 @@ fn create_blob_once() -> ProgramBlob {
 pub fn test_multi_module_call() -> anyhow::Result<()> {
     initialize_logger();
     let blob = create_blob_once();
-    let (mut instance, mut allocator) = create_instance(blob)?;
+    let (mut instance, mut runtime) = create_instance(blob)?;
     instance
-        .call_typed_and_get_result::<(), ()>(&mut allocator, "main", ())
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "main", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok(())
