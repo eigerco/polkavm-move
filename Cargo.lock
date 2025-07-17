@@ -341,6 +341,7 @@ checksum = "ad8646f98db542e39fc66e68a20b2144f6a732636df7c2354e74645faaa433ce"
 dependencies = [
  "borsh-derive",
  "cfg_aliases",
+ "hashbrown 0.12.3",
 ]
 
 [[package]]
