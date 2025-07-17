@@ -1,8 +1,9 @@
-extern crate std;
+extern crate alloc;
 
 use crate::{host::ProgramError, types::MoveAddress};
+use alloc::{format, vec::Vec};
+use hashbrown::HashMap;
 use log::debug;
-use std::{collections::HashMap, vec::Vec};
 
 pub type StructTagHash = [u8; 32];
 

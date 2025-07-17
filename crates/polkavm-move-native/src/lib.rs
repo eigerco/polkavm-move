@@ -226,7 +226,7 @@
 //! - `move-vm-types::values::Value`
 //! - `move-core-types::value`
 
-#![cfg_attr(feature = "polkavm", no_std)]
+#![no_std]
 
 #[cfg(feature = "host")]
 pub mod allocator;

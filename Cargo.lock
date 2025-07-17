@@ -3970,6 +3970,7 @@ version = "0.1.0"
 dependencies = [
  "borsh",
  "ethnum",
+ "hashbrown 0.15.4",
  "heapless",
  "log",
  "polkavm",

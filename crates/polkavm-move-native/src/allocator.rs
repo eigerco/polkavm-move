@@ -1,5 +1,3 @@
-extern crate std;
-
 use log::trace;
 use polkavm::{MemoryAccessError, MemoryMap};
 

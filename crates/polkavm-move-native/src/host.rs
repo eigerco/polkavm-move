@@ -1,9 +1,8 @@
-extern crate std;
-
+extern crate alloc;
 use polkavm::MemoryAccessError;
 
 use crate::{allocator::MemAllocator, storage::Storage};
-use std::boxed::Box;
+use alloc::{boxed::Box, string::ToString};
 
 #[derive(Debug)]
 pub enum ProgramError {
@@ -14,7 +13,7 @@ pub enum ProgramError {
     // there is no allocator available for guest program (Move program to be exact), any calls to malloc result in abort with special code
     NativeLibAllocatorCall,
     // memory access error when we work inside callbacks and do memory reading
-    MemoryAccess(std::string::String),
+    MemoryAccess(alloc::string::String),
 }
 
 impl From<MemoryAccessError> for ProgramError {
