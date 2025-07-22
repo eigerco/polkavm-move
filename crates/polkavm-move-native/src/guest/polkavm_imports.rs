@@ -5,11 +5,13 @@ use alloc::boxed::Box;
 // We need to load the call data and pass it to the selector function.
 #[polkavm_derive::polkavm_export]
 unsafe extern "C" fn call() {
-    let size = call_data_size();
-    let mut buf = Box::new_uninit_slice(size as usize).assume_init();
+    // 4 bytes for selector, 20 bytes for origin, rest padding
+    let mut buf = Box::new_uninit_slice(36).assume_init();
     let out_ptr = buf.as_mut_ptr();
-    call_data_copy(out_ptr, size as u32, 0);
-    call_selector(out_ptr, size);
+    call_data_copy(out_ptr, 4, 0);
+    let signer_ptr = unsafe { out_ptr.add(4) }; // Skip first 4 bytes
+    origin(signer_ptr);
+    call_selector(out_ptr, 36);
 }
 
 #[polkavm_derive::polkavm_export]
@@ -23,6 +25,11 @@ extern "C" {
 #[polkavm_derive::polkavm_import]
 extern "C" {
     pub(crate) fn call_data_size() -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn origin(buf: *mut u8);
 }
 
 // The call_selector is generated during translation

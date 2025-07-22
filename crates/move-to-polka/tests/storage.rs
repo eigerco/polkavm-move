@@ -1,6 +1,6 @@
 use move_to_polka::{
     initialize_logger,
-    linker::{copy_to_guest, create_blob, create_instance},
+    linker::{copy_bytes_to_guest, copy_to_guest, create_blob, create_instance},
 };
 use once_cell::sync::OnceCell;
 use polkavm::ProgramBlob;
@@ -261,6 +261,31 @@ pub fn storage_load_non_existent() -> anyhow::Result<()> {
         result.is_err(),
         "Expected error when storing twice, but got: {result:?}"
     );
+
+    Ok(())
+}
+
+#[test]
+pub fn test_selector() -> anyhow::Result<()> {
+    initialize_logger();
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+
+    let bytes = hex::decode("c429b279")?; // borrow_mut_abort selector
+    let addr = copy_bytes_to_guest(&mut instance, &mut runtime.allocator, bytes.as_slice())?;
+
+    let result = instance
+        .call_typed_and_get_result::<(), _>(&mut runtime, "call", (addr, bytes.len() as u64))
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_err());
+
+    // should have released the borrow
+    let mut address_bytes = [1u8; ACCOUNT_ADDRESS_LENGTH];
+    address_bytes[0] = 0xab;
+    address_bytes[ACCOUNT_ADDRESS_LENGTH - 1] = 0xce;
+    let move_signer = MoveSigner(MoveAddress(address_bytes));
+    let is_borrowed = runtime.storage.is_borrowed(move_signer.0, TAG);
+    assert!(!is_borrowed);
 
     Ok(())
 }

@@ -257,20 +257,27 @@ pub fn create_instance(
         },
     )?;
 
-    const CALL_DATA: &[u8] = &hex_literal::hex!(
-        "79a4011eab010101010101010101010101010101010101010101010101010101010101ce"
-    );
-    linker.define_typed("call_data_size", || CALL_DATA.len() as u64)?;
+    const SELECTOR: &[u8] = &hex_literal::hex!("c429b279");
+    linker.define_typed("call_data_size", || SELECTOR.len() as u64)?;
+
     linker.define_typed("call_selector", || {})?;
 
     linker.define_typed(
         "call_data_copy",
         |caller: Caller<Runtime>, ptr_to_buf: u32, _size: u32, _offset: u32| {
             let instance = caller.instance;
-            instance.write_memory(ptr_to_buf, CALL_DATA)?;
+            instance.write_memory(ptr_to_buf, SELECTOR)?;
             Result::<(), ProgramError>::Ok(())
         },
     )?;
+
+    const SIGNER: &[u8] = &hex_literal::hex!("ab010101010101010101010101010101010101ce");
+
+    linker.define_typed("origin", |caller: Caller<Runtime>, ptr_to_buf: u32| {
+        let instance = caller.instance;
+        instance.write_memory(ptr_to_buf, SIGNER)?;
+        Result::<(), ProgramError>::Ok(())
+    })?;
 
     linker.define_typed(
         "move_to",
