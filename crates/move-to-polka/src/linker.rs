@@ -271,13 +271,24 @@ pub fn create_instance(
         },
     )?;
 
-    const SIGNER: &[u8] = &hex_literal::hex!("ab010101010101010101010101010101010101ce");
+    const ORIGIN_ADDR: &[u8] = &hex_literal::hex!("ab010101010101010101010101010101010101ce");
+    const ACCOUNT_ID: &[u8] =
+        &hex_literal::hex!("ab010101010101010101010101010101010101010101010101010101010101ce");
 
     linker.define_typed("origin", |caller: Caller<Runtime>, ptr_to_buf: u32| {
         let instance = caller.instance;
-        instance.write_memory(ptr_to_buf, SIGNER)?;
+        instance.write_memory(ptr_to_buf, ORIGIN_ADDR)?;
         Result::<(), ProgramError>::Ok(())
     })?;
+
+    linker.define_typed(
+        "to_account_id",
+        |caller: Caller<Runtime>, _ptr_to_addr: u32, ptr_to_account: u32| {
+            let instance = caller.instance;
+            instance.write_memory(ptr_to_account, ACCOUNT_ID)?;
+            Result::<(), ProgramError>::Ok(())
+        },
+    )?;
 
     linker.define_typed(
         "move_to",

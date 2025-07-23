@@ -7,10 +7,15 @@ use alloc::boxed::Box;
 unsafe extern "C" fn call() {
     // 4 bytes for selector, 20 bytes for origin, rest padding
     let mut buf = Box::new_uninit_slice(36).assume_init();
+    // a buffer for the origin
     let out_ptr = buf.as_mut_ptr();
     call_data_copy(out_ptr, 4, 0);
+    // get the origina address
+    let mut addr_buf = Box::new_uninit_slice(20).assume_init();
+    origin(addr_buf.as_mut_ptr());
+    // convert to account id
     let signer_ptr = unsafe { out_ptr.add(4) }; // Skip first 4 bytes
-    origin(signer_ptr);
+    to_account_id(addr_buf.as_mut_ptr(), signer_ptr);
     call_selector(out_ptr, 36);
 }
 
@@ -30,6 +35,11 @@ extern "C" {
 #[polkavm_derive::polkavm_import]
 extern "C" {
     pub(crate) fn origin(buf: *mut u8);
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn to_account_id(addr_ptr: *mut u8, out_ptr: *mut u8);
 }
 
 // The call_selector is generated during translation
