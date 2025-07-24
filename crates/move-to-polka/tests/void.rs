@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use move_to_polka::{
     initialize_logger,
     linker::{copy_to_guest, create_blob, create_instance},
@@ -12,8 +14,12 @@ fn create_blob_once() -> ProgramBlob {
     COMPILE_ONCE
         .get_or_init(|| {
             initialize_logger();
-            create_blob("output/void/void.polkavm", "../../examples/void/", vec![])
-                .expect("Failed to compile Move source to PolkaVM bytecode")
+            create_blob(
+                "output/void/void.polkavm",
+                "../../examples/void/",
+                HashSet::new(),
+            )
+            .expect("Failed to compile Move source to PolkaVM bytecode")
         })
         .clone()
 }

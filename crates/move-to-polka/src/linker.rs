@@ -21,7 +21,11 @@ use polkavm_move_native::{
 };
 use sha2::Digest;
 use std::{
-    collections::HashMap, fs::create_dir_all, num::NonZero, path::Path, sync::atomic::AtomicBool,
+    collections::{HashMap, HashSet},
+    fs::create_dir_all,
+    num::NonZero,
+    path::Path,
+    sync::atomic::AtomicBool,
 };
 
 pub fn create_colored_stdout() -> StandardStream {
@@ -103,7 +107,7 @@ pub type MoveProgramLinker = Linker<Runtime, ProgramError>;
 pub fn new_move_program(
     output: &str,
     source: &str,
-    mapping: Vec<String>,
+    mapping: HashSet<String>,
 ) -> Result<(Instance<Runtime, ProgramError>, Runtime), anyhow::Error> {
     create_instance(create_blob(output, source, mapping)?)
 }
@@ -112,7 +116,7 @@ pub fn new_move_program(
 pub fn create_blob(
     output: &str,
     source: &str,
-    mut mapping: Vec<String>,
+    mut mapping: HashSet<String>,
 ) -> Result<ProgramBlob, anyhow::Error> {
     let mut build_options = BuildOptions::new(output);
     build_options = build_options.source(source);
@@ -144,7 +148,7 @@ pub fn create_blob(
                         for (name, subst) in dep_mapping {
                             if let SubstOrRename::Assign(ref addr) = subst {
                                 let mapping_str = format!("{}={}", name, addr.to_standard_string());
-                                mapping.push(mapping_str);
+                                mapping.insert(mapping_str);
                             }
                         }
                     }
@@ -156,7 +160,7 @@ pub fn create_blob(
         for (name, addr) in addresses.iter() {
             if let Some(addr) = addr {
                 let mapping_str = format!("{}={}", name.as_str(), addr.to_standard_string());
-                mapping.push(mapping_str);
+                mapping.insert(mapping_str);
             }
         }
     }
@@ -173,7 +177,7 @@ pub fn create_blob(
 }
 
 fn fetch_git_dep(
-    mapping: &mut Vec<String>,
+    mapping: &mut HashSet<String>,
     dep_sources: &mut Vec<String>,
     dep: &move_package::source_package::parsed_manifest::Dependency,
     git_url: &str,
@@ -208,7 +212,7 @@ fn fetch_git_dep(
         for (name, subst) in dep_mapping {
             if let SubstOrRename::Assign(ref addr) = subst {
                 let mapping_str = format!("{}={}", name, addr.to_standard_string());
-                mapping.push(mapping_str);
+                mapping.insert(mapping_str);
             }
         }
     }

@@ -4,6 +4,8 @@
 
 #![forbid(unsafe_code)]
 
+use std::collections::HashSet;
+
 use clap::Parser;
 use move_to_polka::{initialize_logger, linker::create_blob};
 
@@ -23,6 +25,6 @@ fn main() -> anyhow::Result<()> {
     let source = options.source.as_str();
     let output = options.output.as_str();
 
-    create_blob(output, source, vec![])?;
+    create_blob(output, source, HashSet::new())?;
     Ok(())
 }

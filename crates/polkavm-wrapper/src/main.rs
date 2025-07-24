@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use clap::{ArgGroup, Parser};
 use move_to_polka::linker::{create_instance, new_move_program};
 use polkavm::ProgramBlob;
@@ -41,7 +43,7 @@ fn main() -> anyhow::Result<()> {
     let (mut instance, mut allocator) = if let Some(source) = args.source {
         let output = "/tmp/output.polkavm";
         info!("Compiled Move source to PolkaVM bytecode at {}", output);
-        new_move_program(output, source.as_str(), vec![])?
+        new_move_program(output, source.as_str(), HashSet::new())?
     } else {
         let program_bytes = std::fs::read(args.module.unwrap())?; // clap guarantees that module is provided
         let blob =
