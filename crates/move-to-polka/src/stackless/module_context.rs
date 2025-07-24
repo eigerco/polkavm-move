@@ -58,7 +58,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         );
 
         self.declare_structs();
-        // self.llvm_module.declare_known_functions();
+        self.llvm_module.declare_known_functions();
 
         // Declaring functions will populate list `expanded_functions` containing all
         // concrete Move functions and expanded concrete instances of generic Move functions.
@@ -438,7 +438,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
         debug!("Declaring function {fn_name}",);
         let fn_data = StacklessBytecodeGenerator::new(curr_fn_env).generate_function();
-        debug!("Generated function {fn_name}",);
+        debug!("Declared function {fn_name}",);
 
         // If the current function is either a native function or a concrete Move function,
         // we have all the information needed to declare a corresponding single function.
@@ -599,6 +599,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
     /// matches the input hash, and if so, it will call the function. If no match is found, the
     /// function should abort.
     fn generate_call_selector(&mut self, exports: &mut Vec<String>) {
+        debug!("Generating call selector function");
         let llvm_cx = self.llvm_cx;
         let llvm_module = self.llvm_module;
         if exports.contains(&"call_selector".to_string()) {

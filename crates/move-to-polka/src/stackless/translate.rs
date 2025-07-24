@@ -1000,14 +1000,14 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             None
         };
 
-        // if src_mty.is_signer_or_address()
-        //     || referent_mty
-        //         .unwrap_or(&mty::Type::Error)
-        //         .is_signer_or_address()
-        // {
-        //     self.translate_address_comparison_impl(dst, src, name, pred);
-        //     return;
-        // }
+        if src_mty.is_signer_or_address()
+            || referent_mty
+                .unwrap_or(&mty::Type::Error)
+                .is_signer_or_address()
+        {
+            self.translate_address_comparison_impl(dst, src, name, pred);
+            return;
+        }
 
         if src_mty.is_vector() || referent_mty.unwrap_or(&mty::Type::Error).is_vector() {
             self.translate_vector_comparison_impl(dst, src, name, pred);
@@ -1025,6 +1025,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             src_mty
         };
 
+        debug!(target: "functions", "translating comparison {name} for {cmp_mty:?}");
         assert!(cmp_mty.is_number() || cmp_mty.is_bool());
 
         let mut src0_reg = self.load_reg(src[0], &format!("{name}_src_0"));

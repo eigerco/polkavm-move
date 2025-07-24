@@ -443,20 +443,20 @@ impl Module {
         }
     }
 
-    // pub fn declare_known_functions(&self) {
-    //     // Declare i32 @memcmp(ptr, ptr, i64).
-    //     unsafe {
-    //         let cx = LLVMGetModuleContext(self.0);
-    //         let memcmp_arg_tys: Vec<Type> = vec![
-    //             Type(LLVMPointerTypeInContext(cx, 0 as libc::c_uint)),
-    //             Type(LLVMPointerTypeInContext(cx, 0 as libc::c_uint)),
-    //             Type(LLVMInt64TypeInContext(cx)),
-    //         ];
-    //         let memcmp_rty = Type(LLVMInt32TypeInContext(cx));
-    //         let memcmp_fty = FunctionType::new(memcmp_rty, &memcmp_arg_tys);
-    //         self.add_function("native", "memcmp", memcmp_fty, false);
-    //     }
-    // }
+    pub fn declare_known_functions(&self) {
+        // Declare i32 @memcmp(ptr, ptr, i64).
+        unsafe {
+            let cx = LLVMGetModuleContext(self.0);
+            let memcmp_arg_tys: Vec<Type> = vec![
+                Type(LLVMPointerTypeInContext(cx, 0 as libc::c_uint)),
+                Type(LLVMPointerTypeInContext(cx, 0 as libc::c_uint)),
+                Type(LLVMInt64TypeInContext(cx)),
+            ];
+            let memcmp_rty = Type(LLVMInt32TypeInContext(cx));
+            let memcmp_fty = FunctionType::new(memcmp_rty, &memcmp_arg_tys);
+            self.add_function(&mut vec![], "native", "memcmp", memcmp_fty, false);
+        }
+    }
 
     pub fn verify(&self) {
         use llvm_sys::analysis::*;
