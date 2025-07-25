@@ -22,6 +22,7 @@ use num_traits::{PrimInt, ToPrimitive};
 use crate::cstr::SafeCStr;
 
 use std::{
+    backtrace::Backtrace,
     cell::RefCell,
     ffi::{CStr, CString},
     hash::DefaultHasher,
@@ -198,6 +199,8 @@ impl Context {
     }
 
     pub fn create_opaque_named_struct(&self, name: &str) -> StructType {
+        let bt = Backtrace::capture();
+        debug!(target: "struct", "create_opaque_named_struct {name}: {bt:#?}");
         unsafe { StructType(LLVMStructCreateNamed(self.0, name.cstr())) }
     }
 
@@ -1271,6 +1274,8 @@ impl StructType {
     }
 
     pub fn set_struct_body(&self, field_tys: &[Type]) {
+        let bt = Backtrace::capture();
+        debug!("set_struct_body called: {bt:#?}");
         unsafe {
             let mut field_tys: Vec<_> = field_tys.iter().map(|f| f.0).collect();
             LLVMStructSetBody(

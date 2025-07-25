@@ -1713,6 +1713,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             let fn_id = fun_id.qualified(mod_id);
             let fn_env = global_env.get_function(fn_id);
             if fn_env.is_native() {
+                debug!(target: "functions", "translate_fun_call native function {fn_id:?}");
                 return self.translate_native_fun_call(mod_id, fun_id, types, dst, src, instr);
             }
         }
@@ -2082,6 +2083,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             }
             RtCall::BorrowGlobal(address, ll_type, is_mut) => {
                 debug!(target: "rtcall", "BorrowGlobal ll_type {ll_type:?}");
+
+                if self.module_cx.to_llvm_type(ll_type, &[]).is_none() {
+                    debug!(target: "rtcall", "borrow_global 2");
+                    self.module_cx.declare_struct_instance(ll_type, &[]);
+                    debug!(target: "rtcall", "borrow_global 3");
+                }
                 let llfn = ModuleContext::get_runtime_function(
                     self.module_cx.llvm_cx,
                     self.module_cx.llvm_module,

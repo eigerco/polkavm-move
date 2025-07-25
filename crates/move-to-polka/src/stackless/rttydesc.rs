@@ -323,6 +323,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
     ///
     /// Defined in the runtime by a `StructTypeInfo` containing `StructFieldInfo`s.
     fn define_type_info_global_struct(&self, symbol_name: &str, mty: &mty::Type) -> llvm::Global {
+        debug!(target: "rtty", "define_type_info_global_struct: {symbol_name}, mty: {mty:?}");
         let llcx = &self.get_llvm_cx();
         let llmod = &self.get_llvm_module();
         let global_env = self.g_env;
@@ -342,7 +343,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
         let ll_struct_name = s_env.ll_struct_name_from_raw_name(s_tys);
         let ll_struct_ty = llcx
             .named_struct_type(&ll_struct_name)
-            .expect("no struct type");
+            .unwrap_or_else(|| panic!("no struct type: {ll_struct_name}"));
         let dl = llmod.get_module_data_layout();
         let ll_struct_size = llcx.abi_size_of_type(dl, ll_struct_ty.as_any_type());
         let ll_struct_align = llcx.abi_alignment_of_type(dl, ll_struct_ty.as_any_type());
