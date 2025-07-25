@@ -284,6 +284,7 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
     {
         let module = global_env.get_module(mod_id);
         let modname = module.llvm_module_name();
+        debug!("--------------------------------------");
         debug!("Generating code for module {modname}");
         let llmod = global_cx.llvm_cx.create_module(&modname);
         let module_source_path = module.get_source_path().to_str().expect("utf-8");
