@@ -14,7 +14,7 @@ use move_to_polka::{initialize_logger, linker::create_blob};
 struct Args {
     // path to Move source to compile
     pub source: String,
-    #[arg(short, long, default_value = "output.polkavm")]
+    #[arg(short, long, default_value = "output/output.polkavm")]
     // output file name
     pub output: String,
 }
