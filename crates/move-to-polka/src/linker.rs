@@ -132,11 +132,12 @@ pub fn create_blob(
         .map_err(|e| anyhow::anyhow!("Failed to parse Move manifest: {e}"))?;
     manifest
         .dependencies
-        .values()
-        .chain(manifest.dev_dependencies.values())
-        .for_each(|dep| {
+        .iter()
+        .chain(manifest.dev_dependencies.iter())
+        .for_each(|(key, dep)| {
+            debug!("Processing dependency: {key} => {dep}");
             if let Some(git_url) = dep.git_info.as_ref().map(|g| g.git_url.as_str()) {
-                fetch_git_dep(&mut mapping, &mut dep_sources, dep, git_url)
+                fetch_git_dep(key, &mut mapping, &mut dep_sources, dep, git_url)
                     .expect("Failed to fetch git dependency");
             } else {
                 let local_path = path.join(Path::new(&dep.local));
@@ -177,14 +178,15 @@ pub fn create_blob(
 }
 
 fn fetch_git_dep(
+    name: &str,
     mapping: &mut HashSet<String>,
     dep_sources: &mut Vec<String>,
     dep: &move_package::source_package::parsed_manifest::Dependency,
     git_url: &str,
 ) -> Result<(), anyhow::Error> {
-    let path = Path::new("/tmp/move-deps");
-    create_dir_all(path).expect("Failed to create temporary directory for dependencies");
-    match gix::open(path) {
+    let path = Path::new("/tmp/move-deps").join(name);
+    create_dir_all(&path).expect("Failed to create temporary directory for dependencies");
+    match gix::open(&path) {
         Ok(repo) => {
             let remote = repo
                 .find_default_remote(Direction::Fetch)
@@ -197,7 +199,7 @@ fn fetch_git_dep(
                 .receive(Discard, &AtomicBool::new(false))?;
         }
         Err(_) => {
-            let mut prep = gix::prepare_clone(git_url, path)
+            let mut prep = gix::prepare_clone(git_url, &path)
                 .expect("Failed to prepare clone")
                 .with_shallow(Shallow::DepthAtRemote(NonZero::new(1).unwrap()));
 
@@ -206,7 +208,10 @@ fn fetch_git_dep(
         }
     };
     let git_info = dep.git_info.as_ref().unwrap();
-    let source = format!("/tmp/move-deps/{}/sources", git_info.subdir.display());
+    let source = format!(
+        "/tmp/move-deps/{name}/{}/sources",
+        git_info.subdir.display()
+    );
     dep_sources.push(source);
     if let Some(dep_mapping) = dep.subst.as_ref() {
         for (name, subst) in dep_mapping {
