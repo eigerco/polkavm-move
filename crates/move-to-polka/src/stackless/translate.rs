@@ -1190,18 +1190,18 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         let emitter_nop: CheckEmitterFn = (|_, _| (), EmitterFnKind::PreCheck);
         let builder = &self.module_cx.llvm_builder;
         let di_builder = &self.module_cx.llvm_di_builder;
-        debug!(target: "dwarf", "translate_call op {op:#?} dst {dst:#?} src {src:#?}");
+        trace!(target: "dwarf", "translate_call op {op:#?} dst {dst:#?} src {src:#?}");
         match op {
             Operation::Function(mod_id, fun_id, types) => {
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
                 let fn_name = &self.env.get_full_name_str();
-                debug!(target: "dwarf", "translate_call function {fn_name} op {:#?} dst {:#?} src {:#?} types {:#?}",
+                trace!(target: "dwarf", "translate_call function {fn_name} op {:#?} dst {:#?} src {:#?} types {:#?}",
                     op, dst, src, &types);
                 self.translate_fun_call(*mod_id, *fun_id, &types, dst, src, instr, instr_dbg);
             }
             Operation::MoveTo(mod_id, struct_id, types) => {
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
-                debug!(target: "dwarf", "translate_call MoveTo {mod_id:?} {struct_id:?} types {types:?}");
+                trace!(target: "dwarf", "translate_call MoveTo {mod_id:?} {struct_id:?} types {types:?}");
                 assert_eq!(src.len(), 2);
                 assert_eq!(dst.len(), 0);
                 debug!(target: "dwarf", "MoveTo src {:?} dst {dst:?}", self.locals);
@@ -1213,7 +1213,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             }
             Operation::MoveFrom(mod_id, struct_id, types) => {
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
-                debug!(target: "dwarf", "translate_call MoveFrom {mod_id:?} {struct_id:?} types {types:?}");
+                trace!(target: "dwarf", "translate_call MoveFrom {mod_id:?} {struct_id:?} types {types:?}");
                 assert_eq!(src.len(), 1);
                 assert_eq!(dst.len(), 1);
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
@@ -1223,7 +1223,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             }
             Operation::Exists(mod_id, struct_id, types) => {
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
-                debug!(target: "dwarf", "translate_call Exists {mod_id:?} {struct_id:?} types {types:?}");
+                trace!(target: "dwarf", "translate_call Exists {mod_id:?} {struct_id:?} types {types:?}");
                 assert_eq!(src.len(), 1);
                 assert_eq!(dst.len(), 1);
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
@@ -1232,7 +1232,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 self.emit_rtcall(RtCall::Exists(src0_reg, mty), dst, instr);
             }
             Operation::BorrowGlobal(mod_id, struct_id, types, is_mut) => {
-                debug!(target: "dwarf", "translate_call BorrowGlobal {mod_id:?} {struct_id:?} types {types:?}");
+                trace!(target: "dwarf", "translate_call BorrowGlobal {mod_id:?} {struct_id:?} types {types:?}");
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
                 assert_eq!(src.len(), 1);
                 assert_eq!(dst.len(), 1);
@@ -1339,7 +1339,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 builder.load_and_extract_fields(lsrc, &fdstvals, stype);
             }
             Operation::Release => {
-                debug!(target: "dwarf", "translate_call Release src {src:#?}");
+                trace!(target: "dwarf", "translate_call Release src {src:#?}");
                 assert!(dst.is_empty());
                 // our special Release passes the address and the struct index
                 if src.len() == 2 {
