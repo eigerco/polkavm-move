@@ -31,7 +31,7 @@ use move_model::{
     parse_addresses_from_options,
 };
 use std::{
-    fs::{self, write},
+    fs::{self},
     io::Write,
     iter::once,
     path::{Path, PathBuf},
@@ -135,19 +135,6 @@ pub fn get_env_from_source<W: WriteColor>(
     let mut emitter = v2_options.error_emitter(error_writer);
     let (env, _units) = run_move_compiler(emitter.as_mut(), v2_options)?;
     env.treat_everything_as_target(false);
-
-    for module in env.get_modules() {
-        debug!("Move module: {}", module.get_full_name_str());
-        let bytecode = module
-            .get_verified_module()
-            .expect("No bytecode attached to module");
-        let mut bytes = Vec::with_capacity(2048);
-        bytecode.serialize(&mut bytes).ok();
-        let path = Path::new(&options.output)
-            .with_file_name(module.get_full_name_str())
-            .with_extension(MOVE_COMPILED_EXTENSION);
-        write(path, bytes).ok();
-    }
 
     if env.has_errors() {
         anyhow::bail!("Move source code errors")
@@ -284,6 +271,7 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
     {
         let module = global_env.get_module(mod_id);
         let modname = module.llvm_module_name();
+        debug!("--------------------------------------");
         debug!("Generating code for module {modname}");
         let llmod = global_cx.llvm_cx.create_module(&modname);
         let module_source_path = module.get_source_path().to_str().expect("utf-8");
@@ -304,13 +292,11 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
                 path.set_extension(&options.output_file_extension);
                 output_file = path.to_string_lossy().to_string();
             }
-            debug!("Output generated code to {output_file}");
             llmod.write_to_file(options.llvm_ir, &output_file)?;
         } else {
             if options.compile {
                 output_file = options.output.clone();
             }
-            debug!("Output generated code to {output_file}");
             write_object_file(llmod, &llmachine, &output_file)?;
         }
         if !(options.compile || options.llvm_ir) {
