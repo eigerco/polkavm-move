@@ -2028,11 +2028,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .collect();
                 typarams.push(*address);
                 typarams.push(*value);
-                let struct_id = match ll_type {
-                    mty::Type::Struct(_, struct_id, _) => struct_id,
-                    _ => panic!("Expected a struct type for MoveTo call"),
+                let (mod_id, struct_id) = match ll_type {
+                    mty::Type::Struct(mod_id, struct_id, _) => (mod_id, struct_id),
+                    _ => panic!("Expected a struct type for BorrowGlobal call"),
                 };
-                let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
+                let module_env = self.get_global_env().get_module(*mod_id);
+                let struct_env = module_env.into_struct(*struct_id);
                 let struct_name = struct_env.get_full_name_with_address();
                 let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
                 let tag_ptr = Global::from_array(
@@ -2062,11 +2063,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(*address);
                 let loc_dst = &self.locals[dst[0]];
                 typarams.push(loc_dst.llval.as_any_value());
-                let struct_id = match ll_type {
-                    mty::Type::Struct(_, struct_id, _) => struct_id,
-                    _ => panic!("Expected a struct type for MoveFrom call"),
+                let (mod_id, struct_id) = match ll_type {
+                    mty::Type::Struct(mod_id, struct_id, _) => (mod_id, struct_id),
+                    _ => panic!("Expected a struct type for BorrowGlobal call"),
                 };
-                let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
+                let module_env = self.get_global_env().get_module(*mod_id);
+                let struct_env = module_env.into_struct(*struct_id);
                 let struct_name = struct_env.get_full_name_with_address();
                 let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
                 let tag_ptr = Global::from_array(
@@ -2096,11 +2098,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(*address);
                 let loc_dst = &self.locals[dst[0]];
                 typarams.push(loc_dst.llval.as_any_value());
-                let struct_id = match ll_type {
-                    mty::Type::Struct(_, struct_id, _) => struct_id,
+                let (mod_id, struct_id) = match ll_type {
+                    mty::Type::Struct(mod_id, struct_id, _) => (mod_id, struct_id),
                     _ => panic!("Expected a struct type for BorrowGlobal call"),
                 };
-                let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
+                let module_env = self.get_global_env().get_module(*mod_id);
+                let struct_env = module_env.into_struct(*struct_id);
                 let struct_name = struct_env.get_full_name_with_address();
                 let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
                 let tag_ptr = Global::from_array(
@@ -2133,11 +2136,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .collect();
                 typarams.push(*address);
                 typarams.push(*struct_val);
-                let struct_id = match ll_type {
-                    mty::Type::Struct(_, struct_id, _) => struct_id,
-                    _ => panic!("Expected a struct type for Release call"),
+                let (mod_id, struct_id) = match ll_type {
+                    mty::Type::Struct(mod_id, struct_id, _) => (mod_id, struct_id),
+                    _ => panic!("Expected a struct type for BorrowGlobal call"),
                 };
-                let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
+                let module_env = self.get_global_env().get_module(*mod_id);
+                let struct_env = module_env.into_struct(*struct_id);
                 let struct_name = struct_env.get_full_name_with_address();
                 let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
                 let tag_ptr = Global::from_array(
@@ -2166,11 +2170,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .collect();
                 typarams.push(*address);
 
-                let struct_id = match ll_type {
-                    mty::Type::Struct(_, struct_id, _) => struct_id,
-                    _ => panic!("Expected a struct type for Exists call"),
+                let (mod_id, struct_id) = match ll_type {
+                    mty::Type::Struct(mod_id, struct_id, _) => (mod_id, struct_id),
+                    _ => panic!("Expected a struct type for BorrowGlobal call"),
                 };
-                let struct_env = self.module_cx.env.clone().into_struct(*struct_id);
+                let module_env = self.get_global_env().get_module(*mod_id);
+                let struct_env = module_env.into_struct(*struct_id);
                 let struct_name = struct_env.get_full_name_with_address();
                 let struct_tag = sha2::Sha256::digest(struct_name.as_bytes()).to_vec();
                 let tag_ptr = Global::from_array(
