@@ -21,6 +21,7 @@ clap = { version = "4.5", features = ["derive"] }
 # we can not upgrade the next 2 until aptos-move updates
 codespan = "0.11.1"
 codespan-reporting = "0.11.1"
+chrono = { version = "0.4" }
 anstyle = "1.0"
 env_logger = { version = "0.11", features = ["color"] }
 extension-trait = "1.0.1"

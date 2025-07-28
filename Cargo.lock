@@ -3426,6 +3426,7 @@ dependencies = [
  "bs58",
  "build-tools",
  "cargo_metadata",
+ "chrono",
  "clap",
  "codespan",
  "codespan-reporting",
