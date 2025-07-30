@@ -358,14 +358,14 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                    "Declaring struct instance {} attrs {:?} with tys {:?}",
                    s_env.get_full_name_str(),
                    s_env.get_fields().map(|f| f.get_type()).collect::<Vec<_>>(),
-                   tys);
+                   tyvec);
             self.translate_struct(&s_env, tyvec);
             let llvm_ty = self.to_llvm_type(mty, tyvec).unwrap();
             debug!(target: "structs",
                    "Declared struct instance {} with llvm type {:?} -> {:?}",
                    s_env.get_full_name_str(),
                    llvm_ty,
-                   s_env.ll_struct_name_from_raw_name(tys));
+                   s_env.ll_struct_name_from_raw_name(tyvec));
             llvm_ty
         } else {
             unreachable!("Failed to declare a struct {mty:?}")
@@ -880,15 +880,15 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     let struct_env = global_env
                         .get_module(declaring_module_id)
                         .into_struct(struct_id);
-                    let struct_name = struct_env.ll_struct_name_from_raw_name(&tys);
+                    let struct_name = struct_env.ll_struct_name_from_raw_name(tys);
                     debug!(
-                        target: "structs", "llvm type for struct {:?} is '{}'", &new_sty, struct_name);
+                        target: "structs", "llvm type for struct {:?}::{:?} is '{}'", &struct_env.module_env.get_name(), &new_sty, struct_name);
                     if let Some(stype) = self.llvm_cx.named_struct_type(&struct_name) {
                         debug!( target: "structs", "struct type for '{}' found", &struct_name);
                         Some(stype.as_any_type())
                     } else {
                         debug!(target: "structs", "struct type for '{}' not found", &struct_name);
-                        None
+                        Some(self.declare_struct_instance(mty, tys))
                     }
                 } else {
                     unreachable!("")
