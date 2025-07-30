@@ -15,7 +15,7 @@
 
 use libc::abort;
 use llvm_sys::{core::*, prelude::*, target::*, target_machine::*, LLVMOpcode, LLVMUnnamedAddr};
-use log::{debug, trace, warn};
+use log::{debug, warn};
 use move_core_types::u256;
 use num_traits::{PrimInt, ToPrimitive};
 
@@ -1275,7 +1275,7 @@ impl StructType {
 
     pub fn set_struct_body(&self, field_tys: &[Type]) {
         let bt = Backtrace::capture();
-        debug!("set_struct_body called: {bt:#?}");
+        debug!("set_struct_body called types: {field_tys:?}: {bt:#?}");
         unsafe {
             let mut field_tys: Vec<_> = field_tys.iter().map(|f| f.0).collect();
             LLVMStructSetBody(
@@ -1394,10 +1394,10 @@ impl Function {
     pub fn verify(&self, module_cx: &ModuleContext<'_, '_>) {
         use llvm_sys::analysis::*;
         let module_info = module_cx.llvm_module.print_to_str();
-        trace!(target: "verify function", "Module content:");
-        trace!(target: "verify function", "------------------------------");
-        trace!(target: "verify function", "{module_info}");
-        trace!(target: "verify function", "------------------------------");
+        debug!(target: "verify function", "Module content:");
+        debug!(target: "verify function", "------------------------------");
+        debug!(target: "verify function", "{module_info}");
+        debug!(target: "verify function", "------------------------------");
         unsafe {
             if LLVMVerifyFunction(self.0, LLVMVerifierFailureAction::LLVMPrintMessageAction) == 1 {
                 println!("{} function verifiction failed", &self.get_name());

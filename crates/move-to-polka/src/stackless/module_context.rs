@@ -16,7 +16,10 @@ use codespan::Location;
 use log::debug;
 use move_binary_format::file_format::SignatureToken;
 use move_core_types::u256::U256;
-use move_model::{model as mm, ty as mty};
+use move_model::{
+    model::{self as mm},
+    ty as mty,
+};
 use move_stackless_bytecode::{
     function_target::FunctionData, stackless_bytecode as sbc,
     stackless_bytecode_generator::StacklessBytecodeGenerator,
@@ -298,7 +301,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
     // concrete type, won't be declared correctly.
     fn translate_struct(&self, s_env: &mm::StructEnv<'mm>, tyvec: &[mty::Type]) {
         let ll_name = s_env.ll_struct_name_from_raw_name(tyvec);
-        debug!(target: "structs", "translating struct {}", s_env.struct_raw_type_name(tyvec));
+        debug!(target: "structs", "translating struct {} as {}", s_env.struct_raw_type_name(tyvec), ll_name);
         // Visit each field in this struct, collecting field types.
         let mut ll_field_tys = Vec::with_capacity(s_env.get_field_count() + 1);
         for fld_env in s_env.get_fields() {
@@ -347,16 +350,23 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
     // TODO: porbably other parameterized types such as Vector should
     // be handled by this function too.
     pub fn declare_struct_instance(&self, mty: &mty::Type, tyvec: &[mty::Type]) -> llvm::Type {
-        debug!(target: "structs", "Declaring struct instance {mty:?} with tys {tyvec:?}");
+        debug!(target: "structs", "Declaring struct instance {mty:?} with tys {tyvec:?} bt: {:#?}", std::backtrace::Backtrace::capture());
         if let mty::Type::Struct(m, s, _tys) = mty {
             let g_env = &self.env.env;
             let s_env = g_env.get_module(*m).into_struct(*s);
             debug!(target: "structs",
-                   "Declaring struct instance {} with tys {:?}",
+                   "Declaring struct instance {} attrs {:?} with tys {:?}",
                    s_env.get_full_name_str(),
-                   tyvec);
+                   s_env.get_fields().map(|f| f.get_type()).collect::<Vec<_>>(),
+                   tys);
             self.translate_struct(&s_env, tyvec);
-            self.to_llvm_type(mty, tyvec).unwrap()
+            let llvm_ty = self.to_llvm_type(mty, tyvec).unwrap();
+            debug!(target: "structs",
+                   "Declared struct instance {} with llvm type {:?} -> {:?}",
+                   s_env.get_full_name_str(),
+                   llvm_ty,
+                   s_env.ll_struct_name_from_raw_name(tys));
+            llvm_ty
         } else {
             unreachable!("Failed to declare a struct {mty:?}")
         }
@@ -820,6 +830,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
     }
 
     pub fn to_llvm_type(&self, mty: &mty::Type, tyvec: &[mty::Type]) -> Option<llvm::Type> {
+        debug!(target: "structs", "to_llvm_type {mty:?} with tys {tyvec:?}");
         use mty::{PrimitiveType, Type};
 
         match mty {

@@ -221,7 +221,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
         let g_env = self.g_env;
         let tmty = mty.clone();
         tmty.into_type_tag(g_env)
-            .expect("type tag")
+            .unwrap_or_else(|| panic!("type tag for {mty:?}"))
             .to_canonical_string()
     }
 

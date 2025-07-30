@@ -287,6 +287,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 if let Some(s) = named_locals.get(&i) {
                     name = format!("local_{i}__{s}");
                 }
+                debug!(target: "functions", "local {i}: {mty:?} -> {llty:?} ({name})");
                 let llval = self.module_cx.llvm_builder.build_alloca(llty, &name);
                 self.locals.push(Local {
                     mty: mty.instantiate(self.type_params),
@@ -1275,9 +1276,11 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .get_global_env()
                     .get_module(*mod_id)
                     .into_struct(*struct_id);
+                debug!(target: "dwarf", "translate_call Pack {mod_id:?} {struct_id:?} types {types:?}");
                 assert_eq!(dst.len(), 1);
                 assert_eq!(src.len(), struct_env.get_field_count());
                 let struct_name = struct_env.ll_struct_name_from_raw_name(&types);
+                debug!(target: "dwarf", "Pack struct_name {struct_name}");
                 let stype = self
                     .module_cx
                     .llvm_cx
