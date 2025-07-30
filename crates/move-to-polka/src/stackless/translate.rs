@@ -1980,6 +1980,19 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
     }
 
     fn emit_rtcall(&self, rtcall: RtCall, dst: &[mast::TempIndex], _instr: &sbc::Bytecode) {
+        match rtcall {
+            RtCall::MoveTo(_, _, ref ll_type)
+            | RtCall::MoveFrom(_, ref ll_type)
+            | RtCall::BorrowGlobal(_, ref ll_type, _)
+            | RtCall::Release(_, _, ref ll_type)
+            | RtCall::Exists(_, ref ll_type) => {
+                if let mty::Type::Struct(_mod_id, _struct_id, ref tys) = ll_type {
+                    // test and potentially declare the struct instance
+                    self.module_cx.to_llvm_type(ll_type, tys.as_slice());
+                }
+            }
+            _ => {}
+        }
         match &rtcall {
             RtCall::Abort(local_idx) => {
                 let llfn = ModuleContext::get_runtime_function(
