@@ -15,7 +15,10 @@ use crate::stackless::{
 };
 use log::{debug, Level};
 use move_core_types::{account_address, u256::U256};
-use move_model::{ast as mast, model as mm, ty as mty};
+use move_model::{
+    ast::{self as mast, Address},
+    model as mm, ty as mty,
+};
 use polkavm_move_native::types::TypeDesc;
 
 static TD_NAME: &str = "__move_rt_type";
@@ -218,11 +221,22 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
     }
 
     fn type_name(&self, mty: &mty::Type) -> String {
-        let g_env = self.g_env;
-        let tmty = mty.clone();
-        tmty.into_type_tag(g_env)
-            .unwrap_or_else(|| panic!("type tag for {mty:?}"))
-            .to_canonical_string()
+        // first try the via the TypeTag
+        if let Some(tag) = mty.clone().into_type_tag(self.g_env) {
+            return tag.to_canonical_string();
+        }
+
+        // otherwise generate a dummy name
+        match mty {
+            mty::Type::Struct(mid, sid, tys) => {
+                let module_env = self.g_env.get_module(*mid);
+                let struct_env = module_env.into_struct(*sid);
+                struct_env.struct_raw_type_name(tys)
+            }
+            other => {
+                panic!("no name strategy for Move‐type {:?}", other);
+            }
+        }
     }
 
     /// The values here correspond to `move_native::rt_types::TypeDesc`.
