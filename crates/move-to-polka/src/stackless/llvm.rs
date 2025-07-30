@@ -14,7 +14,10 @@
 //! - Provides high-level instruction builders compatible with the stackless bytecode model.
 
 use libc::abort;
-use llvm_sys::{core::*, prelude::*, target::*, target_machine::*, LLVMOpcode, LLVMUnnamedAddr};
+use llvm_sys::{
+    core::*, prelude::*, target::*, target_machine::*, LLVMIntPredicate::LLVMIntEQ, LLVMOpcode,
+    LLVMUnnamedAddr,
+};
 use log::{debug, warn};
 use move_core_types::u256;
 use num_traits::{PrimInt, ToPrimitive};
@@ -1150,6 +1153,17 @@ impl Builder {
 
     pub fn build_pointer_to_int(&self, val: AnyValue, dest_ty: Type, name: &str) -> AnyValue {
         unsafe { AnyValue(LLVMBuildPtrToInt(self.0, val.0, dest_ty.0, name.cstr())) }
+    }
+
+    /// Return an `i1` which is true if `val` is null/zero.
+    /// Works on both pointer‐ and integer‐typed values.
+    pub fn build_is_null(&self, val: LLVMValueRef, name: &str) -> AnyValue {
+        let c_name = CString::new(name).expect("no interior NULs in name");
+        unsafe {
+            let ty = LLVMTypeOf(val);
+            let zero = LLVMConstNull(ty);
+            AnyValue(LLVMBuildICmp(self.0, LLVMIntEQ, val, zero, c_name.as_ptr()))
+        }
     }
 }
 

@@ -41,6 +41,7 @@ pub fn test_taohe() -> anyhow::Result<()> {
     let result = instance
         .call_typed_and_get_result::<(), _>(&mut runtime, "main", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"));
+    println!("Result: {result:?}");
     assert!(result.is_ok());
 
     Ok(())

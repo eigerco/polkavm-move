@@ -34,7 +34,7 @@ use crate::{
     options::Options,
     stackless::{
         dwarf::DIContext, extensions::*, llvm, module_context::ModuleContext,
-        rttydesc::RttyContext, Global,
+        rttydesc::RttyContext, Constant, Global,
     },
 };
 use codespan::Location;
@@ -289,6 +289,8 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 }
                 debug!(target: "functions", "local {i}: {mty:?} -> {llty:?} ({name})");
                 let llval = self.module_cx.llvm_builder.build_alloca(llty, &name);
+                let zero = Constant::get_const_null(llty);
+                self.module_cx.llvm_builder.store_const(zero, llval);
                 self.locals.push(Local {
                     mty: mty.instantiate(self.type_params),
                     llty,
@@ -1352,38 +1354,29 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     debug!(target: "dwarf", "Release mty {mty:?}");
                     match mty {
                         mty::Type::Struct(m_id, struct_id, types) => {
-                            debug!(target: "dwarf", "Release mty {mty:?}, m_id {m_id:?}, struct_id {struct_id:?}, types {types:?}");
-                            let mty = Type::Struct(*m_id, *struct_id, types.clone());
-                            let idx_llval = self.locals[address_idx].clone();
-                            let slot_ptr = self.locals[struct_idx].llval;
-                            let struct_ty = self.module_cx.llvm_cx.ptr_type();
-                            let struct_ref =
-                                builder.build_load(struct_ty, slot_ptr, "load_struct_ref");
-                            self.emit_rtcall(
-                                RtCall::Release(idx_llval.llval.as_any_value(), struct_ref, mty),
-                                &[],
+                            self.do_release(
                                 instr,
+                                builder,
+                                address_idx,
+                                struct_idx,
+                                mty,
+                                m_id,
+                                struct_id,
+                                types,
                             );
                         }
                         mty::Type::Reference(kind, typ) => {
                             debug!(target: "dwarf", "Release reference mty {mty:?}, kind {kind:?}, typ {typ:?}");
-                            if let mty::Type::Struct(m_id, struct_id, _) = **typ {
-                                debug!(target: "dwarf", "Release reference struct mty {mty:?}, m_id {m_id:?}, struct_id {struct_id:?}");
-                                let mty = Type::Struct(m_id, struct_id, vec![]);
-                                let idx_llval = self.locals[address_idx].clone();
-                                let slot_ptr = self.locals[struct_idx].llval;
-                                // let struct_ty = self.locals[struct_idx].llty.clone();
-                                let struct_ty = self.module_cx.llvm_cx.ptr_type();
-                                let struct_ref =
-                                    builder.build_load(struct_ty, slot_ptr, "load_struct_ref");
-                                self.emit_rtcall(
-                                    RtCall::Release(
-                                        idx_llval.llval.as_any_value(),
-                                        struct_ref,
-                                        mty,
-                                    ),
-                                    &[],
+                            if let mty::Type::Struct(ref m_id, ref struct_id, ref types) = **typ {
+                                self.do_release(
                                     instr,
+                                    builder,
+                                    address_idx,
+                                    struct_idx,
+                                    mty,
+                                    m_id,
+                                    struct_id,
+                                    types,
                                 );
                             }
                         }
@@ -1624,6 +1617,52 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             | Operation::Stop => {}
             _ => todo!("{op:?}"),
         }
+    }
+
+    fn do_release(
+        &self,
+        instr: &sbc::Bytecode,
+        builder: &llvm::Builder,
+        address_idx: usize,
+        struct_idx: usize,
+        mty: &Type,
+        m_id: &mm::ModuleId,
+        struct_id: &mm::StructId,
+        types: &Vec<Type>,
+    ) {
+        debug!(target: "dwarf", "Release mty {mty:?}, m_id {m_id:?}, struct_id {struct_id:?}, types {types:?}");
+        let mty = Type::Struct(*m_id, *struct_id, types.clone());
+        let idx_llval = self.locals[address_idx].clone();
+        let slot_ptr = self.locals[struct_idx].llval;
+        let struct_ty = self.module_cx.llvm_cx.ptr_type();
+
+        // check for null
+        let ll_fn = self
+            .module_cx
+            .lookup_move_fn_decl(self.env.get_qualified_inst_id(self.type_params.to_vec()));
+        let struct_ref = builder.build_load(struct_ty, slot_ptr, "load_struct_ref");
+        let is_null = builder.build_is_null(struct_ref.get0(), "is_null");
+        let release_bb = ll_fn.append_basic_block("do_release");
+        let skip_bb = ll_fn.append_basic_block("skip_release");
+        let cont_bb = ll_fn.append_basic_block("cont");
+
+        builder.build_cond_br(is_null, skip_bb, release_bb);
+
+        // do release
+        builder.position_at_end(release_bb);
+        self.emit_rtcall(
+            RtCall::Release(idx_llval.llval.as_any_value(), struct_ref, mty),
+            &[],
+            instr,
+        );
+        builder.build_br(cont_bb);
+
+        // skip release if null
+        builder.position_at_end(skip_bb);
+        builder.build_br(cont_bb);
+
+        // continue
+        builder.position_at_end(cont_bb);
     }
 
     /// Translation of calls to native functions.
