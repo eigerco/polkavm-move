@@ -11,7 +11,7 @@ checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
 [[package]]
 name = "abstract-domain-derive"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -537,9 +537,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.41"
+version = "4.5.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be92d32e80243a54711e5d7ce823c35c41c9d929dc4ab58e1276f625841aadf9"
+checksum = "ed87a9d530bb41a67537289bafcac159cb3ee28460e0a4571123d2a778a6a882"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -547,9 +547,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.41"
+version = "4.5.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "707eab41e9622f9139419d573eca0900137718000c517d47da73045f54331c3d"
+checksum = "64f4f3f3c77c94aff3c7e9aac9a2ca1974a5adf392a8bb751e827d6d127ab966"
 dependencies = [
  "anstream",
  "anstyle",
@@ -2786,9 +2786,9 @@ checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
 name = "libredox"
-version = "0.1.6"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4488594b9328dee448adb906d8b126d9b7deb7cf5c22161ee591610bb1be83c0"
+checksum = "360e552c93fa0e8152ab463bc4c4837fce76a225df11dfaeea66c313de5e61f7"
 dependencies = [
  "bitflags",
  "libc",
@@ -2934,7 +2934,7 @@ dependencies = [
 [[package]]
 name = "move-abigen"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "bcs",
@@ -2951,7 +2951,7 @@ dependencies = [
 [[package]]
 name = "move-binary-format"
 version = "0.0.3"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -2966,12 +2966,12 @@ dependencies = [
 [[package]]
 name = "move-borrow-graph"
 version = "0.0.1"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 
 [[package]]
 name = "move-bytecode-source-map"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "bcs",
@@ -2986,7 +2986,7 @@ dependencies = [
 [[package]]
 name = "move-bytecode-spec"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "once_cell",
  "quote",
@@ -2996,7 +2996,7 @@ dependencies = [
 [[package]]
 name = "move-bytecode-utils"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "move-binary-format",
@@ -3008,7 +3008,7 @@ dependencies = [
 [[package]]
 name = "move-bytecode-verifier"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "fail",
  "move-binary-format",
@@ -3022,7 +3022,7 @@ dependencies = [
 [[package]]
 name = "move-command-line-common"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "difference",
@@ -3039,7 +3039,7 @@ dependencies = [
 [[package]]
 name = "move-compiler"
 version = "0.0.1"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "bcs",
@@ -3064,7 +3064,7 @@ dependencies = [
 [[package]]
 name = "move-compiler-v2"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "abstract-domain-derive",
  "anyhow",
@@ -3098,7 +3098,7 @@ dependencies = [
 [[package]]
 name = "move-core-types"
 version = "0.0.4"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "bcs",
@@ -3120,7 +3120,7 @@ dependencies = [
 [[package]]
 name = "move-coverage"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "bcs",
@@ -3139,7 +3139,7 @@ dependencies = [
 [[package]]
 name = "move-disassembler"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "clap",
@@ -3156,7 +3156,7 @@ dependencies = [
 [[package]]
 name = "move-docgen"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "clap",
@@ -3175,7 +3175,7 @@ dependencies = [
 [[package]]
 name = "move-errmapgen"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "move-command-line-common",
@@ -3187,7 +3187,7 @@ dependencies = [
 [[package]]
 name = "move-ir-to-bytecode"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -3205,7 +3205,7 @@ dependencies = [
 [[package]]
 name = "move-ir-to-bytecode-syntax"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "hex",
@@ -3218,7 +3218,7 @@ dependencies = [
 [[package]]
 name = "move-ir-types"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "hex",
  "move-command-line-common",
@@ -3231,7 +3231,7 @@ dependencies = [
 [[package]]
 name = "move-model"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "codespan",
@@ -3258,7 +3258,7 @@ dependencies = [
 [[package]]
 name = "move-package"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "clap",
@@ -3292,7 +3292,7 @@ dependencies = [
 [[package]]
 name = "move-prover"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "atty",
@@ -3319,7 +3319,7 @@ dependencies = [
 [[package]]
 name = "move-prover-boogie-backend"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3348,7 +3348,7 @@ dependencies = [
 [[package]]
 name = "move-prover-bytecode-pipeline"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "abstract-domain-derive",
  "anyhow",
@@ -3364,7 +3364,7 @@ dependencies = [
 [[package]]
 name = "move-stackless-bytecode"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "abstract-domain-derive",
  "anyhow",
@@ -3386,7 +3386,7 @@ dependencies = [
 [[package]]
 name = "move-stdlib"
 version = "0.1.1"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "anyhow",
  "hex",
@@ -3409,7 +3409,7 @@ dependencies = [
 [[package]]
 name = "move-symbol-pool"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "once_cell",
  "serde",
@@ -3466,7 +3466,7 @@ dependencies = [
 [[package]]
 name = "move-vm-metrics"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "once_cell",
  "prometheus",
@@ -3475,7 +3475,7 @@ dependencies = [
 [[package]]
 name = "move-vm-runtime"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "ambassador",
  "better_any",
@@ -3501,7 +3501,7 @@ dependencies = [
 [[package]]
 name = "move-vm-types"
 version = "0.1.0"
-source = "git+https://github.com/eigerco/move-on-aptos.git#e9ead8f2649927ccb5399c089ca6d64b6aef6279"
+source = "git+https://github.com/eigerco/move-on-aptos.git#deb3b8991cdc456c68f424b7a486d544260994fa"
 dependencies = [
  "ambassador",
  "bcs",
@@ -4312,9 +4312,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.5.16"
+version = "0.5.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7251471db004e509f4e75a62cca9435365b5ec7bcdff530d612ac7c87c44a792"
+checksum = "5407465600fb0548f1442edf71dd20683c6ed326200ace4b1ef0763521bb3b77"
 dependencies = [
  "bitflags",
 ]
@@ -4509,9 +4509,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.30"
+version = "0.23.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "069a8df149a16b1a12dcc31497c3396a173844be3cac4bd40c9e7671fef96671"
+checksum = "c0ebcbd2f03de0fc1122ad9bb24b127a5a6cd51d72604a3f3c50ac459762b6cc"
 dependencies = [
  "once_cell",
  "ring",
@@ -5888,7 +5888,7 @@ version = "0.60.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2f500e4d28234f72040990ec9d39e3a6b950f9f22d3dba18416c35882612bcb"
 dependencies = [
- "windows-targets 0.53.2",
+ "windows-targets 0.53.3",
 ]
 
 [[package]]
@@ -5924,10 +5924,11 @@ dependencies = [
 
 [[package]]
 name = "windows-targets"
-version = "0.53.2"
+version = "0.53.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c66f69fcc9ce11da9966ddb31a40968cad001c5bedeb5c2b82ede4253ab48aef"
+checksum = "d5fe6031c4041849d7c496a8ded650796e7b6ecc19df1a431c1a363342e5dc91"
 dependencies = [
+ "windows-link",
  "windows_aarch64_gnullvm 0.53.0",
  "windows_aarch64_msvc 0.53.0",
  "windows_i686_gnu 0.53.0",
