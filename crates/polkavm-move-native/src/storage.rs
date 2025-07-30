@@ -160,6 +160,7 @@ impl Storage for GlobalStorage {
         let value = self.storage.get_mut(&key).ok_or_else(|| {
             ProgramError::MemoryAccess(format!("global not found at {address:?}"))
         })?;
+        debug!("Found global value: {value:?} at address {address:?} with type {tag:x?}");
         let rv = value.data.clone();
         if remove {
             self.storage.remove(&key);
