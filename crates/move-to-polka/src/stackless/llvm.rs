@@ -1156,10 +1156,11 @@ impl Builder {
     }
 
     /// Return an `i1` which is true if `val` is null/zero.
-    /// Works on both pointer‐ and integer‐typed values.
-    pub fn build_is_null(&self, val: LLVMValueRef, name: &str) -> AnyValue {
+    /// Works on both pointer- and integer-typed values.
+    pub fn build_is_null(&self, val: AnyValue, name: &str) -> AnyValue {
         let c_name = CString::new(name).expect("no interior NULs in name");
         unsafe {
+            let val = val.0;
             let ty = LLVMTypeOf(val);
             let zero = LLVMConstNull(ty);
             AnyValue(LLVMBuildICmp(self.0, LLVMIntEQ, val, zero, c_name.as_ptr()))

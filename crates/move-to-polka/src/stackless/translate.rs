@@ -289,6 +289,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 }
                 debug!(target: "functions", "local {i}: {mty:?} -> {llty:?} ({name})");
                 let llval = self.module_cx.llvm_builder.build_alloca(llty, &name);
+                // initialize all locals to zero so we can check for null
+                // during runtime. This is needed because borrows can be conditional
+                // in the Move code, and we always generate releases for all borrows.
+                // Since we can't know if the borrow branch will be taken, we have to
+                // check for null during runtime (so we emit code for the branch - see do_release()
+                // function)
                 let zero = Constant::get_const_null(llty);
                 self.module_cx.llvm_builder.store_const(zero, llval);
                 self.locals.push(Local {
@@ -1641,7 +1647,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             .module_cx
             .lookup_move_fn_decl(self.env.get_qualified_inst_id(self.type_params.to_vec()));
         let struct_ref = builder.build_load(struct_ty, slot_ptr, "load_struct_ref");
-        let is_null = builder.build_is_null(struct_ref.get0(), "is_null");
+        let is_null = builder.build_is_null(struct_ref, "is_null");
         let release_bb = ll_fn.append_basic_block("do_release");
         let skip_bb = ll_fn.append_basic_block("skip_release");
         let cont_bb = ll_fn.append_basic_block("cont");

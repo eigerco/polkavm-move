@@ -238,7 +238,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
             }
             mty::Type::TypeParameter(_) => "type_parameter".to_string(),
             other => {
-                panic!("no name strategy for Move‐type {:?}", other);
+                panic!("no name strategy for Move-type {other:?}");
             }
         }
     }

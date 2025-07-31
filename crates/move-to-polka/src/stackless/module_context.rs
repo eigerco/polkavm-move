@@ -347,7 +347,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
     // This method is used to declare structs found when function
     // declrations are generated and new instantiations of generic
     // structs become known.
-    // TODO: porbably other parameterized types such as Vector should
+    // TODO: probably other parameterized types such as Vector should
     // be handled by this function too.
     pub fn declare_struct_instance(&self, mty: &mty::Type, tyvec: &[mty::Type]) -> llvm::Type {
         debug!(target: "structs", "Declaring struct instance {mty:?} with tys {tyvec:?} bt: {:#?}", std::backtrace::Backtrace::capture());
