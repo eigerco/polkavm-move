@@ -3,6 +3,8 @@ name = "storage"
 version = "1.0.0"
 
 [addresses]
+owner = "0xab010101010101010101010101010101010101010101010101010101010101ce"
+alice = "0x7da26da5e784569ae3cd4c8558852c82d69fa904bd1a14611cd3fd15c79335d4"
 
 [dependencies]
 MoveStdlib = { git = "https://github.com/move-language/move-on-aptos.git", subdir = "language/move-stdlib", rev = "main", addr_subst = { "std" = "0x1" } }
