@@ -106,13 +106,14 @@ module 0xa000::storage {
     }
 
     public entry fun store_then_borrow(account: &signer) acquires Container {
-        let address = signer::address_of(account);
+        let address = @owner;
         let container = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
         move_to(account, container);
-        let exists = exists<Container>(signer::address_of(account));
+        let exists = exists<Container>(address);
         assert!(exists, 1);
         let borrowed_container = borrow_global<Container>(address);
         assert!(borrowed_container.value == 42, 0);
     }
+
 }
 

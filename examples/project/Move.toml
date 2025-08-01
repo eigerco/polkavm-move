@@ -3,6 +3,8 @@ name = "project"
 version = "1.0.0"
 
 [addresses]
+owner = "0xab0101010101010101010101010101010101010101010101ce"
+alice = "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
 
 [dependencies]
 MoveStdlib = { git = "https://github.com/move-language/move-on-aptos.git", subdir = "language/move-stdlib", rev = "main", addr_subst = { "std" = "0x1" } }
