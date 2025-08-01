@@ -34,7 +34,7 @@ use crate::{
     options::Options,
     stackless::{
         dwarf::DIContext, extensions::*, llvm, module_context::ModuleContext,
-        rttydesc::RttyContext, Global,
+        rttydesc::RttyContext, Constant, Global,
     },
 };
 use codespan::Location;
@@ -287,7 +287,16 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 if let Some(s) = named_locals.get(&i) {
                     name = format!("local_{i}__{s}");
                 }
+                debug!(target: "functions", "local {i}: {mty:?} -> {llty:?} ({name})");
                 let llval = self.module_cx.llvm_builder.build_alloca(llty, &name);
+                // initialize all locals to zero so we can check for null
+                // during runtime. This is needed because borrows can be conditional
+                // in the Move code, and we always generate releases for all borrows.
+                // Since we can't know if the borrow branch will be taken, we have to
+                // check for null during runtime (so we emit code for the branch - see do_release()
+                // function)
+                let zero = Constant::get_const_null(llty);
+                self.module_cx.llvm_builder.store_const(zero, llval);
                 self.locals.push(Local {
                     mty: mty.instantiate(self.type_params),
                     llty,
@@ -1275,9 +1284,11 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .get_global_env()
                     .get_module(*mod_id)
                     .into_struct(*struct_id);
+                debug!(target: "dwarf", "translate_call Pack {mod_id:?} {struct_id:?} types {types:?}");
                 assert_eq!(dst.len(), 1);
                 assert_eq!(src.len(), struct_env.get_field_count());
                 let struct_name = struct_env.ll_struct_name_from_raw_name(&types);
+                debug!(target: "dwarf", "Pack struct_name {struct_name}");
                 let stype = self
                     .module_cx
                     .llvm_cx
@@ -1349,38 +1360,29 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     debug!(target: "dwarf", "Release mty {mty:?}");
                     match mty {
                         mty::Type::Struct(m_id, struct_id, types) => {
-                            debug!(target: "dwarf", "Release mty {mty:?}, m_id {m_id:?}, struct_id {struct_id:?}, types {types:?}");
-                            let mty = Type::Struct(*m_id, *struct_id, types.clone());
-                            let idx_llval = self.locals[address_idx].clone();
-                            let slot_ptr = self.locals[struct_idx].llval;
-                            let struct_ty = self.module_cx.llvm_cx.ptr_type();
-                            let struct_ref =
-                                builder.build_load(struct_ty, slot_ptr, "load_struct_ref");
-                            self.emit_rtcall(
-                                RtCall::Release(idx_llval.llval.as_any_value(), struct_ref, mty),
-                                &[],
+                            self.do_release(
                                 instr,
+                                builder,
+                                address_idx,
+                                struct_idx,
+                                mty,
+                                m_id,
+                                struct_id,
+                                types,
                             );
                         }
                         mty::Type::Reference(kind, typ) => {
                             debug!(target: "dwarf", "Release reference mty {mty:?}, kind {kind:?}, typ {typ:?}");
-                            if let mty::Type::Struct(m_id, struct_id, _) = **typ {
-                                debug!(target: "dwarf", "Release reference struct mty {mty:?}, m_id {m_id:?}, struct_id {struct_id:?}");
-                                let mty = Type::Struct(m_id, struct_id, vec![]);
-                                let idx_llval = self.locals[address_idx].clone();
-                                let slot_ptr = self.locals[struct_idx].llval;
-                                // let struct_ty = self.locals[struct_idx].llty.clone();
-                                let struct_ty = self.module_cx.llvm_cx.ptr_type();
-                                let struct_ref =
-                                    builder.build_load(struct_ty, slot_ptr, "load_struct_ref");
-                                self.emit_rtcall(
-                                    RtCall::Release(
-                                        idx_llval.llval.as_any_value(),
-                                        struct_ref,
-                                        mty,
-                                    ),
-                                    &[],
+                            if let mty::Type::Struct(ref m_id, ref struct_id, ref types) = **typ {
+                                self.do_release(
                                     instr,
+                                    builder,
+                                    address_idx,
+                                    struct_idx,
+                                    mty,
+                                    m_id,
+                                    struct_id,
+                                    types,
                                 );
                             }
                         }
@@ -1623,6 +1625,52 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         }
     }
 
+    fn do_release(
+        &self,
+        instr: &sbc::Bytecode,
+        builder: &llvm::Builder,
+        address_idx: usize,
+        struct_idx: usize,
+        mty: &Type,
+        m_id: &mm::ModuleId,
+        struct_id: &mm::StructId,
+        types: &Vec<Type>,
+    ) {
+        debug!(target: "dwarf", "Release mty {mty:?}, m_id {m_id:?}, struct_id {struct_id:?}, types {types:?}");
+        let mty = Type::Struct(*m_id, *struct_id, types.clone());
+        let idx_llval = self.locals[address_idx].clone();
+        let slot_ptr = self.locals[struct_idx].llval;
+        let struct_ty = self.module_cx.llvm_cx.ptr_type();
+
+        // check for null
+        let ll_fn = self
+            .module_cx
+            .lookup_move_fn_decl(self.env.get_qualified_inst_id(self.type_params.to_vec()));
+        let struct_ref = builder.build_load(struct_ty, slot_ptr, "load_struct_ref");
+        let is_null = builder.build_is_null(struct_ref, "is_null");
+        let release_bb = ll_fn.append_basic_block("do_release");
+        let skip_bb = ll_fn.append_basic_block("skip_release");
+        let cont_bb = ll_fn.append_basic_block("cont");
+
+        builder.build_cond_br(is_null, skip_bb, release_bb);
+
+        // do release
+        builder.position_at_end(release_bb);
+        self.emit_rtcall(
+            RtCall::Release(idx_llval.llval.as_any_value(), struct_ref, mty),
+            &[],
+            instr,
+        );
+        builder.build_br(cont_bb);
+
+        // skip release if null
+        builder.position_at_end(skip_bb);
+        builder.build_br(cont_bb);
+
+        // continue
+        builder.position_at_end(cont_bb);
+    }
+
     /// Translation of calls to native functions.
     ///
     /// Native functions are unlike Move functions in that they
@@ -1713,6 +1761,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             let fn_id = fun_id.qualified(mod_id);
             let fn_env = global_env.get_function(fn_id);
             if fn_env.is_native() {
+                debug!(target: "functions", "translate_fun_call native function {fn_id:?}");
                 return self.translate_native_fun_call(mod_id, fun_id, types, dst, src, instr);
             }
         }
@@ -1976,6 +2025,19 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
     }
 
     fn emit_rtcall(&self, rtcall: RtCall, dst: &[mast::TempIndex], _instr: &sbc::Bytecode) {
+        match rtcall {
+            RtCall::MoveTo(_, _, ref ll_type)
+            | RtCall::MoveFrom(_, ref ll_type)
+            | RtCall::BorrowGlobal(_, ref ll_type, _)
+            | RtCall::Release(_, _, ref ll_type)
+            | RtCall::Exists(_, ref ll_type) => {
+                if let mty::Type::Struct(_mod_id, _struct_id, ref tys) = ll_type {
+                    // test and potentially declare the struct instance
+                    self.module_cx.to_llvm_type(ll_type, tys.as_slice());
+                }
+            }
+            _ => {}
+        }
         match &rtcall {
             RtCall::Abort(local_idx) => {
                 let llfn = ModuleContext::get_runtime_function(
@@ -2082,6 +2144,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             }
             RtCall::BorrowGlobal(address, ll_type, is_mut) => {
                 debug!(target: "rtcall", "BorrowGlobal ll_type {ll_type:?}");
+
+                if self.module_cx.to_llvm_type(ll_type, &[]).is_none() {
+                    debug!(target: "rtcall", "borrow_global 2");
+                    self.module_cx.declare_struct_instance(ll_type, &[]);
+                    debug!(target: "rtcall", "borrow_global 3");
+                }
                 let llfn = ModuleContext::get_runtime_function(
                     self.module_cx.llvm_cx,
                     self.module_cx.llvm_module,

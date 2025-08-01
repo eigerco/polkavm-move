@@ -14,14 +14,18 @@
 //! - Provides high-level instruction builders compatible with the stackless bytecode model.
 
 use libc::abort;
-use llvm_sys::{core::*, prelude::*, target::*, target_machine::*, LLVMOpcode, LLVMUnnamedAddr};
-use log::{debug, trace, warn};
+use llvm_sys::{
+    core::*, prelude::*, target::*, target_machine::*, LLVMIntPredicate::LLVMIntEQ, LLVMOpcode,
+    LLVMUnnamedAddr,
+};
+use log::{debug, warn};
 use move_core_types::u256;
 use num_traits::{PrimInt, ToPrimitive};
 
 use crate::cstr::SafeCStr;
 
 use std::{
+    backtrace::Backtrace,
     cell::RefCell,
     ffi::{CStr, CString},
     hash::DefaultHasher,
@@ -198,6 +202,8 @@ impl Context {
     }
 
     pub fn create_opaque_named_struct(&self, name: &str) -> StructType {
+        let bt = Backtrace::capture();
+        debug!(target: "struct", "create_opaque_named_struct {name}: {bt:#?}");
         unsafe { StructType(LLVMStructCreateNamed(self.0, name.cstr())) }
     }
 
@@ -1148,6 +1154,18 @@ impl Builder {
     pub fn build_pointer_to_int(&self, val: AnyValue, dest_ty: Type, name: &str) -> AnyValue {
         unsafe { AnyValue(LLVMBuildPtrToInt(self.0, val.0, dest_ty.0, name.cstr())) }
     }
+
+    /// Return an `i1` which is true if `val` is null/zero.
+    /// Works on both pointer- and integer-typed values.
+    pub fn build_is_null(&self, val: AnyValue, name: &str) -> AnyValue {
+        let c_name = CString::new(name).expect("no interior NULs in name");
+        unsafe {
+            let val = val.0;
+            let ty = LLVMTypeOf(val);
+            let zero = LLVMConstNull(ty);
+            AnyValue(LLVMBuildICmp(self.0, LLVMIntEQ, val, zero, c_name.as_ptr()))
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -1271,6 +1289,8 @@ impl StructType {
     }
 
     pub fn set_struct_body(&self, field_tys: &[Type]) {
+        let bt = Backtrace::capture();
+        debug!("set_struct_body called types: {field_tys:?}: {bt:#?}");
         unsafe {
             let mut field_tys: Vec<_> = field_tys.iter().map(|f| f.0).collect();
             LLVMStructSetBody(
@@ -1389,10 +1409,10 @@ impl Function {
     pub fn verify(&self, module_cx: &ModuleContext<'_, '_>) {
         use llvm_sys::analysis::*;
         let module_info = module_cx.llvm_module.print_to_str();
-        trace!(target: "verify function", "Module content:");
-        trace!(target: "verify function", "------------------------------");
-        trace!(target: "verify function", "{module_info}");
-        trace!(target: "verify function", "------------------------------");
+        debug!(target: "verify function", "Module content:");
+        debug!(target: "verify function", "------------------------------");
+        debug!(target: "verify function", "{module_info}");
+        debug!(target: "verify function", "------------------------------");
         unsafe {
             if LLVMVerifyFunction(self.0, LLVMVerifierFailureAction::LLVMPrintMessageAction) == 1 {
                 println!("{} function verifiction failed", &self.get_name());

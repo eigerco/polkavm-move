@@ -57,7 +57,8 @@ pub fn initialize_logger() {
                 };
                 writeln!(
                     formatter,
-                    "[{} {}:{}] {}",
+                    "{} [{} {}:{}] {}",
+                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
                     level,
                     record.target(),
                     record.line().unwrap_or(0),

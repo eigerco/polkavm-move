@@ -15,7 +15,10 @@ use crate::stackless::{
 };
 use log::{debug, Level};
 use move_core_types::{account_address, u256::U256};
-use move_model::{ast as mast, model as mm, ty as mty};
+use move_model::{
+    ast::{self as mast, Address},
+    model as mm, ty as mty,
+};
 use polkavm_move_native::types::TypeDesc;
 
 static TD_NAME: &str = "__move_rt_type";
@@ -218,11 +221,26 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
     }
 
     fn type_name(&self, mty: &mty::Type) -> String {
-        let g_env = self.g_env;
-        let tmty = mty.clone();
-        tmty.into_type_tag(g_env)
-            .expect("type tag")
-            .to_canonical_string()
+        // first try the via the TypeTag
+        if let Some(tag) = mty.clone().into_type_tag(self.g_env) {
+            return tag.to_canonical_string();
+        }
+
+        // otherwise generate a dummy name
+        match mty {
+            mty::Type::Struct(mid, sid, tys) => {
+                let module_env = self.g_env.get_module(*mid);
+                let struct_env = module_env.into_struct(*sid);
+                struct_env.struct_raw_type_name(tys)
+            }
+            mty::Type::Vector(inner) => {
+                format!("vector<{}>", self.type_name(inner))
+            }
+            mty::Type::TypeParameter(_) => "type_parameter".to_string(),
+            other => {
+                panic!("no name strategy for Move-type {other:?}");
+            }
+        }
     }
 
     /// The values here correspond to `move_native::rt_types::TypeDesc`.
@@ -240,6 +258,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
             Type::Primitive(PrimitiveType::Signer) => TypeDesc::Signer as u64,
             Type::Vector(_) => TypeDesc::Vector as u64,
             Type::Struct(_, _, _) => TypeDesc::Struct as u64,
+            Type::TypeParameter(_) => 14,
             _ => todo!("{:?}", mty),
         }
     }
@@ -272,6 +291,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
                         | Type::Primitive(PrimitiveType::Address)
                         | Type::Primitive(PrimitiveType::Signer)
                         | Type::Vector(_)
+                        | Type::TypeParameter(_)
                         | Type::Struct(_, _, _) => {
                             self.define_type_info_global_vec(&symbol_name, elt_ty)
                         }
@@ -323,6 +343,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
     ///
     /// Defined in the runtime by a `StructTypeInfo` containing `StructFieldInfo`s.
     fn define_type_info_global_struct(&self, symbol_name: &str, mty: &mty::Type) -> llvm::Global {
+        debug!(target: "rtty", "define_type_info_global_struct: {symbol_name}, mty: {mty:?}");
         let llcx = &self.get_llvm_cx();
         let llmod = &self.get_llvm_module();
         let global_env = self.g_env;
@@ -342,7 +363,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
         let ll_struct_name = s_env.ll_struct_name_from_raw_name(s_tys);
         let ll_struct_ty = llcx
             .named_struct_type(&ll_struct_name)
-            .expect("no struct type");
+            .unwrap_or_else(|| panic!("no struct type: {ll_struct_name}"));
         let dl = llmod.get_module_data_layout();
         let ll_struct_size = llcx.abi_size_of_type(dl, ll_struct_ty.as_any_type());
         let ll_struct_align = llcx.abi_alignment_of_type(dl, ll_struct_ty.as_any_type());
@@ -477,6 +498,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
                 | PrimitiveType::Address
                 | PrimitiveType::Signer,
             ) => false,
+            Type::TypeParameter(_) => false,
             Type::Vector(_) | Type::Struct(_, _, _) => true,
             _ => todo!(),
         }
@@ -490,7 +512,9 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
                 // A special name for types that don't need type info.
                 "NOTHING".to_string()
             }
-            Type::Vector(_) | Type::Struct(_, _, _) => mty.sanitized_display_name(&tdc),
+            Type::Vector(_) | Type::Struct(_, _, _) | Type::TypeParameter(_) => {
+                mty.sanitized_display_name(&tdc)
+            }
             _ => todo!(),
         };
 
