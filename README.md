@@ -169,6 +169,12 @@ Try using
 export LLVM_SYS_191_PREFIX="/usr/local/opt/llvm@19"
 ```
 
+or
+
+```bash
+export LLVM_SYS_191_PREFIX=/opt/homebrew/Cellar/llvm/20.1.8/
+```
+
 Depending on your distribution, you may need to set the following kernel parameters:
 
 ```
