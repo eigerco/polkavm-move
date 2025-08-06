@@ -106,7 +106,7 @@ module 0xa000::storage {
     }
 
     public entry fun store_then_borrow(account: &signer) acquires Container {
-        let address = @owner;
+        let address = @alice;
         let container = Container { value: 42, inner: Containee { value: 69, s: x"cafebabe" } };
         move_to(account, container);
         let exists = exists<Container>(address);
