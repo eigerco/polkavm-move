@@ -125,22 +125,25 @@ move-to-polka examples/storage
 ```
 
 ## Running on pallet-revive
+In this tutorial, we'll walk through compiling a simple Move module, deploying it to a local Polkadot node running the pallet-revive runtime, and executing a transaction that interacts with Move-based logic on-chain. By the end of the guide, you'll see how Move contracts compiled to RISC-V can be instantiated and executed inside the Polkadot ecosystem using PolkaVM.
 
-- First run all the tests in [polkavm-move](https://github.com/eigerco/polkavm-move) repo (this generates all the .polkavm files).
+We’ll use a sample Move module that writes a value into global storage and then call it using a manually constructed selector. The purpose is to demonstrate the full flow—from compilation to contract execution—using our custom runtime.
+
+- First run all the tests in [polkavm-move](https://github.com/eigerco/polkavm-move) repo (this generates all the .polkavm files). We'll use the `storage` example, which is a simple Move module that interacts with global storage.
 - Clone our fork of [polkadot-sdk](https://github.com/eigerco/polkadot-sdk).
 - Run the node from within the clone: `RUST_LOG="error,sc_rpc_server=info,runtime::revive=debug" cargo run --release --bin substrate-node -- --dev`
 - Log in to the Web GUI at https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/explorer
 - Go to the Extrinsics, choose 'revive'.
-- Choose instantiateWithCode, with following settings
+- Choose `instantiateWithCode`, with following settings
   - value: 12345
   - gasLimit refTime: 1000000000000
   - gasLimit proofSize: 500000
   - storageDepositLimit: 12345678901234567890
   - code (choose the crates/move-to-polka/output/storage/storage.polkavm file)
   - data: 0xfa1e1f30 (see [How to find the call selector](#how_to_find_the_call_selector))
-- Check the logs for the H160 of the uploaded contract
+- Check the logs for the H160 of the uploaded contract. Logs can be found in the Block Explorer - search for the event `revive.instantiate` and get it details to read the contract address.
 - Choose 'call', fill in the H160 address of the contract, use same settings for the rest
-- Observe the logs, see that the code is called. Output should look like this:
+- Observe the logs in the console (where you run the node), see that the code is called. Output should look like this:
 
 ```
 2025-07-31 11:40:21.022 DEBUG tokio-runtime-worker runtime::revive: move_byte_vec: MoveByteVector { ptr: 0x30558, capacity: 20, length: 18 }
@@ -155,6 +158,18 @@ move-to-polka examples/storage
 2025-07-31 11:40:21.024 DEBUG tokio-runtime-worker runtime::revive: Decremented borrow count for global at [d4, 35, 93, c7, 15, fd, d3, 1c, 61, 14, 1a, bd, 4, a9, 9f, d6, 82, 2c, 85, 58, 85, 4c, cd, e3, 9a, 56, 84, e7, a5, 6d, a2, 7d] with type StructTagHash([8c, af, 68, 33, 5d, 67, b0, 3b, e9, e9, 3e, 4b, 92, 6d, 56, 74, 9c, 8a, c5, ff, 13, d9, 40, 30, b5, 3f, ab, 61, b5, ea, 9d, fa])
 2025-07-31 11:40:21.024 DEBUG tokio-runtime-worker runtime::revive: entry: GlobalResourceEntry { data: BoundedVec([2a, 0, 0, 0, 0, 0, 0, 0, 45, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, ca, fe, ba, be], 800), borrow_count: 0, borrow_mut: false }
 ```
+
+This means that the Move logic was executed, and smart contract is interacting with the global storage using borrow/release mechanisms known from the original Move language.
+
+What Just Happened? To summarize:
+- You compiled Move source code into a PolkaVM-compatible binary. 
+- You deployed this binary to a local Substrate node using pallet-revive. 
+- You invoked the compiled and translated Move logic by submitting an extrinsic. 
+- The contract used the signer's identity (from the extrinsic) to determine access to global storage. 
+- You saw confirmation in the logs that the logic executed correctly.
+This flow allows you to write logic in Move, compile it to RISC-V, and run it deterministically on-chain inside the Polkadot ecosystem—without needing a Move VM.
+
+Feel free to experiment with other Move modules, compile them using `move-to-polka`, and deploy them to your local node using the same steps. You can also modify the `storage` example to add more complex logic or additional modules, and see how they interact with global storage and each other.
 
 ### How to find the call selector
 
