@@ -60,6 +60,22 @@ then combined and then linked to a .polkavm file using the `polkatool` linker.
 We assume the Move project will have one module with at least one `entry` function, and that no other module
 contains `entry` functions (to avoid duplicate symbols in the executable). We further assume this `entry` function
 takes a single argument, namely a Move Signer.
+
+If the Move project does not include an entry function, the user must manually add one. This entry function serves
+a similar role to scripts in the traditional Move language: it acts as the executable entry point for invoking
+module functionality. However, since the Polkadot Virtual Machine (PVM) does not support a scripting mechanism akin
+to Move's, we simulate this behavior by requiring an entry function within the module itself. This approach allows
+us to provide a deterministic entry point for the contract, enabling the generated call_selector to dispatch the
+appropriate logic during execution on PVM.
+
+In our system, the Move Signer is mapped directly to the account that signs the extrinsic in the Polkadot
+environment. This mapping is crucial because access control within the simulated global storage—implemented in the
+`pallet_revive` module—is tightly coupled to the identity of the signer. Each signer has exclusive access to
+specific portions of the global storage corresponding to their account, which mirrors the Move model where a Signer
+can only manipulate resources under their own address. By enforcing this constraint, we ensure that the behavior of
+smart contracts remains consistent with Move’s ownership and security semantics, while leveraging the Polkadot
+execution context.
+
 Pallet-revive expects the .polkavm files to have 2 exports: `deploy`
 and `call`. These are generated during translation. The `call` function calls a `call_selector` function that
 will contain a switch to call any `entry` function of the module, based on the keccak hash of the function name.
@@ -109,22 +125,25 @@ move-to-polka examples/storage
 ```
 
 ## Running on pallet-revive
+In this tutorial, we'll walk through compiling a simple Move module, deploying it to a local Polkadot node running the pallet-revive runtime, and executing a transaction that interacts with Move-based logic on-chain. By the end of the guide, you'll see how Move contracts compiled to RISC-V can be instantiated and executed inside the Polkadot ecosystem using PolkaVM.
 
-- First run all the tests in [polkavm-move](https://github.com/eigerco/polkavm-move) repo (this generates all the .polkavm files).
+We’ll use a sample Move module that writes a value into global storage and then call it using a manually constructed selector. The purpose is to demonstrate the full flow—from compilation to contract execution—using our custom runtime.
+
+- First run all the tests in [polkavm-move](https://github.com/eigerco/polkavm-move) repo (this generates all the .polkavm files). We'll use the `storage` example, which is a simple Move module that interacts with global storage.
 - Clone our fork of [polkadot-sdk](https://github.com/eigerco/polkadot-sdk).
 - Run the node from within the clone: `RUST_LOG="error,sc_rpc_server=info,runtime::revive=debug" cargo run --release --bin substrate-node -- --dev`
 - Log in to the Web GUI at https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/explorer
 - Go to the Extrinsics, choose 'revive'.
-- Choose instantiateWithCode, with following settings
+- Choose `instantiateWithCode`, with following settings
   - value: 12345
   - gasLimit refTime: 1000000000000
   - gasLimit proofSize: 500000
   - storageDepositLimit: 12345678901234567890
   - code (choose the crates/move-to-polka/output/storage/storage.polkavm file)
   - data: 0xfa1e1f30 (see [How to find the call selector](#how_to_find_the_call_selector))
-- Check the logs for the H160 of the uploaded contract
+- Check the logs for the H160 of the uploaded contract. Logs can be found in the Block Explorer - search for the event `revive.instantiate` and get it details to read the contract address.
 - Choose 'call', fill in the H160 address of the contract, use same settings for the rest
-- Observe the logs, see that the code is called. Output should look like this:
+- Observe the logs in the console (where you run the node), see that the code is called. Output should look like this:
 
 ```
 2025-07-31 11:40:21.022 DEBUG tokio-runtime-worker runtime::revive: move_byte_vec: MoveByteVector { ptr: 0x30558, capacity: 20, length: 18 }
@@ -140,6 +159,18 @@ move-to-polka examples/storage
 2025-07-31 11:40:21.024 DEBUG tokio-runtime-worker runtime::revive: entry: GlobalResourceEntry { data: BoundedVec([2a, 0, 0, 0, 0, 0, 0, 0, 45, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, ca, fe, ba, be], 800), borrow_count: 0, borrow_mut: false }
 ```
 
+This means that the Move logic was executed, and smart contract is interacting with the global storage using borrow/release mechanisms known from the original Move language.
+
+What Just Happened? To summarize:
+- You compiled Move source code into a PolkaVM-compatible binary. 
+- You deployed this binary to a local Substrate node using pallet-revive. 
+- You invoked the compiled and translated Move logic by submitting an extrinsic. 
+- The contract used the signer's identity (from the extrinsic) to determine access to global storage. 
+- You saw confirmation in the logs that the logic executed correctly.
+This flow allows you to write logic in Move, compile it to RISC-V, and run it deterministically on-chain inside the Polkadot ecosystem—without needing a Move VM.
+
+Feel free to experiment with other Move modules, compile them using `move-to-polka`, and deploy them to your local node using the same steps. You can also modify the `storage` example to add more complex logic or additional modules, and see how they interact with global storage and each other.
+
 ### How to find the call selector
 
 To call module::function (in the example below storage::store_then_borrow), take the first 4 bytes (8 hex chars) of the keccak 256 hash
@@ -152,7 +183,11 @@ fa1e1f30
 
 ## Known limitations:
 
-- Compiled Move code can not call external modules (as agreed), any dependencies need to be compiled in.
+Compiled Move code is not allowed to call external modules at runtime—this is not strictly a limitation, but rather an intentional architectural decision aimed at preserving both performance and safety.
+
+While the Move language conceptually supports storing modules in global storage and invoking them dynamically, replicating this behavior in the Polkadot Virtual Machine (PVM) environment would introduce significant overhead. For example, storing external modules in `pallet_revive` and accessing them during execution would not only be computationally expensive but also undermine the predictability and verifiability of the system. Instead, we require that all module dependencies be statically compiled into the output blob at build time. This design allows the compiler to perform all necessary checks and validations ahead of execution, ensuring type safety, access control, and integrity of the logic. Since PVM operates on compiled RISC-V binaries rather than Move bytecode, it cannot enforce the same runtime guarantees as the Move Virtual Machine. As such, any interaction with other code must occur via dependencies that are explicitly included and verified during compilation, ensuring that all code executed on-chain has been fully validated and integrated into the contract binary beforehand.
+
+In the future, this design could be extended to support calling code that has been uploaded by other users into Global Storage. Since the Move language does not support calling external contracts through any means other than accessing modules stored in global storage, any such interaction would naturally be limited to code deployed and accessible in that context. This means that translated Move programs, by design, cannot directly interact with other PolkaVM blobs stored outside of pallet_revive. However, because we have extended pallet_revive to support Global Storage access via host calls—where a program can specify the signer whose storage it wants to write-access — translated Move programs can already exchange data with external contracts in a controlled manner. This capability lays the groundwork for future support of inter-contract calls between Move-based contracts.
 
 ## Troubleshooting
 
