@@ -317,7 +317,7 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
 
 pub fn run_to_polka<W: WriteColor>(error_writer: &mut W, options: Options) -> anyhow::Result<()> {
     // Normally the compiler is invoked on a package from `move build`
-    // coomand, and builds an entire package as a .so file.  The test
+    // command, and builds an entire package as a .so file.  The test
     // harness is currently designed to invoke stand-alone compiler
     // tool on individual Move bytecode files, compiling each to a .o
     // file. To build a .so file loadable into a VM, it's necessary to
