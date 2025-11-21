@@ -47,7 +47,7 @@ sha2 = "0.10"
 sha3 = "0.10"
 hex = "0.4"
 hex-literal = "1.0"
-gix = { version = "0.73", features = [
+gix = { version = "0.74", features = [
   "blocking-network-client",
   "blocking-http-transport-reqwest-rust-tls",
 ] }
@@ -59,7 +59,7 @@ serial_test = "3.2.0"
 
 [build-dependencies]
 move-stdlib = { git = "https://github.com/eigerco/move-on-aptos.git", package = "move-stdlib" }
-cargo_metadata = "0.21"
+cargo_metadata = "0.23"
 thiserror = "2.0"
 build-tools = { path = "../build-tools" }
 anyhow = "1.0.98"

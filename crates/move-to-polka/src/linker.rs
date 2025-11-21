@@ -13,6 +13,7 @@ use polkavm::{
     Caller, Config, Engine, Instance, InterruptKind, Linker, MemoryAccessError, Module,
     ModuleConfig, ProgramBlob, RawInstance, Reg,
 };
+use polkavm_linker::TargetInstructionSet;
 use polkavm_move_native::{
     allocator::MemAllocator,
     host::{ProgramError, Runtime},
@@ -93,7 +94,7 @@ pub fn load_from_elf_with_polka_linker(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     config.set_strip(false);
     config.set_optimize(false);
 
-    let res = polkavm_linker::program_from_elf(config, data)?;
+    let res = polkavm_linker::program_from_elf(config, TargetInstructionSet::Latest, data)?;
     Ok(res)
 }
 

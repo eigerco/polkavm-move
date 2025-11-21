@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.98"
 clap = { version = "4.5.37", features = ["derive"] }
-polkavm = "0.26.0"
+polkavm = { workspace = true }
 move-to-polka = { path = "../move-to-polka/" }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

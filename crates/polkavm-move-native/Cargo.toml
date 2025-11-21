@@ -18,11 +18,11 @@ borsh = { version = "1.5", default-features = false, features = [
     "hashbrown",
 ] }
 ethnum = { version = "1.5", default-features = false }
-heapless = { version = "0.8", optional = true, default-features = false }
-hashbrown = { version = "0.15", default-features = false }
+heapless = { version = "0.9", optional = true, default-features = false }
+hashbrown = { version = "0.16", default-features = false }
 log = { version = "0.4.14", optional = true }
-polkavm-derive = { optional = true, version = "0.26.0", default-features = false }
-polkavm = { optional = true, version = "0.26.0", default-features = false }
+polkavm-derive = { optional = true, version = "0.30", default-features = false }
+polkavm = { optional = true, workspace = true, default-features = false }
 
 [features]
 polkavm = ["dep:polkavm-derive", "dep:heapless"]
