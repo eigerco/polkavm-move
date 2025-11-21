@@ -3447,7 +3447,6 @@ dependencies = [
  "move-binary-format",
  "move-bytecode-source-map",
  "move-command-line-common",
- "move-compiler",
  "move-compiler-v2",
  "move-core-types",
  "move-ir-types",
