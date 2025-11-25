@@ -1,4 +1,4 @@
-use crate::{options::Options, run_to_polka};
+use crate::{hash, options::Options, run_to_polka};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use core::mem::MaybeUninit;
 use gix::{
@@ -20,7 +20,6 @@ use polkavm_move_native::{
     types::{MoveAddress, MoveByteVector, MoveSigner, MoveType, TypeDesc},
     ALLOC_CODE, HEAP_BASE, PANIC_CODE,
 };
-use sha2::Digest;
 use std::{
     collections::HashSet, fs::create_dir_all, num::NonZero, path::Path, sync::atomic::AtomicBool,
 };
@@ -335,7 +334,12 @@ pub fn create_instance(
         "hash_sha2_256",
         |caller: Caller<Runtime>, ptr_to_buf: u32| {
             let instance = caller.instance;
-            hash_sha2_256(caller.user_data, instance, ptr_to_buf)
+            hash(
+                caller.user_data,
+                instance,
+                hash::Algorithm::Sha2_256,
+                ptr_to_buf,
+            )
         },
     )?;
 
@@ -344,7 +348,90 @@ pub fn create_instance(
         |caller: Caller<Runtime>, ptr_to_buf: u32| {
             debug!("hash_sha3_256 called with type: ptr: 0x{ptr_to_buf:X}");
             let instance = caller.instance;
-            hash_sha3_256(caller.user_data, instance, ptr_to_buf)
+            hash(
+                caller.user_data,
+                instance,
+                hash::Algorithm::Sha3_256,
+                ptr_to_buf,
+            )
+        },
+    )?;
+
+    linker.define_typed(
+        "blake2b_256_internal",
+        |caller: Caller<Runtime>, ptr_to_buf: u32| {
+            debug!("blake2b_256_internal called with type: ptr: 0x{ptr_to_buf:X}");
+            let instance = caller.instance;
+            hash(
+                caller.user_data,
+                instance,
+                hash::Algorithm::Blake2b256,
+                ptr_to_buf,
+            )
+        },
+    )?;
+
+    linker.define_typed(
+        "sha2_512_internal",
+        |caller: Caller<Runtime>, ptr_to_buf: u32| {
+            debug!("sha2_512_internal called with type: ptr: 0x{ptr_to_buf:X}");
+            let instance = caller.instance;
+            hash(
+                caller.user_data,
+                instance,
+                hash::Algorithm::Sha2_512,
+                ptr_to_buf,
+            )
+        },
+    )?;
+
+    linker.define_typed(
+        "sha3_512_internal",
+        |caller: Caller<Runtime>, ptr_to_buf: u32| {
+            debug!("sha3_512_internal called with type: ptr: 0x{ptr_to_buf:X}");
+            let instance = caller.instance;
+            hash(
+                caller.user_data,
+                instance,
+                hash::Algorithm::Sha3_512,
+                ptr_to_buf,
+            )
+        },
+    )?;
+
+    linker.define_typed("sip_hash", |caller: Caller<Runtime>, ptr_to_buf: u32| {
+        debug!("sip_hash called with type: ptr: 0x{ptr_to_buf:X}");
+        let instance = caller.instance;
+        hash(
+            caller.user_data,
+            instance,
+            hash::Algorithm::SipHash,
+            ptr_to_buf,
+        )
+    })?;
+
+    linker.define_typed("keccak256", |caller: Caller<Runtime>, ptr_to_buf: u32| {
+        debug!("keccak256 called with type: ptr: 0x{ptr_to_buf:X}");
+        let instance = caller.instance;
+        hash(
+            caller.user_data,
+            instance,
+            hash::Algorithm::Keccak256,
+            ptr_to_buf,
+        )
+    })?;
+
+    linker.define_typed(
+        "ripemd160_internal",
+        |caller: Caller<Runtime>, ptr_to_buf: u32| {
+            debug!("ripemd160_internal called with type: ptr: 0x{ptr_to_buf:X}");
+            let instance = caller.instance;
+            hash(
+                caller.user_data,
+                instance,
+                hash::Algorithm::Ripemd160,
+                ptr_to_buf,
+            )
         },
     )?;
 
@@ -449,37 +536,22 @@ pub fn copy_bytes_from_guest(
     Ok(initialized.to_vec())
 }
 
-fn hash_sha2_256(
+/// Calculates the hash of the byte vector located at `ptr_to_buf` using the specified algorithm.
+fn hash(
     runtime: &mut Runtime,
     instance: &mut RawInstance,
+    algo: hash::Algorithm,
     ptr_to_buf: u32,
 ) -> Result<u32, ProgramError> {
     let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
     debug!("hash_sha2_256 called with type: ptr: 0x{ptr_to_buf:X}");
     debug!("bytes: {bytes:?}");
-    let digest = sha2::Sha256::digest(&bytes);
+    let digest = hash::hash(&bytes, algo);
     debug!(
         "hash_sha2_256 called with {} bytes, digest: {digest:X?}",
         bytes.len(),
     );
-    let address = to_move_byte_vector(instance, &mut runtime.allocator, digest.to_vec())?;
-    debug!("Allocated address for digest: 0x{address:X}");
-    Result::<u32, ProgramError>::Ok(address)
-}
-
-fn hash_sha3_256(
-    runtime: &mut Runtime,
-    instance: &mut RawInstance,
-    ptr_to_buf: u32,
-) -> Result<u32, ProgramError> {
-    let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
-    debug!("bytes: {bytes:?}");
-    let digest = sha3::Sha3_256::digest(&bytes);
-    debug!(
-        "hash_sha3_256 called with {} bytes, digest: {digest:X?}",
-        bytes.len(),
-    );
-    let address = to_move_byte_vector(instance, &mut runtime.allocator, digest.to_vec())?;
+    let address = to_move_byte_vector(instance, &mut runtime.allocator, digest)?;
     debug!("Allocated address for digest: 0x{address:X}");
     Result::<u32, ProgramError>::Ok(address)
 }
