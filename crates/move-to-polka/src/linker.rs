@@ -5,13 +5,13 @@ use gix::{
     progress::Discard,
     remote::{fetch::Shallow, Direction},
 };
-use log::{debug, info, trace, warn};
+use log::{debug, trace};
 use move_package::source_package::{
     layout::SourcePackageLayout, manifest_parser, parsed_manifest::SubstOrRename,
 };
 use polkavm::{
-    Caller, Config, Engine, Instance, InterruptKind, Linker, MemoryAccessError, Module,
-    ModuleConfig, ProgramBlob, RawInstance, Reg,
+    Caller, Config, Engine, Instance, Linker, MemoryAccessError, Module, ModuleConfig, ProgramBlob,
+    RawInstance,
 };
 use polkavm_linker::TargetInstructionSet;
 use polkavm_move_native::{
@@ -22,11 +22,7 @@ use polkavm_move_native::{
 };
 use sha2::Digest;
 use std::{
-    collections::{HashMap, HashSet},
-    fs::create_dir_all,
-    num::NonZero,
-    path::Path,
-    sync::atomic::AtomicBool,
+    collections::HashSet, fs::create_dir_all, num::NonZero, path::Path, sync::atomic::AtomicBool,
 };
 
 pub fn create_colored_stdout() -> StandardStream {
@@ -462,147 +458,6 @@ pub fn copy_bytes_from_guest(
     trace!("read: {initialized:x?}");
     // Step 3: create a Vec<u8> from the slice
     Ok(initialized.to_vec())
-}
-
-/// Different way to run the program, which allows to handle low-level interrupts
-/// The caller must store the parameters to the entrypoint function into registers before calling this function.
-pub fn run_lowlevel(
-    instance: &mut Instance<Runtime, ProgramError>,
-    runtime: &mut Runtime,
-    entry: &str,
-) -> Result<(), anyhow::Error> {
-    let start = instance
-        .module()
-        .exports()
-        .find(|export| export.symbol() == entry)
-        .expect("'pvm_start' export not found")
-        .program_counter();
-    let module = instance.module();
-    let imports = module.imports().iter().collect::<Vec<_>>();
-    // cache imports with their indices
-    const ALLOWED_IMPORTS: &[&[u8]] = &[
-        b"debug_print",
-        b"hex_dump",
-        b"terminate",
-        b"move_to",
-        b"move_from",
-        b"exists",
-        b"release",
-        b"hash_sha2_256",
-        b"hash_sha3_256",
-    ];
-    let map: HashMap<usize, &'static str> = imports
-        .into_iter()
-        .enumerate()
-        .filter_map(|(i, import)| {
-            let import = import?;
-            ALLOWED_IMPORTS
-                .iter()
-                .find(|&&allowed| allowed == import.as_bytes())
-                .map(|&name| (i, std::str::from_utf8(name).unwrap())) // safe to unwrap since we control the names
-        })
-        .collect();
-
-    // set the initial program counter and stack pointer
-    let sp = module.default_sp();
-    instance.set_next_program_counter(start);
-    instance.set_reg(Reg::RA, polkavm::RETURN_TO_HOST);
-    instance.set_reg(Reg::SP, sp);
-    // run the program loop. We must handle the interrupts manually.
-    loop {
-        match instance.run()? {
-            InterruptKind::Finished => {
-                info!("Program finished successfully.");
-                runtime.storage.release_all();
-                break;
-            }
-            InterruptKind::Ecalli(n) => {
-                let syscall = map.get(&(n as usize)).unwrap_or(&"unknown syscall");
-                debug!("Ecalli interrupt with code: {n}: {syscall}");
-                handle_ecalli(instance, runtime, syscall);
-                if syscall == &"abort" {
-                    let code = instance.reg(Reg::A0);
-                    panic!("Aborted: {code}");
-                }
-            }
-            InterruptKind::Segfault(segfault) => {
-                runtime.storage.release_all();
-                panic!("Segfault occurred at address {:x?}", segfault.page_address);
-            }
-            InterruptKind::Trap => {
-                info!("Trap occurred, releasing all resources.");
-                runtime.storage.release_all();
-                panic!("Trap");
-            }
-            InterruptKind::NotEnoughGas => {
-                warn!("Not enough gas to continue execution, releasing all resources.");
-                runtime.storage.release_all();
-                panic!("Not enough gas to continue execution");
-            }
-            other => {
-                warn!("Program interrupted: {other:?}");
-                break;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn handle_ecalli(
-    instance: &mut polkavm::Instance<Runtime, ProgramError>,
-    runtime: &mut Runtime,
-    syscall: &str,
-) {
-    match syscall {
-        "debug_print" => {
-            let ptr_to_type = instance.reg(Reg::A0) as u32;
-            let ptr_to_data = instance.reg(Reg::A1) as u32;
-            debug_print(instance, ptr_to_type, ptr_to_data).expect("Failed to print debug info");
-        }
-        "hex_dump" => {
-            hexdump(instance);
-        }
-        "move_to" => {
-            let ptr_to_signer = instance.reg(Reg::A0) as u32;
-            let ptr_to_struct = instance.reg(Reg::A1) as u32;
-            let ptr_to_tag = instance.reg(Reg::A2) as u32;
-            move_to(runtime, instance, ptr_to_signer, ptr_to_struct, ptr_to_tag)
-                .expect("Failed to print debug info");
-        }
-        "move_from" => {
-            let ptr_to_signer = instance.reg(Reg::A0) as u32;
-            let remove = instance.reg(Reg::A1) as u32;
-            let ptr_to_tag = instance.reg(Reg::A2) as u32;
-            let is_mut = instance.reg(Reg::A3) as u32;
-            let result = move_from(runtime, instance, ptr_to_signer, remove, ptr_to_tag, is_mut)
-                .expect("Failed to move from global storage");
-            instance.set_reg(Reg::A0, result as u64);
-        }
-        "exists" => {
-            let ptr_to_signer = instance.reg(Reg::A0) as u32;
-            let ptr_to_tag = instance.reg(Reg::A1) as u32;
-            let result = exists(runtime, instance, ptr_to_signer, ptr_to_tag)
-                .expect("Failed to check if global exists");
-            instance.set_reg(Reg::A0, result as u64);
-        }
-        "hash_sha2_256" => {
-            let ptr_to_vec = instance.reg(Reg::A0) as u32;
-            let result =
-                hash_sha2_256(runtime, instance, ptr_to_vec).expect("Failed to calculate hash");
-            instance.set_reg(Reg::A0, result as u64);
-        }
-        "hash_sha3_256" => {
-            let ptr_to_vec = instance.reg(Reg::A0) as u32;
-            let result =
-                hash_sha3_256(runtime, instance, ptr_to_vec).expect("Failed calculate hash");
-            instance.set_reg(Reg::A0, result as u64);
-        }
-        "terminate" => {
-            let code = instance.reg(Reg::A0);
-            guest_abort(instance, code).ok();
-        }
-        _ => {}
-    }
 }
 
 fn hash_sha2_256(
