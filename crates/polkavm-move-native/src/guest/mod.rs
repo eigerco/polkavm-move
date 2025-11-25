@@ -56,6 +56,52 @@ unsafe extern "C" fn move_native_hash_sha3_256(bytes: *const MoveByteVector) -> 
     *mv_ptr
 }
 
+#[export_name = "move_native_sha2_512_internal"]
+unsafe extern "C" fn move_native_sha2_512_internal(bytes: *const MoveByteVector) -> MoveByteVector {
+    let address = imports::hash_sha3_256(bytes);
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
+}
+
+#[export_name = "move_native_sha3_512_internal"]
+unsafe extern "C" fn move_native_sha3_512_internal(bytes: *const MoveByteVector) -> MoveByteVector {
+    let address = imports::hash_sha3_256(bytes);
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
+}
+
+#[export_name = "move_native_sip_hash"]
+unsafe extern "C" fn move_native_sip_hash(bytes: *const MoveByteVector) -> MoveByteVector {
+    let address = imports::sip_hash(bytes);
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
+}
+
+#[export_name = "move_native_ripemd160_internal"]
+unsafe extern "C" fn move_native_ripemd160_internal(
+    bytes: *const MoveByteVector,
+) -> MoveByteVector {
+    let address = imports::ripemd160_internal(bytes);
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
+}
+
+#[export_name = "move_native_blake2b_256_internal"]
+unsafe extern "C" fn move_native_blake2b_256_internal(
+    bytes: *const MoveByteVector,
+) -> MoveByteVector {
+    let address = imports::blake2b_256_internal(bytes);
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
+}
+
+#[export_name = "move_native_keccak256"]
+unsafe extern "C" fn move_native_keccak256(bytes: *const MoveByteVector) -> MoveByteVector {
+    let address = imports::keccak256(bytes);
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
+}
+
 #[export_name = "move_rt_move_to"]
 unsafe extern "C" fn move_to(
     type_ve: &MoveType,

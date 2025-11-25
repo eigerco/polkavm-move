@@ -22,6 +22,36 @@ extern "C" {
 
 #[polkavm_derive::polkavm_import]
 extern "C" {
+    pub(crate) fn sha2_512_internal(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn sha3_512_internal(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn keccak256(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn sip_hash(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ripemd160_internal(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn blake2b_256_internal(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
     pub(crate) fn move_to(
         signer_ref: *const AnyValue,
         struct_ref: *const MoveByteVector,
