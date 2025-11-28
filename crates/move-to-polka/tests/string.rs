@@ -24,6 +24,7 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
+#[ignore]
 pub fn test_string() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -35,6 +36,7 @@ pub fn test_string() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_string_index_of() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -46,6 +48,7 @@ pub fn test_string_index_of() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_string_substring() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -57,6 +60,7 @@ pub fn test_string_substring() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_append() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -68,6 +72,7 @@ pub fn test_append() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_insert() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;

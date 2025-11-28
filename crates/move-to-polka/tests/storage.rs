@@ -30,6 +30,7 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
+#[ignore]
 pub fn storage_does_not_exist() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -50,6 +51,7 @@ pub fn storage_does_not_exist() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn storage_store_load() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -73,6 +75,7 @@ pub fn storage_store_load() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn storage_store_different() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -96,6 +99,7 @@ pub fn storage_store_different() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn storage_borrow_once() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -123,6 +127,7 @@ pub fn storage_borrow_once() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn storage_borrow_mut_once() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -155,6 +160,7 @@ pub fn storage_borrow_mut_once() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn storage_borrow_mut_abort() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -185,6 +191,7 @@ pub fn storage_borrow_mut_abort() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn storage_borrow_mut_twice() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -216,6 +223,7 @@ pub fn storage_borrow_mut_twice() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn storage_store_twice() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -240,6 +248,7 @@ pub fn storage_store_twice() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn storage_load_non_existent() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;

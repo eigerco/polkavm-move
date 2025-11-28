@@ -32,7 +32,7 @@ use llvm_sys::{
 };
 
 use log::{debug, error, warn};
-use move_model::model::{GlobalEnv, ModuleId, StructId};
+use move_model::model::{DatatypeId, GlobalEnv, ModuleId};
 use move_stackless_bytecode::stackless_bytecode::Bytecode;
 use std::{
     cell::RefCell,
@@ -81,7 +81,7 @@ macro_rules! dbg_meta_operand {
 // Similar to llvm::Context, lives in GlobalContext, used for keeping persistent objects
 pub struct DIContext {
     // Used for resolving types in nested structs
-    pub type_struct_db: RefCell<HashMap<StructId, LLVMMetadataRef>>,
+    pub type_struct_db: RefCell<HashMap<DatatypeId, LLVMMetadataRef>>,
     pub unresolved_mty: RefCell<
         HashSet<(
             mty::Type,
@@ -185,8 +185,7 @@ impl<'up> Instruction<'up> {
     fn new(bc: &'up Bytecode, func_ctx: &'up FunctionContext<'_, '_>) -> Instruction<'up> {
         let loc = func_ctx
             .env
-            .get_bytecode_loc(bc.get_attr_id().as_usize() as u16)
-            .unwrap();
+            .get_bytecode_loc(bc.get_attr_id().as_usize() as u16);
         Instruction { bc, func_ctx, loc }
     }
     fn debug(&self) {
@@ -397,7 +396,7 @@ pub fn type_get_name(x: LLVMMetadataRef) -> String {
 }
 
 impl DIBuilderCore<'_> {
-    pub fn add_type_struct(&self, struct_id: StructId, ty: LLVMMetadataRef) {
+    pub fn add_type_struct(&self, struct_id: DatatypeId, ty: LLVMMetadataRef) {
         let name = type_get_name(ty);
         debug!(target: "struct", "set type {name} for struct {struct_id:#?}");
         self.g_ctx
@@ -410,7 +409,7 @@ impl DIBuilderCore<'_> {
     pub fn get_type_struct(
         &self,
         _module_id: ModuleId, // reserved for future usage and debugging
-        struct_id: StructId,
+        struct_id: DatatypeId,
         struct_name: &String,
     ) -> LLVMMetadataRef {
         let binding = self.g_ctx.di_context.type_struct_db.borrow_mut();
@@ -656,7 +655,7 @@ impl<'up> DIBuilder<'up> {
             mty::Type::Primitive(mty::PrimitiveType::U128) => core.type_u128,
             mty::Type::Primitive(mty::PrimitiveType::U256) => core.type_u256,
             mty::Type::Primitive(mty::PrimitiveType::Address) => core.type_address,
-            mty::Type::Struct(mod_id, struct_id, _v) => {
+            mty::Type::Datatype(mod_id, struct_id, _v) => {
                 self.core().get_type_struct(mod_id, struct_id, name)
             }
             _ => core.type_unspecified,
@@ -1082,7 +1081,10 @@ impl<'up> DIBuilder<'up> {
                 m_ctx.llvm_di_builder.compiled_unit().unwrap();
 
             let m_env: &move_model::model::ModuleEnv<'_> = &m_ctx.env;
-            let m_name: String = m_env.get_name().display(m_env.env).to_string();
+            let m_name: String = m_env
+                .get_name()
+                .display(m_env.env.symbol_pool())
+                .to_string();
             let name_cstr = to_cstring!(m_name.clone());
             let (fn_nm_ptr, _fn_nm_len) = (name_cstr.as_ptr(), name_cstr.as_bytes().len());
 
@@ -1166,7 +1168,7 @@ impl<'up> DIBuilder<'up> {
         &self,
         func_ctx: &FunctionContext<'_, '_>,
         mod_id: &ModuleId, // reserved for future usage and debugging
-        struct_id: &StructId,
+        struct_id: &DatatypeId,
         struct_llvm_name: &str,
         parent: Option<LLVMMetadataRef>,
     ) {
@@ -1254,7 +1256,7 @@ impl<'up> DIBuilder<'up> {
                 let fld_type = self.get_type(mv_ty.clone(), &fld_name);
 
                 if fld_type == self.core().type_unspecified {
-                    if let mty::Type::Struct(mod_id, struct_id, _v) = mv_ty.clone() {
+                    if let mty::Type::Datatype(mod_id, struct_id, _v) = mv_ty.clone() {
                         debug!(target: "struct", "fld {fld_name} mod_id {mod_id:#?} struct_id {struct_id:#?}");
                         let fld_struct_type = llvm_ty.as_struct_type();
                         let fld_struct_info = fld_struct_type.dump_to_string();
@@ -1313,7 +1315,7 @@ impl<'up> DIBuilder<'up> {
                     0,                  // UniqueIdLen: ::libc::size_t
                 )
             };
-            let struct_id: move_model::model::StructId = struct_env.get_id();
+            let struct_id: move_model::model::DatatypeId = struct_env.get_id();
             self.core().add_type_struct(struct_id, struct_meta); // Add creted struct type to DB of struct types
 
             // Check the name in DWARF

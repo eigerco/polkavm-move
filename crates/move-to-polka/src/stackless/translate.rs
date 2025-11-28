@@ -41,12 +41,12 @@ use codespan::Location;
 use llvm_sys::core::LLVMGetModuleContext;
 use log::{debug, trace};
 use move_core_types::{
-    account_address::{self, AccountAddress},
+    account_address::{self},
     u256::U256,
     vm_status::StatusCode::ARITHMETIC_ERROR,
 };
 use move_model::{
-    ast::{self as mast, Address},
+    ast::{self as mast},
     model::{self as mm},
     ty::{self as mty, Type},
 };
@@ -55,8 +55,7 @@ use move_stackless_bytecode::{
     stackless_bytecode_generator::StacklessBytecodeGenerator,
     stackless_control_flow_graph::generate_cfg_in_dot_format,
 };
-use num::BigUint;
-use num_traits::ToBytes;
+use num::{bigint::ToBigUint, BigUint};
 use sha2::Digest;
 use std::collections::BTreeMap;
 
@@ -232,7 +231,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         let action = (*options.gen_dot_cfg).to_owned();
         if action == "write" || action == "view" {
             let fname = &self.env.llvm_symbol_name(self.type_params);
-            let dot_graph = generate_cfg_in_dot_format(&func_target, true);
+            let dot_graph = generate_cfg_in_dot_format(&func_target);
             let graph_label = format!("digraph {{ label=\"Function: {fname}\"\n");
             let dgraph2 = dot_graph.replacen("digraph {", &graph_label, 1);
             let output_path = (*options.dot_file_path).to_owned();
@@ -339,10 +338,9 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                         .expect("too few `--signer` arguments provided")
                         .strip_prefix("0x");
                     curr_signer += 1;
-                    let addr_val = BigUint::parse_bytes(signer.unwrap().as_bytes(), 16);
-                    let account_addr = AccountAddress::from_bytes(addr_val.unwrap().to_be_bytes());
-                    let addr = Address::Numerical(account_addr.unwrap());
-                    let c = self.constant(&sbc::Constant::Address(addr), None);
+                    let addr_val =
+                        BigUint::parse_bytes(signer.unwrap().as_bytes(), 16).unwrap_or_default();
+                    let c = self.constant(&sbc::Constant::Address(addr_val), None);
                     self.module_cx
                         .llvm_builder
                         .build_store(c.as_any_value(), local.llval);
@@ -397,7 +395,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                         let (load, store) = builder.load_store(llty, src_llval, dst_llval);
                         instr_dbg.create_load_store(load, store, mty, llty, src_llval, dst_llval);
                     }
-                    mty::Type::Struct(_, _, _) => {
+                    mty::Type::Datatype(_, _, _) => {
                         // A move renders the source location inaccessible, but the storage is
                         // to be reused for the target. We simply replace the dest local's slot
                         // with the source, so that all later references to dest use the original
@@ -439,7 +437,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                         let (load, store) = builder.load_store(llty, src_llval, dst_llval);
                         instr_dbg.create_load_store(load, store, mty, llty, src_llval, dst_llval);
                     }
-                    mty::Type::Struct(_, _, _) => {
+                    mty::Type::Datatype(_, _, _) => {
                         let (load, store) = builder.load_store(llty, src_llval, dst_llval);
                         instr_dbg.create_load_store(load, store, mty, llty, src_llval, dst_llval);
                     }
@@ -455,7 +453,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                         ));
                     }
                     mty::Type::Reference(_, referent) => match **referent {
-                        mty::Type::Struct(_, _, _) => {
+                        mty::Type::Datatype(_, _, _) => {
                             let (load, store) = builder.load_store(llty, src_llval, dst_llval);
                             instr_dbg
                                 .create_load_store(load, store, mty, llty, src_llval, dst_llval);
@@ -493,7 +491,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                         let (load, store) = builder.load_store(llty, src_llval, dst_llval);
                         instr_dbg.create_load_store(load, store, mty, llty, src_llval, dst_llval);
                     }
-                    mty::Type::Struct(_, _, _) => {
+                    mty::Type::Datatype(_, _, _) => {
                         let (load, store) = builder.load_store(llty, src_llval, dst_llval);
                         instr_dbg.create_load_store(load, store, mty, llty, src_llval, dst_llval);
                     }
@@ -1216,7 +1214,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 debug!(target: "dwarf", "MoveTo src {:?} dst {dst:?}", self.locals);
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
                 let src1_reg = self.locals[src[1]].llval.as_any_value();
-                let mty = Type::Struct(*mod_id, *struct_id, types);
+                let mty = Type::Datatype(*mod_id, *struct_id, types);
                 debug!(target: "dwarf", "MoveTo mty {mty:?}");
                 self.emit_rtcall(RtCall::MoveTo(src1_reg, src0_reg, mty), dst, instr);
             }
@@ -1226,7 +1224,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 assert_eq!(src.len(), 1);
                 assert_eq!(dst.len(), 1);
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
-                let mty = Type::Struct(*mod_id, *struct_id, types);
+                let mty = Type::Datatype(*mod_id, *struct_id, types);
                 debug!(target: "dwarf", "MoveFrom mty {mty:?}");
                 self.emit_rtcall(RtCall::MoveFrom(src0_reg, mty), dst, instr);
             }
@@ -1236,19 +1234,19 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 assert_eq!(src.len(), 1);
                 assert_eq!(dst.len(), 1);
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
-                let mty = Type::Struct(*mod_id, *struct_id, types);
+                let mty = Type::Datatype(*mod_id, *struct_id, types);
                 debug!(target: "dwarf", "Exists mty {mty:?}");
                 self.emit_rtcall(RtCall::Exists(src0_reg, mty), dst, instr);
             }
-            Operation::BorrowGlobal(mod_id, struct_id, types, is_mut) => {
+            Operation::BorrowGlobal(mod_id, struct_id, types) => {
                 trace!(target: "dwarf", "translate_call BorrowGlobal {mod_id:?} {struct_id:?} types {types:?}");
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
                 assert_eq!(src.len(), 1);
                 assert_eq!(dst.len(), 1);
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
-                let mty = Type::Struct(*mod_id, *struct_id, types);
+                let mty = Type::Datatype(*mod_id, *struct_id, types);
                 debug!(target: "dwarf", "BorrowGlobal mty {mty:?}");
-                let is_mut_u32 = if *is_mut { 1 } else { 0 };
+                let is_mut_u32 = 0;
                 self.emit_rtcall(RtCall::BorrowGlobal(src0_reg, mty, is_mut_u32), dst, instr);
             }
             Operation::BorrowLoc => {
@@ -1294,19 +1292,24 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .llvm_cx
                     .named_struct_type(&struct_name)
                     .expect("no struct type");
-                let global_env = struct_env.module_env.env;
-                src.iter().for_each(|i| {
-                    let source = self.locals[*i].mty.to_owned();
-                    if source.is_struct() {
-                        let struct_inner_env = source.get_struct(global_env).unwrap().0;
-                        let loc = struct_inner_env.get_loc();
-                        let struct_inner_name = struct_inner_env.get_full_name_str();
-                        let (file_inner, location_inner) = global_env
-                            .get_file_and_location(&loc)
-                            .unwrap_or(("unknown".to_string(), Location::new(0, 0)));
-                        debug!(target: "dwarf", "Inner struct {} {}:{}", struct_inner_name, file_inner, location_inner.line.0);
-                    }
-                });
+                // let global_env = struct_env.module_env.env;
+                // src.iter().for_each(|i| {
+                //     let source = self.locals[*i].mty.to_owned();
+                //     if source.is_struct() {
+                //
+                //         let struct_inner_env =         Type::Struct(module_idx, struct_idx, params) =  {
+                //             (env.get_module(*module_idx).into_struct(*struct_idx), params)
+                //         };
+                //
+                //
+                //         let loc = struct_inner_env.get_loc();
+                //         let struct_inner_name = struct_inner_env.get_full_name_str();
+                //         let (file_inner, location_inner) = global_env
+                //             .get_file_and_location(&loc)
+                //             .unwrap_or(("unknown".to_string(), Location::new(0, 0)));
+                //         debug!(target: "dwarf", "Inner struct {} {}:{}", struct_inner_name, file_inner, location_inner.line.0);
+                //     }
+                // });
                 let fvals = src
                     .iter()
                     .map(|i| (self.locals[*i].llty, self.locals[*i].llval))
@@ -1349,57 +1352,6 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let lsrc = (self.locals[src_idx].llty, self.locals[src_idx].llval);
                 builder.load_and_extract_fields(lsrc, &fdstvals, stype);
             }
-            Operation::Release => {
-                trace!(target: "dwarf", "translate_call Release src {src:#?}");
-                assert!(dst.is_empty());
-                // our special Release passes the address and the struct index
-                if src.len() == 2 {
-                    let address_idx = src[0];
-                    let struct_idx = src[1];
-                    let mty = &self.locals[struct_idx].mty;
-                    debug!(target: "dwarf", "Release mty {mty:?}");
-                    match mty {
-                        mty::Type::Struct(m_id, struct_id, types) => {
-                            self.do_release(
-                                instr,
-                                builder,
-                                address_idx,
-                                struct_idx,
-                                mty,
-                                m_id,
-                                struct_id,
-                                types,
-                            );
-                        }
-                        mty::Type::Reference(kind, typ) => {
-                            debug!(target: "dwarf", "Release reference mty {mty:?}, kind {kind:?}, typ {typ:?}");
-                            if let mty::Type::Struct(ref m_id, ref struct_id, ref types) = **typ {
-                                self.do_release(
-                                    instr,
-                                    builder,
-                                    address_idx,
-                                    struct_idx,
-                                    mty,
-                                    m_id,
-                                    struct_id,
-                                    types,
-                                );
-                            }
-                        }
-                        _ => {}
-                    }
-                } else {
-                    assert_eq!(src.len(), 1);
-                    let idx = src[0];
-                    let mty = &self.locals[idx].mty;
-                    if let mty::Type::Vector(elt_mty) = mty {
-                        self.emit_rtcall(RtCall::VecDestroy(idx, (**elt_mty).clone()), &[], instr);
-                    }
-                }
-            }
-            Operation::Drop => {
-                debug!(target: "dwarf", "translate_call Release dst {dst:#?} src {src:#?}");
-            }
             Operation::ReadRef => {
                 assert_eq!(src.len(), 1);
                 assert_eq!(dst.len(), 1);
@@ -1424,7 +1376,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let dst_llval = self.locals[dst_idx].llval;
                 builder.load_store_ref(src_llty, src_llval, dst_llval);
             }
-            Operation::FreezeRef(_) => {
+            Operation::FreezeRef => {
                 assert_eq!(dst.len(), 1);
                 assert_eq!(src.len(), 1);
                 let src_idx = src[0];
@@ -1612,10 +1564,6 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             | Operation::TraceLocal(_)
             | Operation::TraceReturn(_)
             | Operation::TraceAbort
-            | Operation::TraceExp(_, _)
-            | Operation::TraceGlobalMem(_)
-            | Operation::EmitEvent
-            | Operation::EventStoreDiverge
             | Operation::OpaqueCallBegin(_, _, _)
             | Operation::OpaqueCallEnd(_, _, _)
             | Operation::Uninit
@@ -1633,11 +1581,11 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         struct_idx: usize,
         mty: &Type,
         m_id: &mm::ModuleId,
-        struct_id: &mm::StructId,
+        struct_id: &mm::DatatypeId,
         types: &Vec<Type>,
     ) {
         debug!(target: "dwarf", "Release mty {mty:?}, m_id {m_id:?}, struct_id {struct_id:?}, types {types:?}");
-        let mty = Type::Struct(*m_id, *struct_id, types.clone());
+        let mty = Type::Datatype(*m_id, *struct_id, types.clone());
         let idx_llval = self.locals[address_idx].clone();
         let slot_ptr = self.locals[struct_idx].llval;
         let struct_ty = self.module_cx.llvm_cx.ptr_type();
@@ -1702,7 +1650,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             let fn_id = fun_id.qualified(mod_id);
             let fn_env = global_env.get_function(fn_id);
             let arg_types = fn_env.get_parameter_types();
-            let ret_types = fn_env.get_result_type();
+            let ret_types = fn_env.get_return_type(0);
             let return_val_is_generic = matches!(ret_types, mty::Type::TypeParameter(_));
             (arg_types, return_val_is_generic)
         };
@@ -1845,7 +1793,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 //
                 // The address is a BigUint which only stores as many bits as needed, so pad it out
                 // to the full address length if needed.
-                let mut bytes = val.expect_numerical().to_big_uint().to_bytes_le();
+                let mut bytes = val.to_biguint().unwrap_or_default().to_bytes_le();
                 bytes.extend(vec![0; addr_len - bytes.len()]);
                 let aval = llcx.const_int_array::<u8>(&bytes).as_const();
                 let gval = self
@@ -1867,7 +1815,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let vals: Vec<llvm::Constant> = val_vec
                     .iter()
                     .map(|v| {
-                        let mut bytes: Vec<u8> = v.expect_numerical().to_big_uint().to_bytes_le();
+                        let mut bytes: Vec<u8> = v.to_biguint().unwrap_or_default().to_bytes_le();
                         bytes.extend(vec![0; addr_len - bytes.len()]);
                         llcx.const_int_array::<u8>(&bytes).as_const()
                     })
@@ -2031,7 +1979,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             | RtCall::BorrowGlobal(_, ref ll_type, _)
             | RtCall::Release(_, _, ref ll_type)
             | RtCall::Exists(_, ref ll_type) => {
-                if let mty::Type::Struct(_mod_id, _struct_id, ref tys) = ll_type {
+                if let mty::Type::Datatype(_mod_id, _struct_id, ref tys) = ll_type {
                     // test and potentially declare the struct instance
                     self.module_cx.to_llvm_type(ll_type, tys.as_slice());
                 }
@@ -2091,7 +2039,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(*address);
                 typarams.push(*value);
                 let (mod_id, struct_id) = match ll_type {
-                    mty::Type::Struct(mod_id, struct_id, _) => (mod_id, struct_id),
+                    mty::Type::Datatype(mod_id, struct_id, _) => (mod_id, struct_id),
                     _ => panic!("Expected a struct type for BorrowGlobal call"),
                 };
                 let module_env = self.get_global_env().get_module(*mod_id);
@@ -2126,7 +2074,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let loc_dst = &self.locals[dst[0]];
                 typarams.push(loc_dst.llval.as_any_value());
                 let (mod_id, struct_id) = match ll_type {
-                    mty::Type::Struct(mod_id, struct_id, _) => (mod_id, struct_id),
+                    mty::Type::Datatype(mod_id, struct_id, _) => (mod_id, struct_id),
                     _ => panic!("Expected a struct type for BorrowGlobal call"),
                 };
                 let module_env = self.get_global_env().get_module(*mod_id);
@@ -2142,7 +2090,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(tag_ptr.as_any_value());
                 self.module_cx.llvm_builder.call(llfn, &typarams);
             }
-            RtCall::BorrowGlobal(address, ll_type, is_mut) => {
+            RtCall::BorrowGlobal(address, ll_type, _) => {
                 debug!(target: "rtcall", "BorrowGlobal ll_type {ll_type:?}");
 
                 if self.module_cx.to_llvm_type(ll_type, &[]).is_none() {
@@ -2167,7 +2115,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let loc_dst = &self.locals[dst[0]];
                 typarams.push(loc_dst.llval.as_any_value());
                 let (mod_id, struct_id) = match ll_type {
-                    mty::Type::Struct(mod_id, struct_id, _) => (mod_id, struct_id),
+                    mty::Type::Datatype(mod_id, struct_id, _) => (mod_id, struct_id),
                     _ => panic!("Expected a struct type for BorrowGlobal call"),
                 };
                 let module_env = self.get_global_env().get_module(*mod_id);
@@ -2182,7 +2130,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 );
                 typarams.push(tag_ptr.as_any_value());
                 typarams.push(
-                    llvm::Constant::int(self.module_cx.llvm_cx.int_type(1), U256::from(*is_mut))
+                    llvm::Constant::int(self.module_cx.llvm_cx.int_type(1), U256::from(0u32))
                         .as_any_value(),
                 );
                 self.module_cx.llvm_builder.call(llfn, &typarams);
@@ -2205,7 +2153,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(*address);
                 typarams.push(*struct_val);
                 let (mod_id, struct_id) = match ll_type {
-                    mty::Type::Struct(mod_id, struct_id, _) => (mod_id, struct_id),
+                    mty::Type::Datatype(mod_id, struct_id, _) => (mod_id, struct_id),
                     _ => panic!("Expected a struct type for BorrowGlobal call"),
                 };
                 let module_env = self.get_global_env().get_module(*mod_id);
@@ -2239,7 +2187,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 typarams.push(*address);
 
                 let (mod_id, struct_id) = match ll_type {
-                    mty::Type::Struct(mod_id, struct_id, _) => (mod_id, struct_id),
+                    mty::Type::Datatype(mod_id, struct_id, _) => (mod_id, struct_id),
                     _ => panic!("Expected a struct type for BorrowGlobal call"),
                 };
                 let module_env = self.get_global_env().get_module(*mod_id);

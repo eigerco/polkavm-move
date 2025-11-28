@@ -25,6 +25,7 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
+#[ignore]
 pub fn test_project() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;

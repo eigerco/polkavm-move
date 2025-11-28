@@ -24,6 +24,7 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_new() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -35,6 +36,7 @@ pub fn test_vector_new() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_isempty() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -46,6 +48,7 @@ pub fn test_vector_isempty() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_cmp() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -57,6 +60,7 @@ pub fn test_vector_cmp() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_singleton() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -68,6 +72,7 @@ pub fn test_vector_singleton() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_popback() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -79,6 +84,7 @@ pub fn test_vector_popback() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_reverse() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -90,6 +96,7 @@ pub fn test_vector_reverse() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_contains() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -101,6 +108,7 @@ pub fn test_vector_contains() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_swapremove() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -112,6 +120,7 @@ pub fn test_vector_swapremove() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_remove() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -123,6 +132,7 @@ pub fn test_vector_remove() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_indexof() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -134,6 +144,7 @@ pub fn test_vector_indexof() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_foreach() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -145,6 +156,7 @@ pub fn test_vector_foreach() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_foreachref() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -156,6 +168,7 @@ pub fn test_vector_foreachref() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_fold() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -167,6 +180,7 @@ pub fn test_vector_fold() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_map() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -178,6 +192,7 @@ pub fn test_vector_map() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_vector_filter() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;

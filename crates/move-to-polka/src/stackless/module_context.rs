@@ -95,7 +95,6 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
     /// Generate LLVM IR struct declarations for all Move structures.
     fn declare_structs(&mut self) {
-        use move_binary_format::{access::ModuleAccess, views::StructHandleView};
         let m_env = &self.env;
         let g_env = &m_env.env;
 
@@ -110,19 +109,23 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         let mut visited = BTreeSet::new();
         worklist.push_back(m_env.get_id());
         while let Some(mid) = worklist.pop_front() {
-            let compiled_module = m_env.get_verified_module().unwrap();
-            for shandle in compiled_module.struct_handles() {
+            let compiled_module = m_env.get_verified_module();
+            for shandle in compiled_module.datatype_handles() {
                 debug!(target: "structs",
                        "Found struct handle {} in module {}",
                        shandle.name,
                        &shandle.module);
-                let struct_view = StructHandleView::new(compiled_module, shandle);
+                let declaring_module_handle = compiled_module.module_handle_at(shandle.module);
+                let declaring_module_id =
+                    compiled_module.module_id_for_handle(declaring_module_handle);
                 let declaring_module_env = g_env
-                    .find_module(&g_env.to_module_name(&struct_view.module_id()))
-                    .expect("undefined module");
-                let struct_env = declaring_module_env
-                    .find_struct(m_env.symbol_pool().make(struct_view.name().as_str()))
-                    .expect("undefined struct");
+                    .find_module(&g_env.to_module_name(&declaring_module_id))
+                    .unwrap();
+                let sname = compiled_module.identifier_at(shandle.name);
+                let struct_id = declaring_module_env
+                    .find_struct_by_identifier(sname.into())
+                    .unwrap();
+                let struct_env = declaring_module_env.clone().into_struct(struct_id);
                 debug!(target: "structs",
                        "Found struct {} in module {}",
                        struct_env.get_full_name_str(),
@@ -212,11 +215,9 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
         // Now that all the concrete structs are available, pull in the generic ones. Each such
         // StructDefInstantiation will induce a concrete expansion once fields are visited later.
-        let cm = m_env.get_verified_module().unwrap();
+        let cm = m_env.get_verified_module();
         for s_def_inst in cm.struct_instantiations() {
-            let tys = m_env
-                .get_type_actuals(Some(s_def_inst.type_parameters))
-                .unwrap_or_default();
+            let tys = m_env.get_type_actuals(Some(s_def_inst.type_parameters));
             let s_env = m_env.get_struct_by_def_idx(s_def_inst.def);
             debug!(target: "structs",
                    "Found struct instantiation {} with tys {:?}",
@@ -230,9 +231,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         // Similarly, pull in generics from field instantiations.
         for f_inst in cm.field_instantiations() {
             let fld_handle = cm.field_handle_at(f_inst.handle);
-            let tys = m_env
-                .get_type_actuals(Some(f_inst.type_parameters))
-                .unwrap_or_default();
+            let tys = m_env.get_type_actuals(Some(f_inst.type_parameters));
             let s_env = m_env.get_struct_by_def_idx(fld_handle.owner);
             debug!(target: "structs",
                    "Found struct instantiation {} with tys {:?}",
@@ -252,7 +251,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 SignatureToken::find_struct_instantiation_signatures(st, &mut inst_signatures);
                 for sti in &inst_signatures {
                     let gs = m_env.globalize_signature(sti);
-                    if let Some(mty::Type::Struct(mid, sid, tys)) = gs {
+                    if let mty::Type::Datatype(mid, sid, tys) = gs {
                         let s_env = g_env.get_module(mid).into_struct(sid);
                         if create_opaque_named_struct(&s_env, &tys) {
                             all_structs.push((s_env, tys));
@@ -306,15 +305,15 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         let mut ll_field_tys = Vec::with_capacity(s_env.get_field_count() + 1);
         for fld_env in s_env.get_fields() {
             debug!(target: "structs", "translating field {:?}", &fld_env.get_type());
-            if let mty::Type::Struct(_m, _s, _tys) = &fld_env.get_type() {
+            if let mty::Type::Datatype(_m, _s, _tys) = &fld_env.get_type() {
                 let new_sty = &fld_env.get_type().instantiate(tyvec);
-                if let mty::Type::Struct(m, s, tys) = new_sty {
+                if let mty::Type::Datatype(m, s, tys) = new_sty {
                     let g_env = &self.env.env;
                     let s_env = g_env.get_module(*m).into_struct(*s);
                     self.translate_struct(&s_env, tys);
                 }
             } else if let mty::Type::TypeParameter(x) = &fld_env.get_type() {
-                if let mty::Type::Struct(m, s, tys) = &tyvec[*x as usize] {
+                if let mty::Type::Datatype(m, s, tys) = &tyvec[*x as usize] {
                     let g_env = &self.env.env;
                     let s_env = g_env.get_module(*m).into_struct(*s);
                     self.translate_struct(&s_env, tys);
@@ -351,7 +350,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
     // be handled by this function too.
     pub fn declare_struct_instance(&self, mty: &mty::Type, tyvec: &[mty::Type]) -> llvm::Type {
         debug!(target: "structs", "Declaring struct instance {mty:?} with tys {tyvec:?} bt: {:#?}", std::backtrace::Backtrace::capture());
-        if let mty::Type::Struct(m, s, _tys) = mty {
+        if let mty::Type::Datatype(m, s, _tys) = mty {
             let g_env = &self.env.env;
             let s_env = g_env.get_module(*m).into_struct(*s);
             debug!(target: "structs",
@@ -375,7 +374,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
     fn is_generic_struct(tys: &[mty::Type]) -> bool {
         tys.iter().any(|t| match t {
             mty::Type::Reference(_, ty) => Self::is_generic_struct(&[ty.as_ref().clone()]),
-            mty::Type::Struct(_m, _s, tys) => Self::is_generic_struct(tys),
+            mty::Type::Datatype(_m, _s, tys) => Self::is_generic_struct(tys),
             mty::Type::Tuple(tys) => Self::is_generic_struct(tys),
             mty::Type::TypeParameter(_) => true,
             mty::Type::Vector(ty) => Self::is_generic_struct(&[ty.as_ref().clone()]),
@@ -473,13 +472,6 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             curr_fn_env.llvm_symbol_name(&curr_type_vec)
         };
 
-        if curr_fn_env.is_inline() {
-            // Inline functions are not declared here, but their code is expanded inline by the move compiler.
-            // if we declare them here, we will end up with missing compiled module
-            debug!("function: {fn_name} is inline - no need to declare");
-            return;
-        }
-
         debug!(
             "Checking if {fn_name} exists in current module {:?}",
             mod_env.get_id()
@@ -570,7 +562,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         &mut self,
         fn_env: &mm::FunctionEnv,
         tyvec: &[mty::Type],
-        fn_data: &FunctionData,
+        _fn_data: &FunctionData,
         linkage: llvm::LLVMLinkage,
         exports: &mut Vec<String>,
     ) {
@@ -582,10 +574,11 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         );
         let ll_fn = {
             let ll_fnty = {
-                let ll_rty = if let Some(ty) = self.to_llvm_type(&fn_data.result_type, tyvec) {
+                let ll_rty = if let Some(ty) = self.to_llvm_type(&fn_env.get_return_type(0), tyvec)
+                {
                     ty
                 } else {
-                    self.declare_struct_instance(&fn_data.result_type, tyvec)
+                    self.declare_struct_instance(&fn_env.get_return_type(0), tyvec)
                 };
 
                 let ll_parm_tys = fn_env
@@ -745,7 +738,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
     fn declare_native_function(
         &mut self,
         fn_env: &mm::FunctionEnv,
-        fn_data: &FunctionData,
+        _fn_data: &FunctionData,
         linkage: llvm::LLVMLinkage,
     ) {
         debug!("Declare native function {}", fn_env.get_full_name_str());
@@ -756,7 +749,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         let ll_fn = {
             let ll_fnty = {
                 // Generic return values are passed through a final return pointer arg.
-                let mty0 = &&fn_data.result_type;
+                let mty0 = &&fn_env.get_return_type(0);
                 let (ll_rty, ll_byref_rty) = if mty0.is_type_parameter() {
                     (llcx.void_type(), Some(llcx.ptr_type()))
                 } else {
@@ -861,21 +854,12 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     None
                 }
             }
-            Type::Struct(_mid, _sid, _tys) => {
+            Type::Datatype(_mid, _sid, _tys) => {
                 // First substitute any generic type parameters occuring in _tys.
                 let new_sty = mty.instantiate(tyvec);
 
-                debug!(
-                    target: "structs",
-                    "Instantiated struct {}",
-                    new_sty
-                        .get_struct(self.env.env)
-                        .unwrap()
-                        .0
-                        .struct_raw_type_name(tyvec)
-                );
                 // Then process the (possibly type-substituted) struct.
-                if let Type::Struct(declaring_module_id, struct_id, ref tys) = new_sty {
+                if let Type::Datatype(declaring_module_id, struct_id, ref tys) = new_sty {
                     let global_env = &self.env.env;
                     let struct_env = global_env
                         .get_module(declaring_module_id)
@@ -913,7 +897,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     )
                 }
             }
-            Type::Fun(_, _, _)
+            Type::Fun(_, _)
             | Type::TypeDomain(_)
             | Type::ResourceDomain(_, _, _)
             | Type::Error
@@ -929,7 +913,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         module_cx: &'mm ModuleContext,
         type_params: &'mm [mty::Type],
     ) -> FunctionContext<'mm, 'this> {
-        let locals = Vec::with_capacity(fn_env.get_local_count().unwrap_or(0));
+        let locals = Vec::with_capacity(fn_env.get_local_count());
         FunctionContext {
             env: fn_env,
             module_cx,

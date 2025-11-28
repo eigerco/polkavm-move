@@ -62,11 +62,11 @@ pub impl FunctionEnvExt for mm::FunctionEnv<'_> {
     /// the most bits out of the hash while using only alphanumerics.
     fn llvm_symbol_name_full(&self, tyvec: &[mty::Type]) -> String {
         let module_env = &self.module_env;
-        let module_address = module_env
-            .self_address()
-            .expect_numerical()
-            .to_canonical_string();
-        let module_name = module_env.get_name().display(module_env.env).to_string();
+        let module_address = module_env.self_address().to_canonical_string(true);
+        let module_name = module_env
+            .get_name()
+            .display(module_env.env.symbol_pool())
+            .to_string();
         let function_name = self.get_name_str();
         let type_names = tyvec
             .iter()
@@ -191,7 +191,9 @@ pub impl TypeExt for mty::Type {
             }
             Type::Reference(_, _) => 64,
             Type::Vector(_) => 8 * MOVE_UNTYPED_VEC_DESC_SIZE,
-            Type::Struct(_m, _s, ref tys) => tys.iter().fold(0, |acc, ty| acc + ty.get_bitwidth()),
+            Type::Datatype(_m, _s, ref tys) => {
+                tys.iter().fold(0, |acc, ty| acc + ty.get_bitwidth())
+            }
             _ => {
                 todo!("{self:?}")
             }
@@ -209,7 +211,7 @@ pub impl StructEnvExt for mm::StructEnv<'_> {
 
     fn struct_raw_type_name(&self, tys: &[mty::Type]) -> String {
         let qid = self.get_qualified_id();
-        let s = mty::Type::Struct(qid.module_id, qid.id, tys.to_vec());
+        let s = mty::Type::Datatype(qid.module_id, qid.id, tys.to_vec());
         format!("{}", s.display(&self.module_env.env.get_type_display_ctx()))
     }
 }
@@ -227,7 +229,8 @@ pub impl SignatureTokenExt for SignatureToken {
             SignatureToken::Vector(bt) => {
                 Self::find_struct_instantiation_signatures(bt, inst_signatures);
             }
-            SignatureToken::StructInstantiation(_, args) => {
+            SignatureToken::DatatypeInstantiation(instantiation) => {
+                let (_, args) = instantiation.as_ref();
                 // Instantiations may contain nested instantiations.
                 for arg in args {
                     Self::find_struct_instantiation_signatures(arg, inst_signatures);

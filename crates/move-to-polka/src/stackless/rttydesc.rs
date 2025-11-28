@@ -15,10 +15,7 @@ use crate::stackless::{
 };
 use log::{debug, Level};
 use move_core_types::{account_address, u256::U256};
-use move_model::{
-    ast::{self as mast, Address},
-    model as mm, ty as mty,
-};
+use move_model::{model as mm, ty as mty};
 use polkavm_move_native::types::TypeDesc;
 
 static TD_NAME: &str = "__move_rt_type";
@@ -223,12 +220,12 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
     fn type_name(&self, mty: &mty::Type) -> String {
         // first try the via the TypeTag
         if let Some(tag) = mty.clone().into_type_tag(self.g_env) {
-            return tag.to_canonical_string();
+            return tag.to_canonical_string(true);
         }
 
         // otherwise generate a dummy name
         match mty {
-            mty::Type::Struct(mid, sid, tys) => {
+            mty::Type::Datatype(mid, sid, tys) => {
                 let module_env = self.g_env.get_module(*mid);
                 let struct_env = module_env.into_struct(*sid);
                 struct_env.struct_raw_type_name(tys)
@@ -257,7 +254,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
             Type::Primitive(PrimitiveType::Address) => TypeDesc::Address as u64,
             Type::Primitive(PrimitiveType::Signer) => TypeDesc::Signer as u64,
             Type::Vector(_) => TypeDesc::Vector as u64,
-            Type::Struct(_, _, _) => TypeDesc::Struct as u64,
+            Type::Datatype(_, _, _) => TypeDesc::Struct as u64,
             Type::TypeParameter(_) => 14,
             _ => todo!("{:?}", mty),
         }
@@ -292,12 +289,14 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
                         | Type::Primitive(PrimitiveType::Signer)
                         | Type::Vector(_)
                         | Type::TypeParameter(_)
-                        | Type::Struct(_, _, _) => {
+                        | Type::Datatype(_, _, _) => {
                             self.define_type_info_global_vec(&symbol_name, elt_ty)
                         }
                         _ => todo!("{:?}", mty),
                     },
-                    Type::Struct(_, _, _) => self.define_type_info_global_struct(&symbol_name, mty),
+                    Type::Datatype(_, _, _) => {
+                        self.define_type_info_global_struct(&symbol_name, mty)
+                    }
                     _ => todo!("{:?}", mty),
                 }
             }
@@ -352,7 +351,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
         // We'll need the former to gain access to the struct fields and the latter to
         // fill in any possible generic struct type parameters.
         let (s_env, s_tys) = match mty {
-            mty::Type::Struct(mod_id, s_id, tys) => {
+            mty::Type::Datatype(mod_id, s_id, tys) => {
                 (global_env.get_module(*mod_id).into_struct(*s_id), tys)
             }
             _ => unreachable!(),
@@ -499,7 +498,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
                 | PrimitiveType::Signer,
             ) => false,
             Type::TypeParameter(_) => false,
-            Type::Vector(_) | Type::Struct(_, _, _) => true,
+            Type::Vector(_) | Type::Datatype(_, _, _) => true,
             _ => todo!(),
         }
     }
@@ -512,7 +511,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
                 // A special name for types that don't need type info.
                 "NOTHING".to_string()
             }
-            Type::Vector(_) | Type::Struct(_, _, _) | Type::TypeParameter(_) => {
+            Type::Vector(_) | Type::Datatype(_, _, _) | Type::TypeParameter(_) => {
                 mty.sanitized_display_name(&tdc)
             }
             _ => todo!(),

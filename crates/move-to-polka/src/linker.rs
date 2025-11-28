@@ -7,7 +7,9 @@ use gix::{
 };
 use log::{debug, trace};
 use move_package::source_package::{
-    layout::SourcePackageLayout, manifest_parser, parsed_manifest::SubstOrRename,
+    layout::SourcePackageLayout,
+    manifest_parser,
+    parsed_manifest::{Dependency, DependencyKind, GitInfo, SubstOrRename},
 };
 use polkavm::{
     Caller, Config, Engine, Instance, Linker, MemoryAccessError, Module, ModuleConfig, ProgramBlob,
@@ -132,32 +134,42 @@ pub fn create_blob(
         .iter()
         .chain(manifest.dev_dependencies.iter())
         .for_each(|(key, dep)| {
-            debug!("Processing dependency: {key} => {dep}");
-            if let Some(git_url) = dep.git_info.as_ref().map(|g| g.git_url.as_str()) {
-                fetch_git_dep(key, &mut mapping, &mut dep_sources, dep, git_url)
-                    .expect("Failed to fetch git dependency");
-            } else {
-                let local_path = path.join(Path::new(&dep.local));
-                if local_path.exists() && local_path.is_dir() {
-                    // check if the directory contains Move.toml
-                    let _toml = SourcePackageLayout::try_find_root(&local_path)
-                        .expect("Failed to find Move.toml in dependency");
-                    if let Some(dep_mapping) = dep.subst.as_ref() {
-                        for (name, subst) in dep_mapping {
-                            if let SubstOrRename::Assign(ref addr) = subst {
-                                let mapping_str = format!("{}={}", name, addr.to_standard_string());
-                                mapping.insert(mapping_str);
+            debug!("Processing dependency: {key} => {dep:?}");
+            match &dep {
+                Dependency::Internal(internal) => match &internal.kind {
+                    DependencyKind::Git(git_info) => {
+                        fetch_git_dep(key, &mut mapping, &mut dep_sources, internal, git_info)
+                            .expect("Failed to fetch git dependency");
+                    }
+                    DependencyKind::Local(local_path) => {
+                        if local_path.exists() && local_path.is_dir() {
+                            // check if the directory contains Move.toml
+                            let _toml = SourcePackageLayout::try_find_root(local_path)
+                                .expect("Failed to find Move.toml in dependency");
+                            if let Some(dep_mapping) = internal.subst.as_ref() {
+                                for (name, subst) in dep_mapping {
+                                    if let SubstOrRename::Assign(ref addr) = subst {
+                                        let mapping_str = format!("{}={}", name, addr);
+                                        mapping.insert(mapping_str);
+                                    }
+                                }
                             }
+                            dep_sources.push(local_path.to_string_lossy().to_string());
                         }
                     }
-                    dep_sources.push(local_path.to_string_lossy().to_string());
+                    _ => {
+                        panic!("Unsupported dependency kind in Move manifest: {:?}", dep);
+                    }
+                },
+                _ => {
+                    panic!("Unsupported dependency type in Move manifest: {:?}", dep);
                 }
             }
         });
     if let Some(addresses) = &manifest.addresses {
         for (name, addr) in addresses.iter() {
             if let Some(addr) = addr {
-                let mapping_str = format!("{}={}", name.as_str(), addr.to_standard_string());
+                let mapping_str = format!("{}={}", name.as_str(), addr.to_hex_literal());
                 mapping.insert(mapping_str);
             }
         }
@@ -178,8 +190,8 @@ fn fetch_git_dep(
     name: &str,
     mapping: &mut HashSet<String>,
     dep_sources: &mut Vec<String>,
-    dep: &move_package::source_package::parsed_manifest::Dependency,
-    git_url: &str,
+    dep: &move_package::source_package::parsed_manifest::InternalDependency,
+    git_info: &GitInfo,
 ) -> Result<(), anyhow::Error> {
     let path = Path::new("/tmp/move-deps").join(name);
     create_dir_all(&path).expect("Failed to create temporary directory for dependencies");
@@ -196,7 +208,7 @@ fn fetch_git_dep(
                 .receive(Discard, &AtomicBool::new(false))?;
         }
         Err(_) => {
-            let mut prep = gix::prepare_clone(git_url, &path)
+            let mut prep = gix::prepare_clone(git_info.git_url.as_str(), &path)
                 .expect("Failed to prepare clone")
                 .with_shallow(Shallow::DepthAtRemote(NonZero::new(1).unwrap()));
 
@@ -204,7 +216,6 @@ fn fetch_git_dep(
             let (_, _) = checkout.main_worktree(Discard, &AtomicBool::new(false))?;
         }
     };
-    let git_info = dep.git_info.as_ref().unwrap();
     let source = format!(
         "/tmp/move-deps/{name}/{}/sources",
         git_info.subdir.display()
@@ -213,7 +224,7 @@ fn fetch_git_dep(
     if let Some(dep_mapping) = dep.subst.as_ref() {
         for (name, subst) in dep_mapping {
             if let SubstOrRename::Assign(ref addr) = subst {
-                let mapping_str = format!("{}={}", name, addr.to_standard_string());
+                let mapping_str = format!("{}={}", name, addr);
                 mapping.insert(mapping_str);
             }
         }
