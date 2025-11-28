@@ -1651,8 +1651,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             let fn_id = fun_id.qualified(mod_id);
             let fn_env = global_env.get_function(fn_id);
             let arg_types = fn_env.get_parameter_types();
-            let ret_types = fn_env.get_return_type(0);
-            let return_val_is_generic = matches!(ret_types, mty::Type::TypeParameter(_));
+            let return_val_is_generic = if fn_env.get_return_types().len() == 0 {
+                false
+            } else {
+                let ret_types = fn_env.get_return_type(0);
+                matches!(ret_types, mty::Type::TypeParameter(_))
+            };
             (arg_types, return_val_is_generic)
         };
 
