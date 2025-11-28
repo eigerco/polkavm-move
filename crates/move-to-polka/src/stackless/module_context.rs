@@ -80,11 +80,11 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             fn_cx.translate();
         }
 
-        if has_entry {
-            // only generate the call selector if there is an entry function
-            // Assumption: no other module contains an entry function
-            self.generate_call_selector(exports);
-        }
+        // if has_entry {
+        //     // only generate the call selector if there is an entry function
+        //     // Assumption: no other module contains an entry function
+        //     self.generate_call_selector(exports);
+        // }
 
         self.llvm_di_builder
             .print_log_unresoled_types(UnresolvedPrintLogLevel::Warning);
