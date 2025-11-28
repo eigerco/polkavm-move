@@ -105,7 +105,7 @@ fn link_object_files(
 }
 
 pub fn get_env_from_source<W: WriteColor>(
-    _error_writer: &mut W,
+    error_writer: &mut W,
     options: &Options,
 ) -> anyhow::Result<GlobalEnv> {
     let addrs = parse_addresses_from_options(options.named_address_mapping.clone())?;
@@ -128,6 +128,10 @@ pub fn get_env_from_source<W: WriteColor>(
     )?;
 
     if env.has_errors() {
+        env.report_diag(
+            error_writer,
+            codespan_reporting::diagnostic::Severity::Warning,
+        );
         anyhow::bail!("Move source code errors")
     } else {
         Ok(env)

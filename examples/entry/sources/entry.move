@@ -1,9 +1,5 @@
-module 0x10::debug {
-  native public fun print<T>(x: &T);
-}
-
 module 0xc::token {
-    struct Token has store, drop {
+    public struct Token has store, drop {
         owner: address
     }
     public fun new(owner: address): Token {
@@ -12,16 +8,14 @@ module 0xc::token {
 }
 
 module 0xe::entry_bar {
-    use 0x10::debug;
 
-    struct Coin<T> has drop {
+    public struct Coin<T> has drop {
         token: T,
         value: u64,
     }
 
     fun bar<T: store>(coin: &Coin<T>) {
         let rv = coin.value;
-        debug::print(&rv);
     }
 
     public entry fun main() {

@@ -1544,6 +1544,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 );
                 self.store_reg(dst_idx, dst_reg);
             }
+            Operation::Destroy => {}
             Operation::CastU8
             | Operation::CastU16
             | Operation::CastU32

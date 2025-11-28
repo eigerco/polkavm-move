@@ -574,11 +574,14 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         );
         let ll_fn = {
             let ll_fnty = {
-                let ll_rty = if let Some(ty) = self.to_llvm_type(&fn_env.get_return_type(0), tyvec)
-                {
-                    ty
+                let ll_rty = if fn_env.get_return_types().len() == 0 {
+                    self.llvm_cx.void_type()
                 } else {
-                    self.declare_struct_instance(&fn_env.get_return_type(0), tyvec)
+                    if let Some(ty) = self.to_llvm_type(&fn_env.get_return_type(0), tyvec) {
+                        ty
+                    } else {
+                        self.declare_struct_instance(&fn_env.get_return_type(0), tyvec)
+                    }
                 };
 
                 let ll_parm_tys = fn_env
@@ -748,12 +751,16 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         let ll_native_sym_name = fn_env.llvm_native_fn_symbol_name();
         let ll_fn = {
             let ll_fnty = {
-                // Generic return values are passed through a final return pointer arg.
-                let mty0 = &&fn_env.get_return_type(0);
-                let (ll_rty, ll_byref_rty) = if mty0.is_type_parameter() {
-                    (llcx.void_type(), Some(llcx.ptr_type()))
+                let (ll_rty, ll_byref_rty) = if fn_env.get_return_types().len() == 0 {
+                    (llcx.void_type(), None)
                 } else {
-                    (self.to_llvm_type(mty0, &[]).unwrap(), None)
+                    // Generic return values are passed through a final return pointer arg.
+                    let mty0 = &&fn_env.get_return_type(0);
+                    if mty0.is_type_parameter() {
+                        (llcx.void_type(), Some(llcx.ptr_type()))
+                    } else {
+                        (self.to_llvm_type(mty0, &[]).unwrap(), None)
+                    }
                 };
 
                 // Native functions take type parameters as the
