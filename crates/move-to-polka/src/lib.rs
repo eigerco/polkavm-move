@@ -16,14 +16,22 @@ use linker::load_from_elf_with_polka_linker;
 use log::{debug, Level, LevelFilter};
 use move_compiler::{
     editions::{Edition, Flavor},
-    shared::PackagePaths,
-    Flags,
+    shared::{SaveFlag, SaveHook},
 };
+use move_model::run_bytecode_model_builder;
 use move_model::{
     model::GlobalEnv, options::ModelBuilderOptions, parse_addresses_from_options,
     run_model_builder_with_options_and_compilation_flags,
 };
+use move_package::{
+    compilation::build_plan::BuildPlan,
+    source_package::parsed_manifest::{
+        Dependencies, Dependency, DependencyKind, GitInfo, InternalDependency,
+    },
+    BuildConfig,
+};
 use std::{
+    collections::BTreeMap,
     fs::{self},
     io::Write,
     iter::once,
@@ -114,16 +122,31 @@ pub fn get_env_from_source<W: WriteColor>(
 ) -> anyhow::Result<GlobalEnv> {
     let addrs = parse_addresses_from_options(options.named_address_mapping.clone())?;
     debug!("Named addresses {addrs:?}");
-    use move_compiler::shared::{SaveFlag, SaveHook};
-    use move_model::{model::GlobalEnv, run_bytecode_model_builder};
-    use move_package::compilation::build_plan::BuildPlan;
-    use move_package::BuildConfig;
 
-    let mut build_cfg = BuildConfig {
+    let mut deps = BTreeMap::new();
+    deps.insert(
+        "MoveStdLib".into(),
+        Dependency::Internal(InternalDependency {
+            kind: DependencyKind::Git(GitInfo {
+                git_url: "https://github.com/MystenLabs/sui.git".into(),
+                git_rev: "c1f1ae650fb9f9248b39a569400b4420820868db"
+                    .to_string()
+                    .into(),
+                subdir: "crates/sui-framework/packages/move-stdlib".into(),
+            }),
+            subst: None,
+            digest: None,
+            dep_override: true,
+        }),
+    );
+
+    let build_cfg = BuildConfig {
         default_edition: Some(Edition::E2024_BETA),
         default_flavor: Some(Flavor::Sui),
+        implicit_dependencies: deps,
         ..Default::default()
     };
+    debug!("BuildConfig: {build_cfg:#?}");
 
     let pkg_path = Path::new(options.sources.first().unwrap());
     let binding = build_cfg.resolution_graph_for_package(pkg_path, None, &mut std::io::sink())?;
@@ -131,24 +154,8 @@ pub fn get_env_from_source<W: WriteColor>(
     let save = SaveHook::new([SaveFlag::TypingInfo]);
     let compiled = plan.compile_no_exit(&mut std::io::sink(), |c| c.add_save_hook(&save))?;
 
-    // Build GlobalEnv from compiled modules (these include stdlib bodies)
     let modules = compiled.all_modules().map(|m| &m.unit.module);
     let env: GlobalEnv = run_bytecode_model_builder(modules)?;
-    // let env = run_model_builder_with_options_and_compilation_flags(
-    //     vec![PackagePaths {
-    //         name: None,
-    //         paths: options.sources.clone(),
-    //         named_address_map: addrs.clone(),
-    //     }],
-    //     vec![PackagePaths {
-    //         name: None,
-    //         paths: options.dependencies.clone(),
-    //         named_address_map: addrs,
-    //     }],
-    //     ModelBuilderOptions::default(),
-    //     Flags::empty(),
-    //     None,
-    // )?;
 
     if env.has_errors() {
         env.report_diag(
