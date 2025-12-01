@@ -120,7 +120,7 @@ pub fn create_blob(
     let mut build_options = BuildOptions::new(output);
     build_options = build_options.source(source);
     let path = std::path::Path::new(source);
-    let mut dep_sources = vec![];
+    // let mut dep_sources = vec![];
     if !path.is_dir() {
         return Err(anyhow::anyhow!(
             "Source must be a directory containing Move.toml: {source}"
@@ -129,43 +129,43 @@ pub fn create_blob(
     let toml = SourcePackageLayout::try_find_root(path)?;
     let manifest = manifest_parser::parse_move_manifest_from_file(&toml)
         .map_err(|e| anyhow::anyhow!("Failed to parse Move manifest: {e}"))?;
-    manifest
-        .dependencies
-        .iter()
-        .chain(manifest.dev_dependencies.iter())
-        .for_each(|(key, dep)| {
-            debug!("Processing dependency: {key} => {dep:?}");
-            match &dep {
-                Dependency::Internal(internal) => match &internal.kind {
-                    DependencyKind::Git(git_info) => {
-                        fetch_git_dep(key, &mut mapping, &mut dep_sources, internal, git_info)
-                            .expect("Failed to fetch git dependency");
-                    }
-                    DependencyKind::Local(local_path) => {
-                        if local_path.exists() && local_path.is_dir() {
-                            // check if the directory contains Move.toml
-                            let _toml = SourcePackageLayout::try_find_root(local_path)
-                                .expect("Failed to find Move.toml in dependency");
-                            if let Some(dep_mapping) = internal.subst.as_ref() {
-                                for (name, subst) in dep_mapping {
-                                    if let SubstOrRename::Assign(ref addr) = subst {
-                                        let mapping_str = format!("{}={}", name, addr);
-                                        mapping.insert(mapping_str);
-                                    }
-                                }
-                            }
-                            dep_sources.push(local_path.to_string_lossy().to_string());
-                        }
-                    }
-                    _ => {
-                        panic!("Unsupported dependency kind in Move manifest: {:?}", dep);
-                    }
-                },
-                _ => {
-                    panic!("Unsupported dependency type in Move manifest: {:?}", dep);
-                }
-            }
-        });
+    // manifest
+    //     .dependencies
+    //     .iter()
+    //     .chain(manifest.dev_dependencies.iter())
+    //     .for_each(|(key, dep)| {
+    //         debug!("Processing dependency: {key} => {dep:?}");
+    //         match &dep {
+    //             Dependency::Internal(internal) => match &internal.kind {
+    //                 DependencyKind::Git(git_info) => {
+    //                     fetch_git_dep(key, &mut mapping, &mut dep_sources, internal, git_info)
+    //                         .expect("Failed to fetch git dependency");
+    //                 }
+    //                 DependencyKind::Local(local_path) => {
+    //                     if local_path.exists() && local_path.is_dir() {
+    //                         // check if the directory contains Move.toml
+    //                         let _toml = SourcePackageLayout::try_find_root(local_path)
+    //                             .expect("Failed to find Move.toml in dependency");
+    //                         if let Some(dep_mapping) = internal.subst.as_ref() {
+    //                             for (name, subst) in dep_mapping {
+    //                                 if let SubstOrRename::Assign(ref addr) = subst {
+    //                                     let mapping_str = format!("{}={}", name, addr);
+    //                                     mapping.insert(mapping_str);
+    //                                 }
+    //                             }
+    //                         }
+    //                         dep_sources.push(local_path.to_string_lossy().to_string());
+    //                     }
+    //                 }
+    //                 _ => {
+    //                     panic!("Unsupported dependency kind in Move manifest: {:?}", dep);
+    //                 }
+    //             },
+    //             _ => {
+    //                 panic!("Unsupported dependency type in Move manifest: {:?}", dep);
+    //             }
+    //         }
+    //     });
     if let Some(addresses) = &manifest.addresses {
         for (name, addr) in addresses.iter() {
             if let Some(addr) = addr {
@@ -174,9 +174,9 @@ pub fn create_blob(
             }
         }
     }
-    for source in dep_sources {
-        build_options = build_options.dependency(&source);
-    }
+    // for source in dep_sources {
+    //     build_options = build_options.dependency(&source);
+    // }
     for m in mapping {
         build_options = build_options.address_mapping(m);
     }
