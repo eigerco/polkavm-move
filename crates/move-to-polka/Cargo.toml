@@ -39,15 +39,6 @@ move-ir-types = { git = "https://github.com/mystenlabs/sui.git", package = "move
 move-model = { git = "https://github.com/mystenlabs/sui.git", package = "move-model" }
 move-stackless-bytecode = { git = "https://github.com/mystenlabs/sui.git", package = "move-stackless-bytecode" }
 move-package = { git = "https://github.com/mystenlabs/sui.git", package = "move-package" }
-# move-binary-format = { git = "https://github.com/mystenlabs/sui.git", package = "move-binary-format" }
-# move-bytecode-source-map = { git = "https://github.com/mystenlabs/sui.git", package = "move-bytecode-source-map" }
-# move-command-line-common = { git = "https://github.com/mystenlabs/sui.git", package = "move-command-line-common" }
-# move-compiler-v2 = { git = "https://github.com/mystenlabs/sui.git", package = "move-compiler-v2" }
-# move-core-types = { git = "https://github.com/mystenlabs/sui.git", package = "move-core-types" }
-# move-ir-types = { git = "https://github.com/mystenlabs/sui.git", package = "move-ir-types" }
-# move-model = { git = "https://github.com/mystenlabs/sui.git", package = "move-model" }
-# move-stackless-bytecode = { git = "https://github.com/mystenlabs/sui.git", package = "move-stackless-bytecode" }
-# move-package = { git = "https://github.com/mystenlabs/sui.git", package = "move-package" }
 num = "0.4.0"
 num-traits = "0.2"
 once_cell = "1.21"

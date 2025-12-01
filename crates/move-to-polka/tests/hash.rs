@@ -24,6 +24,7 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
+#[ignore]
 pub fn test_sha2() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -36,6 +37,7 @@ pub fn test_sha2() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_sha3() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;

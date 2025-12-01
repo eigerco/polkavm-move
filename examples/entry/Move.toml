@@ -6,5 +6,3 @@ edition = "2024"
 entry = "0xee"
 
 [dependencies]
-# MoveStdlib = { git = "https://github.com/move-language/move-on-aptos.git", subdir = "language/move-stdlib", rev = "main", addr_subst = { "std" = "0x1" } }
-# Sui = { local = "../../../sui/crates/sui-framework" }

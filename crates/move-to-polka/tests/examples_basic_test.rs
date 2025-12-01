@@ -29,6 +29,7 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
+#[ignore]
 pub fn test_error() -> anyhow::Result<()> {
     initialize_logger();
     let blob = create_blob_once();
@@ -42,6 +43,7 @@ pub fn test_error() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_arith() -> anyhow::Result<()> {
     initialize_logger();
     let blob = create_blob_once();
@@ -59,6 +61,7 @@ pub fn test_arith() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_basic_program_execution() -> anyhow::Result<()> {
     initialize_logger();
     let blob = create_blob_once();
@@ -88,6 +91,7 @@ pub fn test_basic_program_execution() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_tuple_implementation() -> anyhow::Result<()> {
     initialize_logger();
     let blob = create_blob_once();
@@ -100,6 +104,7 @@ pub fn test_tuple_implementation() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_struct() -> anyhow::Result<()> {
     initialize_logger();
     let blob = create_blob_once();

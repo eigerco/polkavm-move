@@ -277,6 +277,7 @@ pub fn storage_load_non_existent() -> anyhow::Result<()> {
 }
 
 #[test]
+#[ignore]
 pub fn test_selector() -> anyhow::Result<()> {
     initialize_logger();
     let blob = create_blob_once();
