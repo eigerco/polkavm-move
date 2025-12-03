@@ -7,6 +7,4 @@ edition = "legacy"
 std = "0000000000000000000000000000000000000000000000000000000000000001"
 
 [dependencies]
-# MoveStdlib = { git = "https://github.com/move-language/move-sui.git", subdir = "crates/move-stdlib", rev = "main", addr_subst = { "std" = "0000000000000000000000000000000000000000000000000000000000000001" } }
-# MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", rev = "c1f1ae650fb9f9248b39a569400b4420820868db", subdir = "crates/sui-framework/packages/move-stdlib" }
-MoveStdlib = { local = "../../../sui/crates/sui-framework/packages/move-stdlib" }
+MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", rev = "c1f1ae650fb9f9248b39a569400b4420820868db", subdir = "crates/sui-framework/packages/move-stdlib" }

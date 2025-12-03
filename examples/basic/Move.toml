@@ -4,5 +4,4 @@ name = "basic"
 [addresses]
 
 [dependencies]
-# MoveStdlib = { git = "https://github.com/move-language/move-on-aptos.git", subdir = "language/move-stdlib", rev = "main", addr_subst = { "std" = "0x1" } }
-MoveStdlib = { local = "../../../sui/crates/sui-framework/packages/move-stdlib" }
+MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", rev = "c1f1ae650fb9f9248b39a569400b4420820868db", subdir = "crates/sui-framework/packages/move-stdlib" }
