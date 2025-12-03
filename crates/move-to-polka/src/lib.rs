@@ -123,27 +123,9 @@ pub fn get_env_from_source<W: WriteColor>(
     let addrs = parse_addresses_from_options(options.named_address_mapping.clone())?;
     debug!("Named addresses {addrs:?}");
 
-    let mut deps = BTreeMap::new();
-    deps.insert(
-        "MoveStdLib".into(),
-        Dependency::Internal(InternalDependency {
-            kind: DependencyKind::Git(GitInfo {
-                git_url: "https://github.com/MystenLabs/sui.git".into(),
-                git_rev: "c1f1ae650fb9f9248b39a569400b4420820868db"
-                    .to_string()
-                    .into(),
-                subdir: "crates/sui-framework/packages/move-stdlib".into(),
-            }),
-            subst: None,
-            digest: None,
-            dep_override: true,
-        }),
-    );
-
     let build_cfg = BuildConfig {
         default_edition: Some(Edition::E2024_BETA),
         default_flavor: Some(Flavor::Sui),
-        implicit_dependencies: deps,
         ..Default::default()
     };
     debug!("BuildConfig: {build_cfg:#?}");
