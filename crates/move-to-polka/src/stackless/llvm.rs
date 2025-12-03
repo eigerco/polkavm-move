@@ -1415,7 +1415,7 @@ impl Function {
         debug!(target: "verify function", "------------------------------");
         unsafe {
             if LLVMVerifyFunction(self.0, LLVMVerifierFailureAction::LLVMPrintMessageAction) == 1 {
-                println!("{} function verifiction failed", &self.get_name());
+                println!("{} function verification failed", &self.get_name());
                 abort();
             }
         }
