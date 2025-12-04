@@ -25,7 +25,6 @@ fn create_blob_once() -> ProgramBlob {
 }
 
 #[test]
-#[ignore]
 pub fn test_void_program_execution() -> anyhow::Result<()> {
     initialize_logger();
     let blob = create_blob_once();

@@ -4,5 +4,3 @@ name = "void"
 [addresses]
 
 [dependencies]
-storage = { local = "../storage", addr_subst = { "storage" = "0xa000" } }
-MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", rev = "c1f1ae650fb9f9248b39a569400b4420820868db", subdir = "crates/sui-framework/packages/move-stdlib" }
