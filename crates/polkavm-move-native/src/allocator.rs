@@ -29,6 +29,14 @@ impl MemAllocator {
         }
     }
 
+    pub fn with_base(base: u32, size: u32) -> Self {
+        Self {
+            base,
+            size,
+            offset: 0,
+        }
+    }
+
     pub fn base(&self) -> u32 {
         self.base
     }
