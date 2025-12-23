@@ -10,12 +10,12 @@ unsafe extern "C" fn call() {
     // a buffer for the origin
     let out_ptr = buf.as_mut_ptr();
     call_data_copy(out_ptr, 4, 0);
-    // get the origina address
-    let mut addr_buf = Box::new_uninit_slice(20).assume_init();
-    origin(addr_buf.as_mut_ptr());
-    // convert to account id
     let signer_ptr = unsafe { out_ptr.add(4) }; // Skip first 4 bytes
-    to_account_id(addr_buf.as_mut_ptr(), signer_ptr);
+                                                // // get the origina address
+                                                // let mut addr_buf = Box::new_uninit_slice(20).assume_init();
+    origin(signer_ptr);
+    // // convert to account id
+    // to_account_id(addr_buf.as_mut_ptr(), signer_ptr);
     call_selector(out_ptr, 36);
 }
 
