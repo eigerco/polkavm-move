@@ -10,7 +10,7 @@ pub struct MemAllocator {
 impl Default for MemAllocator {
     fn default() -> Self {
         Self {
-            base: 0xfffe0000,
+            base: 0xffff0000,
             size: 4096,
             offset: 0,
         }
