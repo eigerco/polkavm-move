@@ -124,7 +124,8 @@ Compile the given move project (should contain Move.toml) into a PolkaVM module 
 move-to-polka examples/storage
 ```
 
-## Running on pallet-revive
+#### Running on pallet-revive
+
 In this tutorial, we'll walk through compiling a simple Move module, deploying it to a local Polkadot node running the pallet-revive runtime, and executing a transaction that interacts with Move-based logic on-chain. By the end of the guide, you'll see how Move contracts compiled to RISC-V can be instantiated and executed inside the Polkadot ecosystem using PolkaVM.
 
 We’ll use a sample Move module that writes a value into global storage and then call it using a manually constructed selector. The purpose is to demonstrate the full flow—from compilation to contract execution—using our custom runtime.
@@ -162,12 +163,13 @@ We’ll use a sample Move module that writes a value into global storage and the
 This means that the Move logic was executed, and smart contract is interacting with the global storage using borrow/release mechanisms known from the original Move language.
 
 What Just Happened? To summarize:
-- You compiled Move source code into a PolkaVM-compatible binary. 
-- You deployed this binary to a local Substrate node using pallet-revive. 
-- You invoked the compiled and translated Move logic by submitting an extrinsic. 
-- The contract used the signer's identity (from the extrinsic) to determine access to global storage. 
+
+- You compiled Move source code into a PolkaVM-compatible binary.
+- You deployed this binary to a local Substrate node using pallet-revive.
+- You invoked the compiled and translated Move logic by submitting an extrinsic.
+- The contract used the signer's identity (from the extrinsic) to determine access to global storage.
 - You saw confirmation in the logs that the logic executed correctly.
-This flow allows you to write logic in Move, compile it to RISC-V, and run it deterministically on-chain inside the Polkadot ecosystem—without needing a Move VM.
+  This flow allows you to write logic in Move, compile it to RISC-V, and run it deterministically on-chain inside the Polkadot ecosystem—without needing a Move VM.
 
 Feel free to experiment with other Move modules, compile them using `move-to-polka`, and deploy them to your local node using the same steps. You can also modify the `storage` example to add more complex logic or additional modules, and see how they interact with global storage and each other.
 
@@ -179,6 +181,16 @@ of the module::function name.
 ```bash
 echo -n 'storage::store_then_borrow' | keccak-256sum | cut -c -8
 fa1e1f30
+```
+
+#### Pallet-revive automation
+
+We've added an example to pallet-revive which automates the manual steps outlined above, see
+`<polkadot-sdk-path>/substrate/frame/revive/rpc/examples/move.rs`. Run the node as in the manual steps, and then,
+from our fork of `polkadot-sdk`:
+
+```bash
+SKIP_PALLET_REVIVE_FIXTURES=1 RUST_LOG="info,eth-rpc=debug" cargo run --release -p pallet-revive-eth-rpc --example move ../polkavm-move/crates/move-to-polka/output/storage/storage.polkavm fa1e1f30
 ```
 
 ## Known limitations:
