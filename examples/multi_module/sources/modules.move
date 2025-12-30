@@ -14,7 +14,7 @@ module 0x7::B {
         A::add(res, c)
     }
 
-    public entry fun main(account: &signer) {
+    public entry fun main(_account: &signer) {
         let a: u32 = 10;
         let b: u32 = 20;
         let c: u32 = 30;

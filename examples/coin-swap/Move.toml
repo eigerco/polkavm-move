@@ -10,5 +10,5 @@ GoldCoin = "0x9C"
 SilverCoin = "0x5C"
 
 [dependencies]
-MoveStdlib = { git = "https://github.com/move-language/move-on-aptos.git", subdir = "language/move-stdlib", rev = "main", addr_subst = { "std" = "0x1" } }
+MoveStdlib = { git = "https://github.com/move-language/move-on-aptos.git", subdir = "language/move-stdlib", rev = "main" }
 BasicCoin = { local = "../basic-coin" }

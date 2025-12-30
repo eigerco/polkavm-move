@@ -1,6 +1,4 @@
 module objects::color_object {
-    #[test_only]
-    use std::signer;
 
     struct ColorObject has key {
         red: u8,

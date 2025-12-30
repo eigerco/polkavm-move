@@ -2,7 +2,6 @@ module 0x10::debug {
     native public fun print<T>(x: &T);
 }
 module 0x42::entry {
-    use std::signer;
     use 0x10::debug;
     use TaoHe::root;
 

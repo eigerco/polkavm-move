@@ -1,6 +1,5 @@
 module 0x7::B {
     use 0x7::A;
-    use std::signer;
     use 0xa000::storage;
 
     fun add_all(a: u32, b: u32, c: u32): u32 {

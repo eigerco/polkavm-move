@@ -8,7 +8,7 @@ module 0xa003::serialize {
         assert!(bytes == expected_output, 0);
     }
 
-    public entry fun ser_string(account: &signer) {
+    public entry fun ser_string(_account: &signer) {
         let rv = b"Hello, PolkaVM!";
         let str = string::utf8(rv);
         let bytes = bcs::to_bytes(&str);

@@ -7,7 +7,7 @@ module 0xa002::hash_tests {
     use std::vector;
     use std::hash;
 
-    public entry fun sha2_256_expected_hash(account: &signer) {
+    public entry fun sha2_256_expected_hash(_account: &signer) {
         let input = x"616263";
         debug::print(&input);
         let len = vector::length(&input);
@@ -22,7 +22,7 @@ module 0xa002::hash_tests {
         assert!(digest == expected_output, 0);
     }
 
-    public entry fun sha3_256_expected_hash(account: &signer) {
+    public entry fun sha3_256_expected_hash(_account: &signer) {
         let input = x"616263";
         debug::print(&input);
         let expected_output = x"3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532";

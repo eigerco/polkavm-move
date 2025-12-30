@@ -3,6 +3,7 @@ name = "vector"
 version = "1.0.0"
 
 [addresses]
+std = "0x1"
 
 [dependencies]
-MoveStdlib = { git = "https://github.com/move-language/move-on-aptos.git", subdir = "language/move-stdlib", rev = "main", addr_subst = { "std" = "0x1" } }
+MoveStdlib = { git = "https://github.com/move-language/move-on-aptos.git", subdir = "language/move-stdlib", rev = "main" }
