@@ -19,7 +19,7 @@ use llvm_sys::{
     LLVMUnnamedAddr,
 };
 use log::{debug, warn};
-use move_core_types::u256;
+use move_core_types::int256::{I256, U256};
 use num_traits::{PrimInt, ToPrimitive};
 
 use crate::cstr::SafeCStr;
@@ -223,7 +223,7 @@ impl Context {
         unsafe {
             let mut vals: Vec<_> = v
                 .iter()
-                .map(|x| Constant::int(llty, u256::U256::from((*x).to_u128().unwrap())).0)
+                .map(|x| Constant::uint(llty, U256::from((*x).to_u128().unwrap())).0)
                 .collect();
             ArrayValue(LLVMConstArray2(
                 llty.0,
@@ -1609,7 +1609,14 @@ impl Constant {
         unsafe { Constant(LLVMConstInt(ty.0, v, sign_extend)) }
     }
 
-    pub fn int(ty: Type, v: u256::U256) -> Constant {
+    pub fn int(ty: Type, v: I256) -> Constant {
+        unsafe {
+            let val_as_str = format!("{v}");
+            Constant(LLVMConstIntOfString(ty.0, val_as_str.cstr(), 10))
+        }
+    }
+
+    pub fn uint(ty: Type, v: U256) -> Constant {
         unsafe {
             let val_as_str = format!("{v}");
             Constant(LLVMConstIntOfString(ty.0, val_as_str.cstr(), 10))

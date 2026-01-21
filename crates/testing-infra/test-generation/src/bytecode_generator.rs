@@ -421,7 +421,7 @@ impl<'a> BytecodeGenerator<'a> {
                 BytecodeType::U256(instruction) => {
                     // Generate a random u256 constant to load
                     Some(instruction(
-                        self.rng.gen_range(U256::zero()..U256::max_value()),
+                        self.rng.gen_range(U256::ZERO..U256::max_value()),
                     ))
                 }
                 BytecodeType::ConstantPoolIndex(instruction) => {
@@ -908,7 +908,7 @@ impl<'a> BytecodeGenerator<'a> {
             SignatureToken::U128 => vec![Bytecode::LdU128(0)],
             SignatureToken::U16 => vec![Bytecode::LdU16(0)],
             SignatureToken::U32 => vec![Bytecode::LdU32(0)],
-            SignatureToken::U256 => vec![Bytecode::LdU256(U256::zero())],
+            SignatureToken::U256 => vec![Bytecode::LdU256(U256::ZERO)],
             SignatureToken::Bool => vec![Bytecode::LdFalse],
             SignatureToken::Struct(handle_idx) => {
                 let struct_def_idx = module

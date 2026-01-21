@@ -14,7 +14,7 @@ use crate::stackless::{
     module_context::ModuleContext,
 };
 use log::{debug, Level};
-use move_core_types::{account_address, u256::U256};
+use move_core_types::{account_address, int256::U256};
 use move_model::{
     ast::{self as mast, Address},
     model as mm, ty as mty,
@@ -174,7 +174,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
         let ll_const_type_name = self.type_name_constant(mty);
         let ll_const_type_descrim = {
             let ll_ty = llcx.int_type(64);
-            llvm::Constant::int(ll_ty, U256::from(Self::type_descrim(mty)))
+            llvm::Constant::uint(ll_ty, U256::from(Self::type_descrim(mty)))
         };
         let ll_const_type_info_ptr = {
             let ll_global_type_info = self.define_type_info_global(mty);
@@ -215,7 +215,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
         };
 
         let ll_ty_u64 = llcx.int_type(64);
-        let ll_const_len = llvm::Constant::int(ll_ty_u64, U256::from(len as u128));
+        let ll_const_len = llvm::Constant::uint(ll_ty_u64, U256::from(len as u128));
 
         llcx.const_struct(&[ll_static_bytes_ptr, ll_const_len])
     }
@@ -315,7 +315,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
         ll_global.set_unnamed_addr();
         // just an eye-catching marker value
         let value = 255;
-        let ll_const = llvm::Constant::int(ll_ty, U256::from(value as u128));
+        let ll_const = llvm::Constant::uint(ll_ty, U256::from(value as u128));
         ll_global.set_initializer(ll_const);
         ll_global
     }
@@ -416,7 +416,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
             // Get the LLVM literal corresponding to `MoveType` literal for this field.
             let ll_move_type_literal = self.tydesc_constant(&fld_type);
 
-            let ll_offset_val = llvm::Constant::int(ll_int64_ty, U256::from(ll_elt_offset as u64));
+            let ll_offset_val = llvm::Constant::uint(ll_int64_ty, U256::from(ll_elt_offset as u64));
 
             // Create the name literal for this field.
             let ll_str = llcx.const_string(&fld_name);
@@ -425,7 +425,7 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
             ll_str_global.set_linkage(llvm::LLVMLinkage::LLVMPrivateLinkage);
             ll_str_global.set_unnamed_addr();
             ll_str_global.set_initializer(ll_str.as_const());
-            let ll_str_len = llvm::Constant::int(ll_int64_ty, U256::from(fld_name.len() as u128));
+            let ll_str_len = llvm::Constant::uint(ll_int64_ty, U256::from(fld_name.len() as u128));
             let ll_str_val = llcx.const_struct(&[ll_str_global.ptr(), ll_str_len]);
 
             let ll_fld_info_literal =
@@ -461,9 +461,9 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
         ll_struct_type_info.set_unnamed_addr();
 
         // Create the `StructTypeInfo` initializer.
-        let fld_array_len = llvm::Constant::int(ll_int64_ty, U256::from(ll_fld_count as u64));
-        let struct_size = llvm::Constant::int(ll_int64_ty, U256::from(ll_struct_size as u64));
-        let elt_align = llvm::Constant::int(ll_int64_ty, U256::from(ll_struct_align as u64));
+        let fld_array_len = llvm::Constant::uint(ll_int64_ty, U256::from(ll_fld_count as u64));
+        let struct_size = llvm::Constant::uint(ll_int64_ty, U256::from(ll_struct_size as u64));
+        let elt_align = llvm::Constant::uint(ll_int64_ty, U256::from(ll_struct_align as u64));
 
         let ll_struct_type_info_literal =
             llcx.const_struct(&[ll_fld_array.ptr(), fld_array_len, struct_size, elt_align]);

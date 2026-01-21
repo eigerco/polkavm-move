@@ -15,7 +15,7 @@ use crate::{
 use codespan::Location;
 use log::debug;
 use move_binary_format::file_format::SignatureToken;
-use move_core_types::u256::U256;
+use move_core_types::int256::U256;
 use move_model::{
     model::{self as mm},
     ty as mty,
@@ -835,6 +835,12 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
         match mty {
             Type::Primitive(PrimitiveType::Bool)
+            | Type::Primitive(PrimitiveType::I8)
+            | Type::Primitive(PrimitiveType::I16)
+            | Type::Primitive(PrimitiveType::I32)
+            | Type::Primitive(PrimitiveType::I64)
+            | Type::Primitive(PrimitiveType::I128)
+            | Type::Primitive(PrimitiveType::I256)
             | Type::Primitive(PrimitiveType::U8)
             | Type::Primitive(PrimitiveType::U16)
             | Type::Primitive(PrimitiveType::U32)
@@ -1045,7 +1051,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         let thefn = Self::get_runtime_function_by_name(llvm_cx, llvm_module, rtty_cx, "abort");
         debug!(target: "runtime", "emit_rtcall_abort_raw({val}): {thefn:?}");
         let param_ty = llvm_cx.int_type(64);
-        let const_llval = llvm::Constant::int(param_ty, U256::from(val));
+        let const_llval = llvm::Constant::uint(param_ty, U256::from(val));
         llvm_builder.build_call_imm(thefn, &[const_llval]);
         llvm_builder.build_unreachable();
     }

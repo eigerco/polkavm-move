@@ -17,7 +17,8 @@ use itertools::Itertools;
 use linker::load_from_elf_with_polka_linker;
 use log::{debug, Level, LevelFilter};
 use move_binary_format::{
-    binary_views::BinaryIndexedView, file_format::CompiledScript, CompiledModule,
+    binary_views::BinaryIndexedView, file_format::CompiledScript,
+    module_script_conversion::script_into_module, CompiledModule,
 };
 use move_bytecode_source_map::{
     mapping::SourceMapping, source_map::SourceMap, utils::source_map_from_file,
@@ -205,7 +206,7 @@ fn get_env_from_bytecode(options: &Options) -> anyhow::Result<GlobalEnv> {
     let main_move_module = if options.is_script {
         let script = CompiledScript::deserialize(&bytecode_bytes)
             .context("Script blob can't be deserialized")?;
-        move_model::script_into_module(script, "main")
+        script_into_module(script, "main")
     } else {
         CompiledModule::deserialize(&bytecode_bytes).context("Module blob can't be deserialized")?
     };
