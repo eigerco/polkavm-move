@@ -1398,6 +1398,15 @@ impl Function {
         params
     }
 
+    pub fn get_first_basic_block(&self) -> Option<BasicBlock> {
+        let bb = unsafe { BasicBlock(LLVMGetFirstBasicBlock(self.0)) };
+        if bb.0.is_null() {
+            None
+        } else {
+            Some(bb)
+        }
+    }
+
     pub fn llvm_type(&self) -> FunctionType {
         unsafe { FunctionType(LLVMGlobalGetValueType(self.0)) }
     }
@@ -1431,6 +1440,9 @@ impl BasicBlock {
     }
     pub fn get_basic_block_ref(&self) -> &LLVMBasicBlockRef {
         &self.0
+    }
+    pub fn has_terminator(&self) -> bool {
+        unsafe { !LLVMGetBasicBlockTerminator(self.0).is_null() }
     }
 }
 

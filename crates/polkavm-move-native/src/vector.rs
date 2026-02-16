@@ -531,7 +531,7 @@ impl<'mv> MoveBorrowedRustVecOfStruct<'mv> {
 
 impl<'mv> MoveBorrowedRustVecOfStructMut<'mv> {
     #[allow(clippy::missing_safety_doc)]
-    unsafe fn new(
+    pub unsafe fn new(
         ty: &'mv MoveType,
         mv: &'mv mut MoveUntypedVector,
     ) -> MoveBorrowedRustVecOfStructMut<'mv> {

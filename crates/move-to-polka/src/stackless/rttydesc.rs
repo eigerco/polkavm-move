@@ -221,13 +221,23 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
     }
 
     fn type_name(&self, mty: &mty::Type) -> String {
-        // first try the via the TypeTag
-        if let Some(tag) = mty.clone().into_type_tag(self.g_env) {
-            return tag.to_canonical_string();
-        }
-
-        // otherwise generate a dummy name
         match mty {
+            mty::Type::Primitive(pt) => {
+                use mty::PrimitiveType;
+                match pt {
+                    PrimitiveType::Bool => "bool",
+                    PrimitiveType::U8 => "u8",
+                    PrimitiveType::U16 => "u16",
+                    PrimitiveType::U32 => "u32",
+                    PrimitiveType::U64 => "u64",
+                    PrimitiveType::U128 => "u128",
+                    PrimitiveType::U256 => "u256",
+                    PrimitiveType::Address => "address",
+                    PrimitiveType::Signer => "signer",
+                    _ => panic!("no name strategy for primitive type {pt:?}"),
+                }
+                .to_string()
+            }
             mty::Type::Struct(mid, sid, tys) => {
                 let module_env = self.g_env.get_module(*mid);
                 let struct_env = module_env.into_struct(*sid);

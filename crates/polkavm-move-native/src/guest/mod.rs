@@ -1,11 +1,15 @@
 use crate::{
     types::{
         AnyValue, MoveAddress, MoveAsciiString, MoveByteVector, MoveSigner, MoveType,
-        MoveUntypedVector,
+        MoveUntypedReference, MoveUntypedVector, TypeDesc, U256,
     },
-    vector::{TypedMoveBorrowedRustVec, TypedMoveBorrowedRustVecMut},
+    vector::{
+        MoveBorrowedRustVecMut, MoveBorrowedRustVecOfStructMut, TypedMoveBorrowedRustVec,
+        TypedMoveBorrowedRustVecMut,
+    },
 };
 extern crate alloc;
+use core::ptr;
 use core::str;
 
 mod allocator;
@@ -100,6 +104,33 @@ unsafe extern "C" fn move_native_keccak256(bytes: *const MoveByteVector) -> Move
     let address = imports::keccak256(bytes);
     let mv_ptr = address as *const MoveByteVector;
     *mv_ptr
+}
+
+// Aliases for aptos_std::aptos_hash native functions.
+// The compiler generates names prefixed with the module path.
+#[export_name = "move_native_aptos_hash_sha2_512_internal"]
+unsafe extern "C" fn aptos_hash_sha2_512(bytes: *const MoveByteVector) -> MoveByteVector {
+    move_native_sha2_512_internal(bytes)
+}
+
+#[export_name = "move_native_aptos_hash_sha3_512_internal"]
+unsafe extern "C" fn aptos_hash_sha3_512(bytes: *const MoveByteVector) -> MoveByteVector {
+    move_native_sha3_512_internal(bytes)
+}
+
+#[export_name = "move_native_aptos_hash_blake2b_256_internal"]
+unsafe extern "C" fn aptos_hash_blake2b_256(bytes: *const MoveByteVector) -> MoveByteVector {
+    move_native_blake2b_256_internal(bytes)
+}
+
+#[export_name = "move_native_aptos_hash_ripemd160_internal"]
+unsafe extern "C" fn aptos_hash_ripemd160(bytes: *const MoveByteVector) -> MoveByteVector {
+    move_native_ripemd160_internal(bytes)
+}
+
+#[export_name = "move_native_aptos_hash_keccak256"]
+unsafe extern "C" fn aptos_hash_keccak256(bytes: *const MoveByteVector) -> MoveByteVector {
+    move_native_keccak256(bytes)
 }
 
 #[export_name = "move_rt_move_to"]
@@ -267,6 +298,108 @@ unsafe extern "C" fn destroy_empty(type_ve: &MoveType, v: MoveUntypedVector) {
 #[export_name = "move_native_vector_swap"]
 unsafe extern "C" fn swap(type_ve: &MoveType, v: &mut MoveUntypedVector, i: u64, j: u64) {
     TypedMoveBorrowedRustVecMut::new(type_ve, v).swap(i, j)
+}
+
+#[export_name = "move_native_vector_move_range"]
+unsafe extern "C" fn vector_move_range(
+    type_ve: &MoveType,
+    from: &mut MoveUntypedVector,
+    removal_position: u64,
+    length: u64,
+    to: &mut MoveUntypedVector,
+    insert_position: u64,
+) {
+    if length == 0 {
+        return;
+    }
+
+    macro_rules! typed_move_range {
+        ($t:ty) => {{
+            let rp = removal_position as usize;
+            let count = length as usize;
+            let ip = insert_position as usize;
+            let mut from_vec = MoveBorrowedRustVecMut::<$t>::new(from);
+            let drained: alloc::vec::Vec<$t> = from_vec.drain(rp..rp + count).collect();
+            drop(from_vec);
+            let mut to_vec = MoveBorrowedRustVecMut::<$t>::new(to);
+            to_vec.splice(ip..ip, drained);
+            drop(to_vec);
+        }};
+    }
+
+    match type_ve.type_desc {
+        TypeDesc::Bool => typed_move_range!(bool),
+        TypeDesc::U8 => typed_move_range!(u8),
+        TypeDesc::U16 => typed_move_range!(u16),
+        TypeDesc::U32 => typed_move_range!(u32),
+        TypeDesc::U64 => typed_move_range!(u64),
+        TypeDesc::U128 => typed_move_range!(u128),
+        TypeDesc::U256 => typed_move_range!(U256),
+        TypeDesc::Address => typed_move_range!(MoveAddress),
+        TypeDesc::Signer => typed_move_range!(MoveSigner),
+        TypeDesc::Vector => typed_move_range!(MoveUntypedVector),
+        TypeDesc::Reference => typed_move_range!(MoveUntypedReference),
+        TypeDesc::Struct => {
+            struct_move_range(type_ve, from, removal_position, length, to, insert_position);
+        },
+    }
+}
+
+unsafe fn struct_move_range(
+    type_ve: &MoveType,
+    from: &mut MoveUntypedVector,
+    removal_position: u64,
+    count_u64: u64,
+    to: &mut MoveUntypedVector,
+    insert_position: u64,
+) {
+    let elem_size = (*type_ve.type_info).struct_.size as usize;
+    let rp = removal_position as usize;
+    let count = count_u64 as usize;
+    let ip = insert_position as usize;
+    let from_len = from.length as usize;
+    let to_len = to.length as usize;
+    let byte_count = count * elem_size;
+
+    assert!(rp + count <= from_len, "removal range out of bounds");
+    assert!(ip <= to_len, "insert position out of bounds");
+
+    // 1. Copy elements from `from` into temp buffer
+    let mut temp = alloc::vec![0u8; byte_count];
+    ptr::copy_nonoverlapping(from.ptr.add(rp * elem_size), temp.as_mut_ptr(), byte_count);
+
+    // 2. Close gap in `from`
+    let remaining = from_len - (rp + count);
+    if remaining > 0 {
+        ptr::copy(
+            from.ptr.add((rp + count) * elem_size),
+            from.ptr.add(rp * elem_size),
+            remaining * elem_size,
+        );
+    }
+    from.length -= count_u64;
+
+    // 3. Ensure `to` has capacity
+    let new_to_len = to_len + count;
+    if new_to_len > to.capacity as usize {
+        let new_cap = new_to_len.next_power_of_two();
+        let mut to_struct = MoveBorrowedRustVecOfStructMut::new(type_ve, to);
+        to_struct.reserve_exact(new_cap);
+    }
+
+    // 4. Shift elements in `to` to make space at insert_position
+    let remaining_after = to_len - ip;
+    if remaining_after > 0 {
+        ptr::copy(
+            to.ptr.add(ip * elem_size),
+            to.ptr.add((ip + count) * elem_size),
+            remaining_after * elem_size,
+        );
+    }
+
+    // 5. Copy temp buffer into `to`
+    ptr::copy_nonoverlapping(temp.as_ptr(), to.ptr.add(ip * elem_size), byte_count);
+    to.length += count_u64;
 }
 
 #[export_name = "move_native_string_internal_check_utf8"]

@@ -40,7 +40,7 @@ pub fn test_project() -> anyhow::Result<()> {
     let result = instance
         .call_typed_and_get_result::<(), _>(&mut runtime, "main", (signer_address,))
         .map_err(|e| anyhow::anyhow!("{e:?}"));
-    assert!(result.is_ok());
+    assert!(result.is_ok(), "test_project failed: {:?}", result.err());
 
     Ok(())
 }

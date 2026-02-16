@@ -42,6 +42,7 @@ use llvm_sys::core::LLVMGetModuleContext;
 use log::{debug, trace};
 use move_core_types::{
     account_address::{self, AccountAddress},
+    int256::{I256, U256},
     vm_status::StatusCode::ARITHMETIC_ERROR,
 };
 use move_model::{
@@ -56,8 +57,6 @@ use move_stackless_bytecode::{
 };
 use num::BigUint;
 use num_traits::ToBytes;
-use primitive_types::I256;
-use primitive_types::U256;
 use sha2::Digest;
 use std::collections::BTreeMap;
 
@@ -362,6 +361,19 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             self.translate_instruction(instr);
         }
 
+        // Fix up basic blocks that lack terminators. This can happen when the Move
+        // compiler constant-folds branches, leaving dead code after terminators (ret/br).
+        // We split such code into new blocks, but those blocks may end up empty or
+        // without terminators. Add `unreachable` to any unterminated block.
+        let mut bb_opt = ll_fn.get_first_basic_block();
+        while let Some(bb) = bb_opt {
+            if !bb.has_terminator() {
+                self.module_cx.llvm_builder.position_at_end(bb);
+                self.module_cx.llvm_builder.build_unreachable();
+            }
+            bb_opt = ll_fn.get_next_basic_block(bb);
+        }
+
         self.module_cx
             .llvm_di_builder
             .finalize_function(&self, di_func);
@@ -370,6 +382,18 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
 
     fn translate_instruction(&mut self, instr: &sbc::Bytecode) {
         let builder = &self.module_cx.llvm_builder;
+        // If the current basic block already has a terminator (e.g., from a return or
+        // unconditional branch), create a new dead block to absorb subsequent instructions.
+        // This happens when the Move compiler constant-folds branches, leaving dead code.
+        // Skip this check for Label instructions, which switch blocks themselves.
+        if !matches!(instr, sbc::Bytecode::Label(..)) {
+            let curr_bb = builder.get_insert_block();
+            if curr_bb.has_terminator() {
+                let parent_func = curr_bb.get_basic_block_parent();
+                let dead_bb = parent_func.insert_basic_block_after(curr_bb, "dead_code");
+                builder.position_at_end(dead_bb);
+            }
+        }
         let builder_di = &self.module_cx.llvm_di_builder;
         let instr_dbg = builder_di.create_instruction(instr, self);
         debug!(target: "functions", "translating instruction {instr:?}");
@@ -1138,7 +1162,11 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             return;
         }
         assert!(dst_width <= 128);
-        let dst_maxval = (U256::one().checked_shl(dst_width as u32)).unwrap() - U256::one();
+        let dst_maxval = U256::checked_sub(
+            U256::ONE << U256::from(dst_width as u32),
+            U256::ONE,
+        )
+        .unwrap();
         let const_llval = llvm::Constant::uint(src_llty, dst_maxval).as_any_value();
         let cond_reg = self.module_cx.llvm_builder.build_compare(
             llvm::LLVMIntPredicate::LLVMIntUGT,
@@ -1219,7 +1247,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let src1_reg = self.locals[src[1]].llval.as_any_value();
                 let mty = Type::Struct(*mod_id, *struct_id, types);
                 debug!(target: "dwarf", "MoveTo mty {mty:?}");
-                self.emit_rtcall(RtCall::MoveTo(src1_reg, src0_reg, mty), dst, instr);
+                self.emit_rtcall(RtCall::MoveTo(src0_reg, src1_reg, mty), dst, instr);
             }
             Operation::MoveFrom(mod_id, struct_id, types) => {
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
@@ -1241,7 +1269,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 debug!(target: "dwarf", "Exists mty {mty:?}");
                 self.emit_rtcall(RtCall::Exists(src0_reg, mty), dst, instr);
             }
-            Operation::BorrowGlobal(mod_id, struct_id, types, is_mut) => {
+            Operation::BorrowGlobal(mod_id, struct_id, types) => {
                 trace!(target: "dwarf", "translate_call BorrowGlobal {mod_id:?} {struct_id:?} types {types:?}");
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
                 assert_eq!(src.len(), 1);
@@ -1249,7 +1277,11 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
                 let mty = Type::Struct(*mod_id, *struct_id, types);
                 debug!(target: "dwarf", "BorrowGlobal mty {mty:?}");
-                let is_mut_u32 = if *is_mut { 1 } else { 0 };
+                let is_mut = matches!(
+                    self.locals[dst[0]].mty,
+                    mty::Type::Reference(mty::ReferenceKind::Mutable, _)
+                );
+                let is_mut_u32 = if is_mut { 1u32 } else { 0u32 };
                 self.emit_rtcall(RtCall::BorrowGlobal(src0_reg, mty, is_mut_u32), dst, instr);
             }
             Operation::BorrowLoc => {
@@ -1622,6 +1654,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             | Operation::Uninit
             | Operation::Havoc(_)
             | Operation::Stop => {}
+            // Enum variant operations are not yet supported; silently skip.
+            // Functions using these won't work at runtime but won't panic at compile time.
+            Operation::TestVariant(_, _, _, _)
+            | Operation::PackVariant(_, _, _, _)
+            | Operation::UnpackVariant(_, _, _, _)
+            | Operation::BorrowVariantField(_, _, _, _, _) => {}
             _ => todo!("{op:?}"),
         }
     }

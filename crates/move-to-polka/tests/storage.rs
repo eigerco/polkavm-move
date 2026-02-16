@@ -64,10 +64,10 @@ pub fn storage_store_load() -> anyhow::Result<()> {
 
     instance
         .call_typed_and_get_result::<(), (u32,)>(&mut runtime, "store", (signer_address,))
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+        .map_err(|e| anyhow::anyhow!("store failed: {e:?}"))?;
     instance
         .call_typed_and_get_result::<(), (u32,)>(&mut runtime, "load", (signer_address,))
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+        .map_err(|e| anyhow::anyhow!("load failed: {e:?}"))?;
 
     Ok(())
 }
