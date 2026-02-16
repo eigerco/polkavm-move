@@ -93,11 +93,7 @@ pub(crate) fn multi_ed25519_public_key_validate_v2(bytes: &[u8]) -> bool {
     true
 }
 
-pub(crate) fn multi_ed25519_signature_verify_strict(
-    sig: &[u8],
-    pk: &[u8],
-    msg: &[u8],
-) -> bool {
+pub(crate) fn multi_ed25519_signature_verify_strict(sig: &[u8], pk: &[u8], msg: &[u8]) -> bool {
     // PK format: N * 32 bytes + 1 byte (threshold)
     if pk.is_empty() || !(pk.len() - 1).is_multiple_of(32) {
         return false;
@@ -122,7 +118,12 @@ pub(crate) fn multi_ed25519_signature_verify_strict(
 
     // Parse bitmap (last 4 bytes, big-endian)
     let bitmap_bytes = &sig[sig.len() - 4..];
-    let bitmap = u32::from_be_bytes([bitmap_bytes[0], bitmap_bytes[1], bitmap_bytes[2], bitmap_bytes[3]]);
+    let bitmap = u32::from_be_bytes([
+        bitmap_bytes[0],
+        bitmap_bytes[1],
+        bitmap_bytes[2],
+        bitmap_bytes[3],
+    ]);
 
     // Count set bits in bitmap
     let set_bits = bitmap.count_ones() as usize;
@@ -272,11 +273,7 @@ pub(crate) fn bls12381_generate_proof_of_possession(sk: &[u8]) -> Vec<u8> {
     signature.to_bytes().to_vec()
 }
 
-pub(crate) fn secp256k1_ecdsa_recover(
-    msg: &[u8],
-    recovery_id: u8,
-    sig: &[u8],
-) -> (Vec<u8>, bool) {
+pub(crate) fn secp256k1_ecdsa_recover(msg: &[u8], recovery_id: u8, sig: &[u8]) -> (Vec<u8>, bool) {
     use k256::ecdsa::{RecoveryId, Signature as K256Signature, VerifyingKey};
 
     let Some(rec_id) = RecoveryId::from_byte(recovery_id) else {
@@ -348,15 +345,11 @@ mod tests {
         let multi_sig = multi_ed25519_sign(&sk, msg);
 
         assert!(multi_ed25519_signature_verify_strict(
-            &multi_sig,
-            &multi_pk,
-            msg
+            &multi_sig, &multi_pk, msg
         ));
         // Wrong message should fail
         assert!(!multi_ed25519_signature_verify_strict(
-            &multi_sig,
-            &multi_pk,
-            b"wrong"
+            &multi_sig, &multi_pk, b"wrong"
         ));
     }
 
@@ -395,11 +388,7 @@ mod tests {
         assert!(bls12381_verify_signature_share(&sig, &pk_bytes, msg));
 
         // Wrong message should fail
-        assert!(!bls12381_verify_normal_signature(
-            &sig,
-            &pk_bytes,
-            b"wrong"
-        ));
+        assert!(!bls12381_verify_normal_signature(&sig, &pk_bytes, b"wrong"));
     }
 
     #[test]

@@ -149,10 +149,7 @@ extern "C" {
 
 #[polkavm_derive::polkavm_import]
 extern "C" {
-    pub(crate) fn multi_ed25519_sign(
-        sk: *const MoveByteVector,
-        msg: *const MoveByteVector,
-    ) -> u32;
+    pub(crate) fn multi_ed25519_sign(sk: *const MoveByteVector, msg: *const MoveByteVector) -> u32;
 }
 
 // --- bls12381 host functions ---
@@ -204,10 +201,7 @@ extern "C" {
 
 #[polkavm_derive::polkavm_import]
 extern "C" {
-    pub(crate) fn bls12381_sign(
-        sk: *const MoveByteVector,
-        msg: *const MoveByteVector,
-    ) -> u32;
+    pub(crate) fn bls12381_sign(sk: *const MoveByteVector, msg: *const MoveByteVector) -> u32;
 }
 
 #[polkavm_derive::polkavm_import]

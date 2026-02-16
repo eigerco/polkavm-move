@@ -460,9 +460,7 @@ pub unsafe extern "C" fn to_bytes(type_v: &MoveType, v: &AnyValue) -> MoveByteVe
 // --- ed25519 native functions ---
 
 #[export_name = "move_native_ed25519_public_key_validate_internal"]
-unsafe extern "C" fn ed25519_public_key_validate_internal(
-    bytes: *const MoveByteVector,
-) -> bool {
+unsafe extern "C" fn ed25519_public_key_validate_internal(bytes: *const MoveByteVector) -> bool {
     imports::ed25519_public_key_validate(bytes) != 0
 }
 
@@ -476,9 +474,7 @@ unsafe extern "C" fn ed25519_signature_verify_strict_internal(
 }
 
 #[export_name = "move_native_ed25519_generate_keys_internal"]
-unsafe extern "C" fn ed25519_generate_keys_internal(
-    out_sk: *mut MoveByteVector,
-) -> MoveByteVector {
+unsafe extern "C" fn ed25519_generate_keys_internal(out_sk: *mut MoveByteVector) -> MoveByteVector {
     let address = imports::ed25519_generate_keys();
     // Write first vector (sk) to caller's alloca via pointer
     let sk_src = address as *const MoveByteVector;
@@ -536,9 +532,7 @@ unsafe extern "C" fn multi_ed25519_sign_internal(
 // --- bls12381 native functions ---
 
 #[export_name = "move_native_bls12381_validate_pubkey_internal"]
-unsafe extern "C" fn bls12381_validate_pubkey_internal(
-    bytes: *const MoveByteVector,
-) -> bool {
+unsafe extern "C" fn bls12381_validate_pubkey_internal(bytes: *const MoveByteVector) -> bool {
     imports::bls12381_validate_pubkey(bytes) != 0
 }
 
@@ -618,7 +612,14 @@ unsafe extern "C" fn debug_return_tuple(out_val: *mut u64) -> bool {
 
 #[export_name = "move_native_debug_test_debug_return_vec_bool"]
 unsafe extern "C" fn debug_return_vec_bool(out_vec: *mut MoveByteVector) -> bool {
-    ptr::write(out_vec, MoveByteVector { ptr: ptr::null_mut(), capacity: 0, length: 0 });
+    ptr::write(
+        out_vec,
+        MoveByteVector {
+            ptr: ptr::null_mut(),
+            capacity: 0,
+            length: 0,
+        },
+    );
     true
 }
 
@@ -629,7 +630,14 @@ unsafe extern "C" fn debug_vec_args_tuple(
     _sig: *const MoveByteVector,
     out_vec: *mut MoveByteVector,
 ) -> bool {
-    ptr::write(out_vec, MoveByteVector { ptr: ptr::null_mut(), capacity: 0, length: 0 });
+    ptr::write(
+        out_vec,
+        MoveByteVector {
+            ptr: ptr::null_mut(),
+            capacity: 0,
+            length: 0,
+        },
+    );
     true
 }
 

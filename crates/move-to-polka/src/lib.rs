@@ -2,8 +2,8 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod cstr;
 pub(crate) mod crypto;
+pub mod cstr;
 pub(crate) mod hash;
 pub mod linker;
 pub mod native;

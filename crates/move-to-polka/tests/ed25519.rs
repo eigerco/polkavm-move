@@ -37,11 +37,7 @@ pub fn test_ed25519_validate_key() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_ed25519_validate_key",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_ed25519_validate_key", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -56,11 +52,7 @@ pub fn test_ed25519_verify_signature() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_ed25519_verify_signature",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_ed25519_verify_signature", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -75,11 +67,7 @@ pub fn test_ed25519_verify_wrong_message() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_ed25519_verify_wrong_message",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_ed25519_verify_wrong_message", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -96,11 +84,7 @@ pub fn test_debug_return_true() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_debug_return_true",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_debug_return_true", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -115,11 +99,7 @@ pub fn test_debug_vec_tuple() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_debug_vec_tuple",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_debug_vec_tuple", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -134,11 +114,7 @@ pub fn test_debug_with_args() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_debug_with_args",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_debug_with_args", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -153,11 +129,7 @@ pub fn test_debug_args_sret() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_debug_args_sret",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_debug_args_sret", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -172,11 +144,7 @@ pub fn test_debug_complex() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_debug_complex",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_debug_complex", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -191,11 +159,7 @@ pub fn test_debug_vec_sret_tuple() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_debug_vec_sret_tuple",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_debug_vec_sret_tuple", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -210,11 +174,7 @@ pub fn test_debug_sret_tuple() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_debug_sret_tuple",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_debug_sret_tuple", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -229,11 +189,7 @@ pub fn test_debug_return_tuple() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_debug_return_tuple",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_debug_return_tuple", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -251,11 +207,7 @@ pub fn test_secp256k1_ecdsa_recover() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_secp256k1_ecdsa_recover",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_secp256k1_ecdsa_recover", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -291,11 +243,7 @@ pub fn test_multi_ed25519_auth_key() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_multi_ed25519_auth_key",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_multi_ed25519_auth_key", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -310,11 +258,7 @@ pub fn test_multi_ed25519_num_sub_pks() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
     let result = instance
-        .call_typed_and_get_result::<(), ()>(
-            &mut runtime,
-            "test_multi_ed25519_num_sub_pks",
-            (),
-        )
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_multi_ed25519_num_sub_pks", ())
         .map_err(|e| anyhow::anyhow!("{e:?}"));
     assert!(
         result.is_ok(),
@@ -327,4 +271,3 @@ pub fn test_multi_ed25519_num_sub_pks() -> anyhow::Result<()> {
 // NOTE: BLS12-381 Move-level tests are skipped because the module references
 // unimplemented native functions (aggregate_pubkeys_internal, etc.) that cause
 // linker errors even when not called from tests.
-

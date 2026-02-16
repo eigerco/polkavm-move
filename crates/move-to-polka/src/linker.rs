@@ -449,10 +449,7 @@ pub fn create_instance(
 
     linker.define_typed(
         "ed25519_signature_verify_strict",
-        |caller: Caller<Runtime>,
-         ptr_to_sig: u32,
-         ptr_to_pk: u32,
-         ptr_to_msg: u32| {
+        |caller: Caller<Runtime>, ptr_to_sig: u32, ptr_to_pk: u32, ptr_to_msg: u32| {
             let instance = caller.instance;
             let sig = from_move_byte_vector(instance, ptr_to_sig)?;
             let pk = from_move_byte_vector(instance, ptr_to_pk)?;
@@ -522,10 +519,7 @@ pub fn create_instance(
 
     linker.define_typed(
         "multi_ed25519_signature_verify_strict",
-        |caller: Caller<Runtime>,
-         ptr_to_sig: u32,
-         ptr_to_pk: u32,
-         ptr_to_msg: u32| {
+        |caller: Caller<Runtime>, ptr_to_sig: u32, ptr_to_pk: u32, ptr_to_msg: u32| {
             let instance = caller.instance;
             let sig = from_move_byte_vector(instance, ptr_to_sig)?;
             let pk = from_move_byte_vector(instance, ptr_to_pk)?;
@@ -572,10 +566,7 @@ pub fn create_instance(
 
     linker.define_typed(
         "bls12381_verify_normal_signature",
-        |caller: Caller<Runtime>,
-         ptr_to_sig: u32,
-         ptr_to_pk: u32,
-         ptr_to_msg: u32| {
+        |caller: Caller<Runtime>, ptr_to_sig: u32, ptr_to_pk: u32, ptr_to_msg: u32| {
             let instance = caller.instance;
             let sig = from_move_byte_vector(instance, ptr_to_sig)?;
             let pk = from_move_byte_vector(instance, ptr_to_pk)?;
@@ -587,10 +578,7 @@ pub fn create_instance(
 
     linker.define_typed(
         "bls12381_verify_multisignature",
-        |caller: Caller<Runtime>,
-         ptr_to_sig: u32,
-         ptr_to_pk: u32,
-         ptr_to_msg: u32| {
+        |caller: Caller<Runtime>, ptr_to_sig: u32, ptr_to_pk: u32, ptr_to_msg: u32| {
             let instance = caller.instance;
             let sig = from_move_byte_vector(instance, ptr_to_sig)?;
             let pk = from_move_byte_vector(instance, ptr_to_pk)?;
@@ -613,10 +601,7 @@ pub fn create_instance(
 
     linker.define_typed(
         "bls12381_verify_signature_share",
-        |caller: Caller<Runtime>,
-         ptr_to_sig: u32,
-         ptr_to_pk: u32,
-         ptr_to_msg: u32| {
+        |caller: Caller<Runtime>, ptr_to_sig: u32, ptr_to_pk: u32, ptr_to_msg: u32| {
             let instance = caller.instance;
             let sig = from_move_byte_vector(instance, ptr_to_sig)?;
             let pk = from_move_byte_vector(instance, ptr_to_pk)?;
@@ -655,10 +640,7 @@ pub fn create_instance(
 
     linker.define_typed(
         "secp256k1_ecdsa_recover",
-        |caller: Caller<Runtime>,
-         ptr_to_msg: u32,
-         recovery_id: u32,
-         ptr_to_sig: u32| {
+        |caller: Caller<Runtime>, ptr_to_msg: u32, recovery_id: u32, ptr_to_sig: u32| {
             let runtime = caller.user_data;
             let instance = caller.instance;
             let msg = from_move_byte_vector(instance, ptr_to_msg)?;

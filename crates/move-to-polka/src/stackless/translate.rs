@@ -240,8 +240,8 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         variant_sym: move_model::symbol::Symbol,
         field_offset: usize,
     ) -> usize {
-        let target = struct_env
-            .get_field_by_offset_optional_variant(Some(variant_sym), field_offset);
+        let target =
+            struct_env.get_field_by_offset_optional_variant(Some(variant_sym), field_offset);
         let target_name = target.get_name();
         let all_fields: Vec<_> = struct_env.get_fields().collect();
         let pos = all_fields
@@ -1706,15 +1706,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .expect("no struct type");
 
                 assert_eq!(dst.len(), 1);
-                let variant_field_count = struct_env
-                    .get_fields_of_variant(*variant_sym)
-                    .count();
+                let variant_field_count = struct_env.get_fields_of_variant(*variant_sym).count();
                 assert_eq!(src.len(), variant_field_count);
 
                 // Build the enum struct: { i64 tag, fields... }
                 // Start with zeroinitializer so unused variant fields are zeroed.
-                let mut agg_val =
-                    Constant::get_const_null(stype.as_any_type()).as_any_value();
+                let mut agg_val = Constant::get_const_null(stype.as_any_type()).as_any_value();
 
                 // Insert tag at index 0.
                 let tag_ty = self.module_cx.llvm_cx.int_type(64);
@@ -1723,13 +1720,10 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     builder.build_insert_value(agg_val, tag_val.as_any_value(), 0, "pack_tag");
 
                 // Insert each variant field at its LLVM struct index.
-                let llvm_indices =
-                    Self::variant_field_llvm_indices(&struct_env, *variant_sym);
+                let llvm_indices = Self::variant_field_llvm_indices(&struct_env, *variant_sym);
                 for (src_i, llvm_idx) in llvm_indices.iter().enumerate() {
-                    let loaded = builder.load_alloca(
-                        self.locals[src[src_i]].llval,
-                        self.locals[src[src_i]].llty,
-                    );
+                    let loaded = builder
+                        .load_alloca(self.locals[src[src_i]].llval, self.locals[src[src_i]].llty);
                     agg_val = builder.build_insert_value(
                         agg_val,
                         loaded,
@@ -1759,8 +1753,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 assert_eq!(dst.len(), 1);
 
                 // Load the enum struct, extract tag at index 0, compare with variant_idx.
-                let src_val =
-                    builder.load_alloca(self.locals[src[0]].llval, stype.as_any_type());
+                let src_val = builder.load_alloca(self.locals[src[0]].llval, stype.as_any_type());
                 let tag = builder.build_extract_value(src_val, 0, "tv_tag");
                 let tag_ty = self.module_cx.llvm_cx.int_type(64);
                 let expected = Constant::const_int(tag_ty, variant_idx as u64, 0);
@@ -1786,16 +1779,12 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .expect("no struct type");
 
                 assert_eq!(src.len(), 1);
-                let variant_field_count = struct_env
-                    .get_fields_of_variant(*variant_sym)
-                    .count();
+                let variant_field_count = struct_env.get_fields_of_variant(*variant_sym).count();
                 assert_eq!(dst.len(), variant_field_count);
 
                 // Load the enum struct and extract each variant field.
-                let src_val =
-                    builder.load_alloca(self.locals[src[0]].llval, stype.as_any_type());
-                let llvm_indices =
-                    Self::variant_field_llvm_indices(&struct_env, *variant_sym);
+                let src_val = builder.load_alloca(self.locals[src[0]].llval, stype.as_any_type());
+                let llvm_indices = Self::variant_field_llvm_indices(&struct_env, *variant_sym);
                 for (dst_i, llvm_idx) in llvm_indices.iter().enumerate() {
                     let extracted = builder.build_extract_value(
                         src_val,
@@ -1823,11 +1812,8 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
 
                 // Use the first variant to look up the field.
                 let variant_sym = &variants[0];
-                let llvm_idx = Self::compute_variant_field_llvm_index(
-                    &struct_env,
-                    *variant_sym,
-                    *offset,
-                );
+                let llvm_idx =
+                    Self::compute_variant_field_llvm_index(&struct_env, *variant_sym, *offset);
                 // src is a reference (pointer) to the enum struct.
                 // GEP to the field and store the field pointer.
                 builder.field_ref_store(
@@ -1922,8 +1908,7 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             let return_val_is_generic = matches!(&ret_type, mty::Type::TypeParameter(_));
             (arg_types, return_val_is_generic, ret_type)
         };
-        let _return_val_is_tuple =
-            matches!(&ret_type, mty::Type::Tuple(ts) if ts.len() > 1);
+        let _return_val_is_tuple = matches!(&ret_type, mty::Type::Tuple(ts) if ts.len() > 1);
 
         let typarams = typarams.into_iter().map(|llval| llval.as_any_value());
         let src = src_locals
