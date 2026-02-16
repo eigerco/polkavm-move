@@ -1,4 +1,4 @@
-use crate::{hash, options::Options, run_to_polka};
+use crate::{crypto, hash, options::Options, run_to_polka};
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use core::mem::MaybeUninit;
 use gix::{
@@ -434,6 +434,106 @@ pub fn create_instance(
             )
         },
     )?;
+
+    // --- ed25519 host functions ---
+
+    linker.define_typed(
+        "ed25519_public_key_validate",
+        |caller: Caller<Runtime>, ptr_to_buf: u32| {
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
+            let valid = crypto::ed25519_public_key_validate(&bytes);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed(
+        "ed25519_signature_verify_strict",
+        |caller: Caller<Runtime>,
+         ptr_to_sig: u32,
+         ptr_to_pk: u32,
+         ptr_to_msg: u32| {
+            let instance = caller.instance;
+            let sig = from_move_byte_vector(instance, ptr_to_sig)?;
+            let pk = from_move_byte_vector(instance, ptr_to_pk)?;
+            let msg = from_move_byte_vector(instance, ptr_to_msg)?;
+            let valid = crypto::ed25519_signature_verify_strict(&sig, &pk, &msg);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed("ed25519_generate_keys", |caller: Caller<Runtime>| {
+        let runtime = caller.user_data;
+        let instance = caller.instance;
+        let (sk, pk) = crypto::ed25519_generate_keys();
+        let sk_addr = to_move_byte_vector(instance, &mut runtime.allocator, sk)?;
+        let pk_addr = to_move_byte_vector(instance, &mut runtime.allocator, pk)?;
+        // Write a struct { sk: MoveByteVector, pk: MoveByteVector } into guest memory
+        let sk_vec: MoveByteVector = copy_from_guest(instance, sk_addr)?;
+        let pk_vec: MoveByteVector = copy_from_guest(instance, pk_addr)?;
+        #[repr(C)]
+        #[derive(Copy, Clone)]
+        struct KeyPairResult {
+            sk: MoveByteVector,
+            pk: MoveByteVector,
+        }
+        let result = KeyPairResult {
+            sk: sk_vec,
+            pk: pk_vec,
+        };
+        let addr = copy_to_guest(instance, &mut runtime.allocator, &result)?;
+        Result::<u32, ProgramError>::Ok(addr)
+    })?;
+
+    linker.define_typed(
+        "ed25519_sign",
+        |caller: Caller<Runtime>, ptr_to_sk: u32, ptr_to_msg: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let sk = from_move_byte_vector(instance, ptr_to_sk)?;
+            let msg = from_move_byte_vector(instance, ptr_to_msg)?;
+            let sig = crypto::ed25519_sign(&sk, &msg);
+            let address = to_move_byte_vector(instance, &mut runtime.allocator, sig)?;
+            Result::<u32, ProgramError>::Ok(address)
+        },
+    )?;
+
+    // --- secp256k1 host functions ---
+
+    linker.define_typed(
+        "secp256k1_ecdsa_recover",
+        |caller: Caller<Runtime>,
+         ptr_to_msg: u32,
+         recovery_id: u32,
+         ptr_to_sig: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let msg = from_move_byte_vector(instance, ptr_to_msg)?;
+            let sig = from_move_byte_vector(instance, ptr_to_sig)?;
+            let (key_bytes, success) =
+                crypto::secp256k1_ecdsa_recover(&msg, recovery_id as u8, &sig);
+            let vec_addr = to_move_byte_vector(instance, &mut runtime.allocator, key_bytes)?;
+            let key_vec: MoveByteVector = copy_from_guest(instance, vec_addr)?;
+            // Build a result struct { bytes: MoveByteVector, success: bool }
+            // Use u8 for bool to ensure ABI compatibility
+            #[repr(C)]
+            #[derive(Copy, Clone)]
+            struct EcdsaRecoverResult {
+                bytes: MoveByteVector,
+                success: u8,
+            }
+            let result = EcdsaRecoverResult {
+                bytes: key_vec,
+                success: success as u8,
+            };
+            let addr = copy_to_guest(instance, &mut runtime.allocator, &result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    // --- type_info host functions ---
+
+    linker.define_typed("chain_id_internal", || -> u32 { 4u32 })?;
 
     // Link the host functions with the module.
     let instance_pre = linker.instantiate_pre(&module)?;

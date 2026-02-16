@@ -455,6 +455,73 @@ pub unsafe extern "C" fn to_bytes(type_v: &MoveType, v: &AnyValue) -> MoveByteVe
     crate::serialization::serialize(type_v, v)
 }
 
+// --- ed25519 native functions ---
+
+#[export_name = "move_native_ed25519_public_key_validate_internal"]
+unsafe extern "C" fn ed25519_public_key_validate_internal(
+    bytes: *const MoveByteVector,
+) -> bool {
+    imports::ed25519_public_key_validate(bytes) != 0
+}
+
+#[export_name = "move_native_ed25519_signature_verify_strict_internal"]
+unsafe extern "C" fn ed25519_signature_verify_strict_internal(
+    sig: *const MoveByteVector,
+    pk: *const MoveByteVector,
+    msg: *const MoveByteVector,
+) -> bool {
+    imports::ed25519_signature_verify_strict(sig, pk, msg) != 0
+}
+
+#[repr(C)]
+struct KeyPairResult {
+    sk: MoveByteVector,
+    pk: MoveByteVector,
+}
+
+#[export_name = "move_native_ed25519_generate_keys_internal"]
+unsafe extern "C" fn ed25519_generate_keys_internal() -> KeyPairResult {
+    let address = imports::ed25519_generate_keys();
+    let result_ptr = address as *const KeyPairResult;
+    ptr::read(result_ptr)
+}
+
+#[export_name = "move_native_ed25519_sign_internal"]
+unsafe extern "C" fn ed25519_sign_internal(
+    sk: *const MoveByteVector,
+    msg: *const MoveByteVector,
+) -> MoveByteVector {
+    let address = imports::ed25519_sign(sk, msg);
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
+}
+
+// --- secp256k1 native functions ---
+
+#[repr(C)]
+struct EcdsaRecoverResult {
+    bytes: MoveByteVector,
+    success: bool,
+}
+
+#[export_name = "move_native_secp256k1_ecdsa_recover_internal"]
+unsafe extern "C" fn secp256k1_ecdsa_recover_internal(
+    msg: *const MoveByteVector,
+    recovery_id: u8,
+    sig: *const MoveByteVector,
+) -> EcdsaRecoverResult {
+    let address = imports::secp256k1_ecdsa_recover(msg, recovery_id as u32, sig);
+    let result_ptr = address as *const EcdsaRecoverResult;
+    ptr::read(result_ptr)
+}
+
+// --- type_info native functions ---
+
+#[export_name = "move_native_type_info_chain_id_internal"]
+unsafe extern "C" fn chain_id_internal() -> u8 {
+    imports::chain_id_internal() as u8
+}
+
 #[allow(dead_code)]
 unsafe fn print_vec(vec: &MoveByteVector) {
     let typ_string = MoveType::vec();

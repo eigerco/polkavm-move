@@ -1,0 +1,11 @@
+[package]
+name = "ed25519_tests"
+version = "1.0.0"
+
+[addresses]
+std = "0x1"
+aptos_std = "0x1"
+
+[dependencies]
+MoveStdlib = { git = "https://github.com/eigerco/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "main" }
+AptosStdlib = { git = "https://github.com/eigerco/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "main" }

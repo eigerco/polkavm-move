@@ -87,3 +87,41 @@ extern "C" {
 extern "C" {
     pub(crate) fn hex_dump();
 }
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ed25519_public_key_validate(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ed25519_signature_verify_strict(
+        sig: *const MoveByteVector,
+        pk: *const MoveByteVector,
+        msg: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ed25519_generate_keys() -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ed25519_sign(sk: *const MoveByteVector, msg: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn secp256k1_ecdsa_recover(
+        msg: *const MoveByteVector,
+        recovery_id: u32,
+        sig: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn chain_id_internal() -> u32;
+}
