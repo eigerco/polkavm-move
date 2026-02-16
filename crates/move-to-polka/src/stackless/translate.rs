@@ -1162,11 +1162,8 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             return;
         }
         assert!(dst_width <= 128);
-        let dst_maxval = U256::checked_sub(
-            U256::ONE << U256::from(dst_width as u32),
-            U256::ONE,
-        )
-        .unwrap();
+        let dst_maxval =
+            U256::checked_sub(U256::ONE << U256::from(dst_width as u32), U256::ONE).unwrap();
         let const_llval = llvm::Constant::uint(src_llty, dst_maxval).as_any_value();
         let cond_reg = self.module_cx.llvm_builder.build_compare(
             llvm::LLVMIntPredicate::LLVMIntUGT,

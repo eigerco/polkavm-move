@@ -9,8 +9,7 @@ use crate::{
     },
 };
 extern crate alloc;
-use core::ptr;
-use core::str;
+use core::{ptr, str};
 
 mod allocator;
 mod imports;
@@ -341,7 +340,7 @@ unsafe extern "C" fn vector_move_range(
         TypeDesc::Reference => typed_move_range!(MoveUntypedReference),
         TypeDesc::Struct => {
             struct_move_range(type_ve, from, removal_position, length, to, insert_position);
-        },
+        }
     }
 }
 
