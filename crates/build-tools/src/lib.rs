@@ -127,10 +127,10 @@ impl NativeBuildTools {
             &crate_path.canonicalize()?,
             &out_path.canonicalize()?,
             &[
+                "-Zjson-target-spec",
+                "-Zbuild-std=core,alloc",
                 "rustc",
                 "--crate-type=staticlib",
-                "-Z",
-                "build-std=core,alloc",
                 "--target",
                 &target_json,
                 "--release",

@@ -7,4 +7,4 @@ entry = "0xeeee"
 std = "0x1"
 
 [dependencies]
-MoveStdlib = { git = "https://github.com/eigerco/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "main", addr_subst = { "std" = "0x1" } }
+MoveStdlib = { git = "https://github.com/eigerco/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "main" }
