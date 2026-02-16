@@ -125,3 +125,92 @@ extern "C" {
 extern "C" {
     pub(crate) fn chain_id_internal() -> u32;
 }
+
+// --- multi_ed25519 host functions ---
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn multi_ed25519_public_key_validate(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn multi_ed25519_public_key_validate_v2(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn multi_ed25519_signature_verify_strict(
+        sig: *const MoveByteVector,
+        pk: *const MoveByteVector,
+        msg: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn multi_ed25519_sign(
+        sk: *const MoveByteVector,
+        msg: *const MoveByteVector,
+    ) -> u32;
+}
+
+// --- bls12381 host functions ---
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_validate_pubkey(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_signature_subgroup_check(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_verify_normal_signature(
+        sig: *const MoveByteVector,
+        pk: *const MoveByteVector,
+        msg: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_verify_multisignature(
+        sig: *const MoveByteVector,
+        pk: *const MoveByteVector,
+        msg: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_verify_proof_of_possession(
+        pk: *const MoveByteVector,
+        pop: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_verify_signature_share(
+        sig: *const MoveByteVector,
+        pk: *const MoveByteVector,
+        msg: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_sign(
+        sk: *const MoveByteVector,
+        msg: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_generate_proof_of_possession(sk: *const MoveByteVector) -> u32;
+}

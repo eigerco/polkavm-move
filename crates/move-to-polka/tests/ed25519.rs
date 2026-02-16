@@ -284,3 +284,9 @@ pub fn test_secp256k1_ecdsa_recover_wrong_id() -> anyhow::Result<()> {
     Ok(())
 }
 
+// NOTE: Multi-Ed25519 and BLS12-381 Move-level integration tests are skipped due to a
+// monomorphization bug in the Move→LLVM translator: importing these modules causes
+// option::some instantiations for structurally-identical types to collide (same hash
+// for different type parameters). The crypto implementations are verified through
+// Rust unit tests in crypto::tests.
+

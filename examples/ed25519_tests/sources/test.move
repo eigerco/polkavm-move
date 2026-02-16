@@ -36,6 +36,12 @@ module 0xa002::ed25519_tests {
     }
 }
 
+// NOTE: multi_ed25519 and bls12381 Move-level integration tests are skipped due to a
+// monomorphization bug in the Move→LLVM translator: importing these modules causes
+// option::some instantiations for structurally-identical types to collide (same hash
+// for different type parameters). The crypto implementations are verified through
+// Rust unit tests in crypto::tests.
+
 // Minimal test: a simple native function returning bool (non-tuple)
 module 0xa002::debug_test {
     native fun debug_return_true(): bool;

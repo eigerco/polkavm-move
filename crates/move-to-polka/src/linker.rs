@@ -498,6 +498,159 @@ pub fn create_instance(
         },
     )?;
 
+    // --- multi_ed25519 host functions ---
+
+    linker.define_typed(
+        "multi_ed25519_public_key_validate",
+        |caller: Caller<Runtime>, ptr_to_buf: u32| {
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
+            let valid = crypto::multi_ed25519_public_key_validate(&bytes);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed(
+        "multi_ed25519_public_key_validate_v2",
+        |caller: Caller<Runtime>, ptr_to_buf: u32| {
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
+            let valid = crypto::multi_ed25519_public_key_validate_v2(&bytes);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed(
+        "multi_ed25519_signature_verify_strict",
+        |caller: Caller<Runtime>,
+         ptr_to_sig: u32,
+         ptr_to_pk: u32,
+         ptr_to_msg: u32| {
+            let instance = caller.instance;
+            let sig = from_move_byte_vector(instance, ptr_to_sig)?;
+            let pk = from_move_byte_vector(instance, ptr_to_pk)?;
+            let msg = from_move_byte_vector(instance, ptr_to_msg)?;
+            let valid = crypto::multi_ed25519_signature_verify_strict(&sig, &pk, &msg);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed(
+        "multi_ed25519_sign",
+        |caller: Caller<Runtime>, ptr_to_sk: u32, ptr_to_msg: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let sk = from_move_byte_vector(instance, ptr_to_sk)?;
+            let msg = from_move_byte_vector(instance, ptr_to_msg)?;
+            let sig = crypto::multi_ed25519_sign(&sk, &msg);
+            let address = to_move_byte_vector(instance, &mut runtime.allocator, sig)?;
+            Result::<u32, ProgramError>::Ok(address)
+        },
+    )?;
+
+    // --- bls12381 host functions ---
+
+    linker.define_typed(
+        "bls12381_validate_pubkey",
+        |caller: Caller<Runtime>, ptr_to_buf: u32| {
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
+            let valid = crypto::bls12381_validate_pubkey(&bytes);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed(
+        "bls12381_signature_subgroup_check",
+        |caller: Caller<Runtime>, ptr_to_buf: u32| {
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_buf)?;
+            let valid = crypto::bls12381_signature_subgroup_check(&bytes);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed(
+        "bls12381_verify_normal_signature",
+        |caller: Caller<Runtime>,
+         ptr_to_sig: u32,
+         ptr_to_pk: u32,
+         ptr_to_msg: u32| {
+            let instance = caller.instance;
+            let sig = from_move_byte_vector(instance, ptr_to_sig)?;
+            let pk = from_move_byte_vector(instance, ptr_to_pk)?;
+            let msg = from_move_byte_vector(instance, ptr_to_msg)?;
+            let valid = crypto::bls12381_verify_normal_signature(&sig, &pk, &msg);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed(
+        "bls12381_verify_multisignature",
+        |caller: Caller<Runtime>,
+         ptr_to_sig: u32,
+         ptr_to_pk: u32,
+         ptr_to_msg: u32| {
+            let instance = caller.instance;
+            let sig = from_move_byte_vector(instance, ptr_to_sig)?;
+            let pk = from_move_byte_vector(instance, ptr_to_pk)?;
+            let msg = from_move_byte_vector(instance, ptr_to_msg)?;
+            let valid = crypto::bls12381_verify_multisignature(&sig, &pk, &msg);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed(
+        "bls12381_verify_proof_of_possession",
+        |caller: Caller<Runtime>, ptr_to_pk: u32, ptr_to_pop: u32| {
+            let instance = caller.instance;
+            let pk = from_move_byte_vector(instance, ptr_to_pk)?;
+            let pop = from_move_byte_vector(instance, ptr_to_pop)?;
+            let valid = crypto::bls12381_verify_proof_of_possession(&pk, &pop);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed(
+        "bls12381_verify_signature_share",
+        |caller: Caller<Runtime>,
+         ptr_to_sig: u32,
+         ptr_to_pk: u32,
+         ptr_to_msg: u32| {
+            let instance = caller.instance;
+            let sig = from_move_byte_vector(instance, ptr_to_sig)?;
+            let pk = from_move_byte_vector(instance, ptr_to_pk)?;
+            let msg = from_move_byte_vector(instance, ptr_to_msg)?;
+            let valid = crypto::bls12381_verify_signature_share(&sig, &pk, &msg);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed(
+        "bls12381_sign",
+        |caller: Caller<Runtime>, ptr_to_sk: u32, ptr_to_msg: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let sk = from_move_byte_vector(instance, ptr_to_sk)?;
+            let msg = from_move_byte_vector(instance, ptr_to_msg)?;
+            let sig = crypto::bls12381_sign(&sk, &msg);
+            let address = to_move_byte_vector(instance, &mut runtime.allocator, sig)?;
+            Result::<u32, ProgramError>::Ok(address)
+        },
+    )?;
+
+    linker.define_typed(
+        "bls12381_generate_proof_of_possession",
+        |caller: Caller<Runtime>, ptr_to_sk: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let sk = from_move_byte_vector(instance, ptr_to_sk)?;
+            let pop = crypto::bls12381_generate_proof_of_possession(&sk);
+            let address = to_move_byte_vector(instance, &mut runtime.allocator, pop)?;
+            Result::<u32, ProgramError>::Ok(address)
+        },
+    )?;
+
     // --- secp256k1 host functions ---
 
     linker.define_typed(

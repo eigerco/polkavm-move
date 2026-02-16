@@ -498,6 +498,111 @@ unsafe extern "C" fn ed25519_sign_internal(
     *mv_ptr
 }
 
+// --- multi_ed25519 native functions ---
+
+#[export_name = "move_native_multi_ed25519_public_key_validate_internal"]
+unsafe extern "C" fn multi_ed25519_public_key_validate_internal(
+    bytes: *const MoveByteVector,
+) -> bool {
+    imports::multi_ed25519_public_key_validate(bytes) != 0
+}
+
+#[export_name = "move_native_multi_ed25519_public_key_validate_v2_internal"]
+unsafe extern "C" fn multi_ed25519_public_key_validate_v2_internal(
+    bytes: *const MoveByteVector,
+) -> bool {
+    imports::multi_ed25519_public_key_validate_v2(bytes) != 0
+}
+
+#[export_name = "move_native_multi_ed25519_signature_verify_strict_internal"]
+unsafe extern "C" fn multi_ed25519_signature_verify_strict_internal(
+    sig: *const MoveByteVector,
+    pk: *const MoveByteVector,
+    msg: *const MoveByteVector,
+) -> bool {
+    imports::multi_ed25519_signature_verify_strict(sig, pk, msg) != 0
+}
+
+#[export_name = "move_native_multi_ed25519_sign_internal"]
+unsafe extern "C" fn multi_ed25519_sign_internal(
+    sk: *const MoveByteVector,
+    msg: *const MoveByteVector,
+) -> MoveByteVector {
+    let address = imports::multi_ed25519_sign(sk, msg);
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
+}
+
+// --- bls12381 native functions ---
+
+#[export_name = "move_native_bls12381_validate_pubkey_internal"]
+unsafe extern "C" fn bls12381_validate_pubkey_internal(
+    bytes: *const MoveByteVector,
+) -> bool {
+    imports::bls12381_validate_pubkey(bytes) != 0
+}
+
+#[export_name = "move_native_bls12381_signature_subgroup_check_internal"]
+unsafe extern "C" fn bls12381_signature_subgroup_check_internal(
+    bytes: *const MoveByteVector,
+) -> bool {
+    imports::bls12381_signature_subgroup_check(bytes) != 0
+}
+
+#[export_name = "move_native_bls12381_verify_normal_signature_internal"]
+unsafe extern "C" fn bls12381_verify_normal_signature_internal(
+    sig: *const MoveByteVector,
+    pk: *const MoveByteVector,
+    msg: *const MoveByteVector,
+) -> bool {
+    imports::bls12381_verify_normal_signature(sig, pk, msg) != 0
+}
+
+#[export_name = "move_native_bls12381_verify_multisignature_internal"]
+unsafe extern "C" fn bls12381_verify_multisignature_internal(
+    sig: *const MoveByteVector,
+    pk: *const MoveByteVector,
+    msg: *const MoveByteVector,
+) -> bool {
+    imports::bls12381_verify_multisignature(sig, pk, msg) != 0
+}
+
+#[export_name = "move_native_bls12381_verify_proof_of_possession_internal"]
+unsafe extern "C" fn bls12381_verify_proof_of_possession_internal(
+    pk: *const MoveByteVector,
+    pop: *const MoveByteVector,
+) -> bool {
+    imports::bls12381_verify_proof_of_possession(pk, pop) != 0
+}
+
+#[export_name = "move_native_bls12381_verify_signature_share_internal"]
+unsafe extern "C" fn bls12381_verify_signature_share_internal(
+    sig: *const MoveByteVector,
+    pk: *const MoveByteVector,
+    msg: *const MoveByteVector,
+) -> bool {
+    imports::bls12381_verify_signature_share(sig, pk, msg) != 0
+}
+
+#[export_name = "move_native_bls12381_sign_internal"]
+unsafe extern "C" fn bls12381_sign_internal(
+    sk: *const MoveByteVector,
+    msg: *const MoveByteVector,
+) -> MoveByteVector {
+    let address = imports::bls12381_sign(sk, msg);
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
+}
+
+#[export_name = "move_native_bls12381_generate_proof_of_possession_internal"]
+unsafe extern "C" fn bls12381_generate_proof_of_possession_internal(
+    sk: *const MoveByteVector,
+) -> MoveByteVector {
+    let address = imports::bls12381_generate_proof_of_possession(sk);
+    let mv_ptr = address as *const MoveByteVector;
+    *mv_ptr
+}
+
 // --- debug native functions ---
 
 #[export_name = "move_native_debug_test_debug_return_true"]
