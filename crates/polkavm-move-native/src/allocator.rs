@@ -18,13 +18,12 @@ impl Default for MemAllocator {
 }
 
 impl MemAllocator {
-    /// Initialize the memory allocator with the module's auxiliary data memory map.
-    /// This must be called after the module is loaded and before any memory operations.
-    /// Guest memory is allocated in the auxiliary data memory region defined in the module.
+    /// Initialize the memory allocator using the module's heap region.
+    /// The heap must be grown via `instance.sbrk(size)` before allocating.
     pub fn init(memory_map: &MemoryMap) -> Self {
         Self {
-            base: memory_map.aux_data_address(),
-            size: memory_map.aux_data_size(),
+            base: memory_map.heap_base(),
+            size: memory_map.max_heap_size(),
             offset: 0,
         }
     }
@@ -41,7 +40,7 @@ impl MemAllocator {
         self.base
     }
 
-    /// Allocate guest memory in the auxiliary data region.
+    /// Allocate guest memory in the heap region.
     pub fn alloc(&mut self, size: usize, align: usize) -> Result<u32, MemoryAccessError> {
         let align = align.max(1);
         let align = u32::try_from(align).map_err(|_| MemoryAccessError::OutOfRangeAccess {

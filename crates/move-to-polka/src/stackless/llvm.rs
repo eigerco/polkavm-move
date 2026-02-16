@@ -896,6 +896,24 @@ impl Builder {
         unsafe { AnyValue(LLVMBuildExtractValue(self.0, agg_val.0, index, name.cstr())) }
     }
 
+    pub fn build_insert_value(
+        &self,
+        agg_val: AnyValue,
+        elt_val: AnyValue,
+        index: u32,
+        name: &str,
+    ) -> AnyValue {
+        unsafe {
+            AnyValue(LLVMBuildInsertValue(
+                self.0,
+                agg_val.0,
+                elt_val.0,
+                index,
+                name.cstr(),
+            ))
+        }
+    }
+
     // Build call to an intrinsic (use the 'types' parameter for overloaded intrinsics).
     pub fn build_intrinsic_call(
         &self,

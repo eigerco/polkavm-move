@@ -31,7 +31,9 @@ macro_rules! heapless_format {
 #[export_name = "move_rt_abort"]
 unsafe extern "C" fn move_rt_abort(code: u64) {
     let mut beneficiary = [0u8; 20];
-    beneficiary[0] = code as u8;
+    // Write full u64 abort code (little-endian) into first 8 bytes
+    let bytes = code.to_le_bytes();
+    beneficiary[..8].copy_from_slice(&bytes);
     imports::terminate(beneficiary.as_ptr() as *const [u8; 20]);
 }
 
@@ -473,17 +475,17 @@ unsafe extern "C" fn ed25519_signature_verify_strict_internal(
     imports::ed25519_signature_verify_strict(sig, pk, msg) != 0
 }
 
-#[repr(C)]
-struct KeyPairResult {
-    sk: MoveByteVector,
-    pk: MoveByteVector,
-}
-
 #[export_name = "move_native_ed25519_generate_keys_internal"]
-unsafe extern "C" fn ed25519_generate_keys_internal() -> KeyPairResult {
+unsafe extern "C" fn ed25519_generate_keys_internal(
+    out_sk: *mut MoveByteVector,
+) -> MoveByteVector {
     let address = imports::ed25519_generate_keys();
-    let result_ptr = address as *const KeyPairResult;
-    ptr::read(result_ptr)
+    // Write first vector (sk) to caller's alloca via pointer
+    let sk_src = address as *const MoveByteVector;
+    ptr::write(out_sk, ptr::read(sk_src));
+    // Return second vector (pk) in register (via sret, like sip_hash)
+    let pk_src = (address as *const u8).add(24) as *const MoveByteVector;
+    ptr::read(pk_src)
 }
 
 #[export_name = "move_native_ed25519_sign_internal"]
@@ -496,23 +498,52 @@ unsafe extern "C" fn ed25519_sign_internal(
     *mv_ptr
 }
 
-// --- secp256k1 native functions ---
+// --- debug native functions ---
 
-#[repr(C)]
-struct EcdsaRecoverResult {
-    bytes: MoveByteVector,
-    success: bool,
+#[export_name = "move_native_debug_test_debug_return_true"]
+unsafe extern "C" fn debug_return_true() -> bool {
+    true
 }
+
+#[export_name = "move_native_debug_test_debug_return_tuple"]
+unsafe extern "C" fn debug_return_tuple(out_val: *mut u64) -> bool {
+    ptr::write(out_val, 42);
+    true
+}
+
+#[export_name = "move_native_debug_test_debug_return_vec_bool"]
+unsafe extern "C" fn debug_return_vec_bool(out_vec: *mut MoveByteVector) -> bool {
+    ptr::write(out_vec, MoveByteVector { ptr: ptr::null_mut(), capacity: 0, length: 0 });
+    true
+}
+
+#[export_name = "move_native_debug_test_debug_vec_args_tuple"]
+unsafe extern "C" fn debug_vec_args_tuple(
+    _msg: *const MoveByteVector,
+    _id: u8,
+    _sig: *const MoveByteVector,
+    out_vec: *mut MoveByteVector,
+) -> bool {
+    ptr::write(out_vec, MoveByteVector { ptr: ptr::null_mut(), capacity: 0, length: 0 });
+    true
+}
+
+// --- secp256k1 native functions ---
 
 #[export_name = "move_native_secp256k1_ecdsa_recover_internal"]
 unsafe extern "C" fn secp256k1_ecdsa_recover_internal(
     msg: *const MoveByteVector,
     recovery_id: u8,
     sig: *const MoveByteVector,
-) -> EcdsaRecoverResult {
-    let address = imports::secp256k1_ecdsa_recover(msg, recovery_id as u32, sig);
-    let result_ptr = address as *const EcdsaRecoverResult;
-    ptr::read(result_ptr)
+    out_pk: *mut MoveByteVector,
+) -> bool {
+    let result_addr = imports::secp256k1_ecdsa_recover(msg, recovery_id as u32, sig);
+    // Result struct on heap: { pk: MoveByteVector (24 bytes), success: u8 }
+    let result_ptr = result_addr as *const u8;
+    let pk_vec = *(result_ptr as *const MoveByteVector);
+    ptr::write(out_pk, pk_vec);
+    let success = *result_ptr.add(24);
+    success != 0
 }
 
 // --- type_info native functions ---

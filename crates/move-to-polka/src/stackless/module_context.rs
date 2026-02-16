@@ -304,6 +304,10 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         debug!(target: "structs", "translating struct {} as {}", s_env.struct_raw_type_name(tyvec), ll_name);
         // Visit each field in this struct, collecting field types.
         let mut ll_field_tys = Vec::with_capacity(s_env.get_field_count() + 1);
+        // Enum types get an i64 discriminant tag as their first field.
+        if s_env.has_variants() {
+            ll_field_tys.push(self.llvm_cx.int_type(64));
+        }
         for fld_env in s_env.get_fields() {
             debug!(target: "structs", "translating field {:?}", &fld_env.get_type());
             if let mty::Type::Struct(_m, _s, _tys) = &fld_env.get_type() {
@@ -757,8 +761,19 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             let ll_fnty = {
                 // Generic return values are passed through a final return pointer arg.
                 let mty0 = &&fn_data.result_type;
+                let is_tuple_return =
+                    matches!(&fn_data.result_type, mty::Type::Tuple(ts) if ts.len() > 1);
                 let (ll_rty, ll_byref_rty) = if mty0.is_type_parameter() {
                     (llcx.void_type(), Some(llcx.ptr_type()))
+                } else if is_tuple_return {
+                    // Tuple returns: return the LAST field in a register,
+                    // pass pointers for preceding fields as extra args.
+                    if let mty::Type::Tuple(ts) = &fn_data.result_type {
+                        let last_ty = self.to_llvm_type(ts.last().unwrap(), &[]).unwrap();
+                        (last_ty, None)
+                    } else {
+                        (self.to_llvm_type(mty0, &[]).unwrap(), None)
+                    }
                 } else {
                     (self.to_llvm_type(mty0, &[]).unwrap(), None)
                 };
@@ -780,9 +795,23 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     }
                 });
 
+                // Tuple returns: pass pointers for all fields except the last.
+                // The last field is returned in a register.
+                let ll_tuple_out_ptrs: Vec<llvm::Type> = if is_tuple_return {
+                    if let mty::Type::Tuple(ts) = &fn_data.result_type {
+                        // One ptr for each field except the last
+                        std::iter::repeat_n(llcx.ptr_type(), ts.len() - 1).collect()
+                    } else {
+                        vec![]
+                    }
+                } else {
+                    vec![]
+                };
+
                 let all_ll_parms = ll_tydesc_parms
                     .chain(ll_parm_tys)
                     .chain(ll_byref_rty)
+                    .chain(ll_tuple_out_ptrs)
                     .collect::<Vec<_>>();
 
                 llvm::FunctionType::new(ll_rty, &all_ll_parms)

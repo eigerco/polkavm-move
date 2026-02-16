@@ -102,4 +102,42 @@ mod tests {
         // Wrong message should fail
         assert!(!ed25519_signature_verify_strict(&sig, &pk_bytes, b"wrong"));
     }
+
+    #[test]
+    fn test_secp256k1_generate_test_vector() {
+        use k256::ecdsa::{signature::hazmat::PrehashSigner, SigningKey as K256SigningKey};
+        use sha2::Digest;
+
+        // Generate a deterministic key from a known seed
+        let sk_bytes =
+            hex::decode("4c0883a69102937d6231471b5dbb6204fe512961708279f78a9b89a0e5a58d38")
+                .unwrap();
+        let signing_key = K256SigningKey::from_slice(&sk_bytes).unwrap();
+        let verifying_key = signing_key.verifying_key();
+        let encoded = verifying_key.to_encoded_point(false);
+        let pk_uncompressed = &encoded.as_bytes()[1..]; // strip 0x04 prefix
+
+        // Create a message and hash it (ecdsa_recover expects pre-hashed message)
+        let msg = b"test secp256k1 recovery";
+        let msg_hash = sha2::Sha256::digest(msg);
+
+        // Sign with recovery
+        let (signature, recovery_id) = signing_key
+            .sign_prehash_recoverable(msg_hash.as_slice())
+            .unwrap();
+
+        let sig_bytes = signature.to_bytes();
+        let rec_id = recovery_id.to_byte();
+
+        println!("msg_hash: {}", hex::encode(msg_hash));
+        println!("sig: {}", hex::encode(sig_bytes));
+        println!("recovery_id: {}", rec_id);
+        println!("pk (64 bytes): {}", hex::encode(pk_uncompressed));
+
+        // Verify recovery works
+        let (recovered_pk, success) =
+            secp256k1_ecdsa_recover(msg_hash.as_slice(), rec_id, sig_bytes.as_slice());
+        assert!(success);
+        assert_eq!(recovered_pk, pk_uncompressed);
+    }
 }

@@ -213,6 +213,44 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         self.env.module_env.env
     }
 
+    /// For an enum struct, compute the LLVM struct field indices for a variant's fields.
+    /// Enum structs have an i64 tag at index 0, followed by all fields from get_fields().
+    /// Returns the LLVM indices (1-based due to the tag) for the given variant's fields.
+    fn variant_field_llvm_indices(
+        struct_env: &mm::StructEnv<'_>,
+        variant_sym: move_model::symbol::Symbol,
+    ) -> Vec<usize> {
+        let all_fields: Vec<_> = struct_env.get_fields().collect();
+        let variant_fields: Vec<_> = struct_env.get_fields_of_variant(variant_sym).collect();
+        variant_fields
+            .iter()
+            .map(|vf| {
+                let pos = all_fields
+                    .iter()
+                    .position(|gf| gf.get_name() == vf.get_name())
+                    .expect("variant field not found in global field list");
+                pos + 1 // +1 for the enum discriminant tag at index 0
+            })
+            .collect()
+    }
+
+    /// Compute the LLVM struct field index for a specific variant field by offset.
+    fn compute_variant_field_llvm_index(
+        struct_env: &mm::StructEnv<'_>,
+        variant_sym: move_model::symbol::Symbol,
+        field_offset: usize,
+    ) -> usize {
+        let target = struct_env
+            .get_field_by_offset_optional_variant(Some(variant_sym), field_offset);
+        let target_name = target.get_name();
+        let all_fields: Vec<_> = struct_env.get_fields().collect();
+        let pos = all_fields
+            .iter()
+            .position(|gf| gf.get_name() == target_name)
+            .expect("variant field not found in global field list");
+        pos + 1 // +1 for the enum discriminant tag at index 0
+    }
+
     pub fn translate(mut self) {
         let fn_data = StacklessBytecodeGenerator::new(&self.env).generate_function();
         let func_target =
@@ -1651,12 +1689,154 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             | Operation::Uninit
             | Operation::Havoc(_)
             | Operation::Stop => {}
-            // Enum variant operations are not yet supported; silently skip.
-            // Functions using these won't work at runtime but won't panic at compile time.
-            Operation::TestVariant(_, _, _, _)
-            | Operation::PackVariant(_, _, _, _)
-            | Operation::UnpackVariant(_, _, _, _)
-            | Operation::BorrowVariantField(_, _, _, _, _) => {}
+            Operation::PackVariant(mod_id, struct_id, variant_sym, types) => {
+                let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
+                let struct_env = self
+                    .get_global_env()
+                    .get_module(*mod_id)
+                    .into_struct(*struct_id);
+                let variant_idx = struct_env
+                    .get_variant_idx(*variant_sym)
+                    .expect("variant not found");
+                let struct_name = struct_env.ll_struct_name_from_raw_name(&types);
+                let stype = self
+                    .module_cx
+                    .llvm_cx
+                    .named_struct_type(&struct_name)
+                    .expect("no struct type");
+
+                assert_eq!(dst.len(), 1);
+                let variant_field_count = struct_env
+                    .get_fields_of_variant(*variant_sym)
+                    .count();
+                assert_eq!(src.len(), variant_field_count);
+
+                // Build the enum struct: { i64 tag, fields... }
+                // Start with zeroinitializer so unused variant fields are zeroed.
+                let mut agg_val =
+                    Constant::get_const_null(stype.as_any_type()).as_any_value();
+
+                // Insert tag at index 0.
+                let tag_ty = self.module_cx.llvm_cx.int_type(64);
+                let tag_val = Constant::const_int(tag_ty, variant_idx as u64, 0);
+                agg_val =
+                    builder.build_insert_value(agg_val, tag_val.as_any_value(), 0, "pack_tag");
+
+                // Insert each variant field at its LLVM struct index.
+                let llvm_indices =
+                    Self::variant_field_llvm_indices(&struct_env, *variant_sym);
+                for (src_i, llvm_idx) in llvm_indices.iter().enumerate() {
+                    let loaded = builder.load_alloca(
+                        self.locals[src[src_i]].llval,
+                        self.locals[src[src_i]].llty,
+                    );
+                    agg_val = builder.build_insert_value(
+                        agg_val,
+                        loaded,
+                        *llvm_idx as u32,
+                        &format!("pv_insert_{src_i}"),
+                    );
+                }
+                builder.build_store(agg_val, self.locals[dst[0]].llval);
+            }
+            Operation::TestVariant(mod_id, struct_id, variant_sym, types) => {
+                let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
+                let struct_env = self
+                    .get_global_env()
+                    .get_module(*mod_id)
+                    .into_struct(*struct_id);
+                let variant_idx = struct_env
+                    .get_variant_idx(*variant_sym)
+                    .expect("variant not found");
+                let struct_name = struct_env.ll_struct_name_from_raw_name(&types);
+                let stype = self
+                    .module_cx
+                    .llvm_cx
+                    .named_struct_type(&struct_name)
+                    .expect("no struct type");
+
+                assert_eq!(src.len(), 1);
+                assert_eq!(dst.len(), 1);
+
+                // Load the enum struct, extract tag at index 0, compare with variant_idx.
+                let src_val =
+                    builder.load_alloca(self.locals[src[0]].llval, stype.as_any_type());
+                let tag = builder.build_extract_value(src_val, 0, "tv_tag");
+                let tag_ty = self.module_cx.llvm_cx.int_type(64);
+                let expected = Constant::const_int(tag_ty, variant_idx as u64, 0);
+                let cmp = builder.build_compare(
+                    llvm::LLVMIntPredicate::LLVMIntEQ,
+                    tag,
+                    expected.as_any_value(),
+                    "tv_cmp",
+                );
+                builder.build_store(cmp, self.locals[dst[0]].llval);
+            }
+            Operation::UnpackVariant(mod_id, struct_id, variant_sym, types) => {
+                let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
+                let struct_env = self
+                    .get_global_env()
+                    .get_module(*mod_id)
+                    .into_struct(*struct_id);
+                let struct_name = struct_env.ll_struct_name_from_raw_name(&types);
+                let stype = self
+                    .module_cx
+                    .llvm_cx
+                    .named_struct_type(&struct_name)
+                    .expect("no struct type");
+
+                assert_eq!(src.len(), 1);
+                let variant_field_count = struct_env
+                    .get_fields_of_variant(*variant_sym)
+                    .count();
+                assert_eq!(dst.len(), variant_field_count);
+
+                // Load the enum struct and extract each variant field.
+                let src_val =
+                    builder.load_alloca(self.locals[src[0]].llval, stype.as_any_type());
+                let llvm_indices =
+                    Self::variant_field_llvm_indices(&struct_env, *variant_sym);
+                for (dst_i, llvm_idx) in llvm_indices.iter().enumerate() {
+                    let extracted = builder.build_extract_value(
+                        src_val,
+                        *llvm_idx as u32,
+                        &format!("uv_fld_{dst_i}"),
+                    );
+                    builder.build_store(extracted, self.locals[dst[dst_i]].llval);
+                }
+            }
+            Operation::BorrowVariantField(mod_id, struct_id, variants, types, offset) => {
+                let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
+                let struct_env = self
+                    .get_global_env()
+                    .get_module(*mod_id)
+                    .into_struct(*struct_id);
+                let struct_name = struct_env.ll_struct_name_from_raw_name(&types);
+                let stype = self
+                    .module_cx
+                    .llvm_cx
+                    .named_struct_type(&struct_name)
+                    .expect("no struct type");
+
+                assert_eq!(src.len(), 1);
+                assert_eq!(dst.len(), 1);
+
+                // Use the first variant to look up the field.
+                let variant_sym = &variants[0];
+                let llvm_idx = Self::compute_variant_field_llvm_index(
+                    &struct_env,
+                    *variant_sym,
+                    *offset,
+                );
+                // src is a reference (pointer) to the enum struct.
+                // GEP to the field and store the field pointer.
+                builder.field_ref_store(
+                    self.locals[src[0]].llval,
+                    self.locals[dst[0]].llval,
+                    stype,
+                    llvm_idx,
+                );
+            }
             _ => todo!("{op:?}"),
         }
     }
@@ -1733,15 +1913,17 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
 
         // Get information from the possibly-generic callee function declaration
         // in order to make calling-convention adjustments for generics.
-        let (callee_arg_types, return_val_is_generic) = {
+        let (callee_arg_types, return_val_is_generic, ret_type) = {
             let global_env = &self.env.module_env.env;
             let fn_id = fun_id.qualified(mod_id);
             let fn_env = global_env.get_function(fn_id);
             let arg_types = fn_env.get_parameter_types();
-            let ret_types = fn_env.get_result_type();
-            let return_val_is_generic = matches!(ret_types, mty::Type::TypeParameter(_));
-            (arg_types, return_val_is_generic)
+            let ret_type = fn_env.get_result_type();
+            let return_val_is_generic = matches!(&ret_type, mty::Type::TypeParameter(_));
+            (arg_types, return_val_is_generic, ret_type)
         };
+        let _return_val_is_tuple =
+            matches!(&ret_type, mty::Type::Tuple(ts) if ts.len() > 1);
 
         let typarams = typarams.into_iter().map(|llval| llval.as_any_value());
         let src = src_locals
@@ -1758,25 +1940,49 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                         .load_alloca(local.llval, local.llty),
                 }
             });
-        let byval_ret_ptr = if !return_val_is_generic {
-            None
-        } else {
+
+        let byval_ret_ptr = if return_val_is_generic {
             // By-value returns of generic types are done by
             // pointer, so pass the alloca where the return value
             // is going to be stored.
             Some(dst_locals[0].llval.as_any_value())
+        } else {
+            None
         };
-        let src = typarams.chain(src).chain(byval_ret_ptr).collect::<Vec<_>>();
 
-        if !return_val_is_generic {
+        // Tuple returns: pass pointers for all fields except the last.
+        // The last field is returned in a register; preceding fields are
+        // written by the callee through these pointer args.
+        let tuple_out_ptrs: Vec<llvm::AnyValue> = if _return_val_is_tuple {
+            dst_locals[..dst_locals.len() - 1]
+                .iter()
+                .map(|l| l.llval.as_any_value())
+                .collect()
+        } else {
+            vec![]
+        };
+
+        let src = typarams
+            .chain(src)
+            .chain(byval_ret_ptr)
+            .chain(tuple_out_ptrs)
+            .collect::<Vec<_>>();
+
+        if return_val_is_generic {
+            self.module_cx.llvm_builder.call(ll_fn, &src);
+        } else if _return_val_is_tuple {
+            // Tuple return: use call_store with only the last destination (bool).
+            // This matches the LLVM declaration which returns i1 (last field type).
+            let last = dst_locals.last().unwrap();
+            let dst = vec![(last.llty, last.llval)];
+            self.module_cx.llvm_builder.call_store(ll_fn, &src, &dst);
+        } else {
             let dst = dst_locals
                 .iter()
                 .map(|l| (l.llty, l.llval))
                 .collect::<Vec<_>>();
 
             self.module_cx.llvm_builder.call_store(ll_fn, &src, &dst);
-        } else {
-            self.module_cx.llvm_builder.call(ll_fn, &src);
         }
     }
 
@@ -2344,6 +2550,13 @@ pub fn write_object_file(
     outpath: &str,
 ) -> anyhow::Result<()> {
     llmod.verify();
+    // Dump LLVM IR for debugging
+    unsafe {
+        let ir_path = format!("{outpath}.ll");
+        let ir_path_c = std::ffi::CString::new(ir_path).unwrap();
+        let mut err: *mut libc::c_char = std::ptr::null_mut();
+        llvm_sys::core::LLVMPrintModuleToFile(llmod.0, ir_path_c.as_ptr(), &mut err);
+    }
     llmachine.emit_to_obj_file(&llmod, outpath)?;
     Ok(())
 }

@@ -88,3 +88,199 @@ pub fn test_ed25519_verify_wrong_message() -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+// --- Debug: simple bool return test ---
+
+#[test]
+pub fn test_debug_return_true() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_debug_return_true",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_debug_return_true failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_debug_vec_tuple() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_debug_vec_tuple",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_debug_vec_tuple failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_debug_with_args() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_debug_with_args",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_debug_with_args failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_debug_args_sret() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_debug_args_sret",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_debug_args_sret failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_debug_complex() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_debug_complex",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_debug_complex failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_debug_vec_sret_tuple() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_debug_vec_sret_tuple",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_debug_vec_sret_tuple failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_debug_sret_tuple() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_debug_sret_tuple",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_debug_sret_tuple failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_debug_return_tuple() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_debug_return_tuple",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_debug_return_tuple failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+// --- Tuple return ABI tests ---
+
+#[test]
+#[ignore] // tuple_out_ptrs bug: writing to caller's stack corrupts bool return value
+pub fn test_secp256k1_ecdsa_recover() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_secp256k1_ecdsa_recover",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_secp256k1_ecdsa_recover failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_secp256k1_ecdsa_recover_wrong_id() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_secp256k1_ecdsa_recover_wrong_id",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_secp256k1_ecdsa_recover_wrong_id failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+

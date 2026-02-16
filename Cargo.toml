@@ -23,8 +23,8 @@ default-members = [
 # Dependencies that should be kept in sync through the whole workspace
 [workspace.dependencies]
 bcs = "0.1"
-polkavm = "0.30"
-polkavm-linker = "0.30"
+polkavm = { version = "0.31", default-features = false }
+polkavm-linker = "0.31"
 
 
 [profile.bench]

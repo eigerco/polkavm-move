@@ -226,17 +226,15 @@ pub fn create_instance(
 ) -> Result<(Instance<Runtime, ProgramError>, Runtime), anyhow::Error> {
     // AUX segment is used to inject data into the guest. The guest allocates on the heap
     // using the LeakingAllocator.
-    const AUX_DATA_SIZE: u32 = 4 * 1024;
     let config = Config::from_env()?;
 
     let mut module_config = ModuleConfig::new();
     // enforce module loading fail if not all host functions are provided
     module_config.set_strict(true);
-    module_config.set_aux_data_size(AUX_DATA_SIZE);
 
     let engine = Engine::new(&config)?;
     let module = Module::from_blob(&engine, &module_config, blob.clone())?;
-    // Create a memory allocator for the module.
+    // Create a memory allocator for the module's heap region.
     let allocator = MemAllocator::init(module.memory_map());
     let storage = polkavm_move_native::storage::GlobalStorage::default();
     let runtime = Runtime {
@@ -326,7 +324,9 @@ pub fn create_instance(
             let instance = caller.instance;
             let beneficiary = copy_bytes_from_guest(instance, ptr_to_beneficiary, 20)
                 .expect("Failed to copy beneficiary address from guest");
-            guest_abort(instance, beneficiary[0] as u64)
+            // Read full u64 abort code from first 8 bytes (little-endian)
+            let code = u64::from_le_bytes(beneficiary[..8].try_into().unwrap());
+            guest_abort(instance, code)
         },
     )?;
 
@@ -512,18 +512,18 @@ pub fn create_instance(
             let sig = from_move_byte_vector(instance, ptr_to_sig)?;
             let (key_bytes, success) =
                 crypto::secp256k1_ecdsa_recover(&msg, recovery_id as u8, &sig);
+            // Create MoveByteVector for the key on the heap
             let vec_addr = to_move_byte_vector(instance, &mut runtime.allocator, key_bytes)?;
             let key_vec: MoveByteVector = copy_from_guest(instance, vec_addr)?;
-            // Build a result struct { bytes: MoveByteVector, success: bool }
-            // Use u8 for bool to ensure ABI compatibility
+            // Write result struct { pk: MoveByteVector, success: bool } to heap
             #[repr(C)]
             #[derive(Copy, Clone)]
             struct EcdsaRecoverResult {
-                bytes: MoveByteVector,
+                pk: MoveByteVector,
                 success: u8,
             }
             let result = EcdsaRecoverResult {
-                bytes: key_vec,
+                pk: key_vec,
                 success: success as u8,
             };
             let addr = copy_to_guest(instance, &mut runtime.allocator, &result)?;
@@ -540,17 +540,18 @@ pub fn create_instance(
 
     // Instantiate the module.
     let mut instance = instance_pre.instantiate()?;
-    // zero aux data
-    instance.zero_memory(
-        module.memory_map().aux_data_address(),
-        module.memory_map().aux_data_size(),
-    )?;
+    // Grow the heap so the allocator can write to it.
+    let heap_size = module.memory_map().max_heap_size();
+    instance
+        .sbrk(heap_size)
+        .map_err(|e| anyhow::anyhow!("sbrk failed: {e}"))?
+        .ok_or_else(|| anyhow::anyhow!("sbrk returned None"))?;
     debug!(
-        "Module loaded with RW data size: {}, RO data size: {}, aux data size: {}, heap start: {:x?}",
+        "Module loaded with RW data size: {}, RO data size: {}, heap base: {:x?}, heap size: {}",
         module.memory_map().rw_data_size(),
         module.memory_map().ro_data_size(),
-        module.memory_map().aux_data_size(),
         module.memory_map().heap_base(),
+        instance.heap_size(),
     );
     Ok((instance, runtime))
 }
@@ -842,7 +843,7 @@ fn hexdump(instance: &mut RawInstance) {
         .unwrap_or_else(|_| vec![]);
     print_mem(heap, HEAP_BASE as usize, " HEAP ");
     let address = instance.module().memory_map().aux_data_address();
-    let length = 100;
+    let length = 256;
     let aux = instance
         .read_memory(address, length)
         .unwrap_or_else(|_| vec![]);
