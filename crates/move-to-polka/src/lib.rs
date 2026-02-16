@@ -46,7 +46,7 @@ pub fn initialize_logger() {
     LOGGER_INIT.call_once(|| {
         use anstyle::{AnsiColor, Color};
         env_logger::Builder::new()
-            .filter_level(LevelFilter::Info)
+            .filter_level(LevelFilter::Warn)
             .parse_default_env()
             .format(|formatter, record| {
                 let level = record.level();
