@@ -8,5 +8,4 @@ aptos_std = "0x1"
 
 [dependencies]
 MoveStdlib = { git = "https://github.com/eigerco/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "main" }
-# AptosStdLib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib", rev = "aptos-release-v1.38", addr_subst = { "std" = "0x1" } }
-AptosStdLib = { git = "https://github.com/eigerco/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "main" }
+AptosStdlib = { git = "https://github.com/eigerco/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "main" }
