@@ -36,11 +36,35 @@ module 0xa002::ed25519_tests {
     }
 }
 
-// NOTE: multi_ed25519 and bls12381 Move-level integration tests are skipped due to a
-// monomorphization bug in the Move→LLVM translator: importing these modules causes
-// option::some instantiations for structurally-identical types to collide (same hash
-// for different type parameters). The crypto implementations are verified through
-// Rust unit tests in crypto::tests.
+// multi_ed25519 tests — exercises option::some<UnvalidatedPublicKey> monomorphization
+module 0xa002::multi_ed25519_tests {
+    use aptos_std::multi_ed25519;
+
+    // Test creating an unvalidated multi-ed25519 public key and deriving its auth key.
+    // A 1-of-1 multi-ed25519 key is just 32 bytes of public key + 1 byte threshold.
+    public entry fun test_multi_ed25519_auth_key(_account: &signer) {
+        // 32-byte ed25519 public key (RFC 8032 TEST 1) + 1 byte threshold (0x01)
+        let pk_bytes = x"d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a01";
+        let pk = multi_ed25519::new_unvalidated_public_key_from_bytes(pk_bytes);
+        let auth_key = multi_ed25519::unvalidated_public_key_to_authentication_key(&pk);
+        assert!(std::vector::length(&auth_key) == 32, 1);
+    }
+
+    // Test that we can extract the number of sub-public-keys from a multi-ed25519 key.
+    // This exercises option::some<u8> monomorphization alongside option::some<UnvalidatedPublicKey>.
+    public entry fun test_multi_ed25519_num_sub_pks(_account: &signer) {
+        let pk_bytes = x"d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a01";
+        let pk = multi_ed25519::new_unvalidated_public_key_from_bytes(pk_bytes);
+        // 1-of-1 key: should have exactly 1 sub-public-key
+        let num = multi_ed25519::unvalidated_public_key_num_sub_pks(&pk);
+        assert!(num == 1, 2);
+    }
+}
+
+// NOTE: bls12381 Move-level integration tests are skipped because the module
+// references unimplemented native functions (aggregate_pubkeys_internal, etc.)
+// that cause linker errors even when not called from tests. The bls12381 crypto
+// implementations are verified through Rust unit tests in crypto::tests.
 
 // Minimal test: a simple native function returning bool (non-tuple)
 module 0xa002::debug_test {

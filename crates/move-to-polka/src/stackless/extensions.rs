@@ -20,15 +20,16 @@ pub impl ModuleEnvExt for mm::ModuleEnv<'_> {
 
 #[extension_trait]
 pub impl FunctionEnvExt for mm::FunctionEnv<'_> {
-    fn llvm_symbol_name(&self, _tyvec: &[mty::Type]) -> String {
+    fn llvm_symbol_name(&self, tyvec: &[mty::Type]) -> String {
         let name = self.get_full_name_str();
         if name == "<SELF>::<SELF>" {
             // fixme move-model names script fns "<SELF>".
             // we might want to preserve the actual names
             "main".to_string()
-        } else {
-            // self.llvm_symbol_name_full(tyvec)
+        } else if tyvec.is_empty() {
             self.get_name_str()
+        } else {
+            self.llvm_symbol_name_full(tyvec)
         }
     }
 

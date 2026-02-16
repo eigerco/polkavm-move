@@ -284,9 +284,47 @@ pub fn test_secp256k1_ecdsa_recover_wrong_id() -> anyhow::Result<()> {
     Ok(())
 }
 
-// NOTE: Multi-Ed25519 and BLS12-381 Move-level integration tests are skipped due to a
-// monomorphization bug in the Move→LLVM translator: importing these modules causes
-// option::some instantiations for structurally-identical types to collide (same hash
-// for different type parameters). The crypto implementations are verified through
-// Rust unit tests in crypto::tests.
+// --- Multi-Ed25519 tests ---
+
+#[test]
+pub fn test_multi_ed25519_auth_key() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_multi_ed25519_auth_key",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_multi_ed25519_auth_key failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_multi_ed25519_num_sub_pks() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_multi_ed25519_num_sub_pks",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_multi_ed25519_num_sub_pks failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+// NOTE: BLS12-381 Move-level tests are skipped because the module references
+// unimplemented native functions (aggregate_pubkeys_internal, etc.) that cause
+// linker errors even when not called from tests.
 

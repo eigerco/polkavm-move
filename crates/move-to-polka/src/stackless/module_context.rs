@@ -49,6 +49,24 @@ pub struct ModuleContext<'mm: 'up, 'up> {
 }
 
 impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
+    /// Produce a type-aware key for fn_decls / fn_is_entry maps.
+    /// Non-generic functions use `get_full_name_str()` (e.g. "0x1::option::is_some").
+    /// Generic instantiations append the concrete type parameters
+    /// (e.g. "0x1::option::some<0x1::bls12381::PublicKey>") so that each
+    /// monomorphised instance gets its own declaration.
+    fn fn_decl_key(fn_env: &mm::FunctionEnv, tyvec: &[mty::Type]) -> String {
+        if tyvec.is_empty() {
+            fn_env.get_full_name_str()
+        } else {
+            let ctx = fn_env.get_type_display_ctx();
+            let types: Vec<String> = tyvec
+                .iter()
+                .map(|ty| format!("{}", ty.display(&ctx)))
+                .collect();
+            format!("{}<{}>", fn_env.get_full_name_str(), types.join(", "))
+        }
+    }
+
     pub fn translate(&mut self, exports: &mut Vec<String>) {
         let filename = self.env.get_source_path().to_str().expect("utf-8");
         self.llvm_module.set_source_file_name(filename);
@@ -488,7 +506,15 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             "Checking if {fn_name} exists in current module {:?}",
             mod_env.get_id()
         );
-        if self.fn_decls.contains_key(&curr_fn_env.get_full_name_str()) {
+        // Native functions are keyed by their unparameterized name (they don't need
+        // monomorphization — type descriptors are passed at runtime). Move functions
+        // need type-aware keys so each generic instantiation gets its own declaration.
+        let dedup_key = if curr_fn_env.is_native() {
+            curr_fn_env.get_full_name_str()
+        } else {
+            Self::fn_decl_key(curr_fn_env, &curr_type_vec)
+        };
+        if self.fn_decls.contains_key(&dedup_key) {
             debug!("{fn_name} Exists. Skipping");
             return;
         }
@@ -640,10 +666,10 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
         };
 
         ll_fn.as_gv().set_linkage(linkage);
-        debug!("Adding declared {ll_sym_name} to current module");
-        self.fn_decls.insert(fn_env.get_full_name_str(), ll_fn);
-        self.fn_is_entry
-            .insert(fn_env.get_full_name_str(), fn_env.is_entry());
+        let key = Self::fn_decl_key(fn_env, tyvec);
+        debug!("Adding declared {ll_sym_name} (key={key}) to current module");
+        self.fn_decls.insert(key.clone(), ll_fn);
+        self.fn_is_entry.insert(key, fn_env.is_entry());
     }
 
     /// Generate the call selector function.
@@ -838,15 +864,14 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             .env
             .get_module(qiid.module_id)
             .into_function(qiid.id);
+        let key = Self::fn_decl_key(&fn_env, &qiid.inst);
         debug!(
-            "Looking up move fn decl: {} in module {}",
+            "Looking up move fn decl: {} (key={key}) in module {}",
             fn_env.get_full_name_str(),
             fn_env.module_env.get_full_name_str()
         );
-        let sname = fn_env.get_full_name_str();
-        debug!("Looking up move fn decl: {sname}");
-        let decl = self.fn_decls.get(&sname);
-        assert!(decl.is_some(), "move fn decl not found: {sname}");
+        let decl = self.fn_decls.get(&key);
+        assert!(decl.is_some(), "move fn decl not found: {key}");
         *decl.unwrap()
     }
 
