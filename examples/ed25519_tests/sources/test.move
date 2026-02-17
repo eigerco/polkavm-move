@@ -245,6 +245,50 @@ module 0xa002::from_bcs_test {
     }
 }
 
+// bcs size tests
+module 0xa002::bcs_size_test {
+    use std::bcs;
+
+    struct FixedStruct has drop { a: u64, b: u64 }
+    struct NestedFixed has drop { inner: FixedStruct, flag: bool }
+
+    public entry fun test_serialized_size_primitives(_account: &signer) {
+        assert!(bcs::serialized_size(&true) == 1, 1);
+        assert!(bcs::serialized_size(&0u8) == 1, 2);
+        assert!(bcs::serialized_size(&0u64) == 8, 3);
+        assert!(bcs::serialized_size(&0u128) == 16, 4);
+        assert!(bcs::serialized_size(&@0x1) == 32, 5);
+    }
+
+    public entry fun test_serialized_size_matches_to_bytes(_account: &signer) {
+        let v: u64 = 42;
+        let bytes = bcs::to_bytes(&v);
+        assert!(bcs::serialized_size(&v) == std::vector::length(&bytes), 1);
+    }
+
+    public entry fun test_constant_serialized_size_primitives(_account: &signer) {
+        assert!(bcs::constant_serialized_size<bool>() == std::option::some(1), 1);
+        assert!(bcs::constant_serialized_size<u8>() == std::option::some(1), 2);
+        assert!(bcs::constant_serialized_size<u64>() == std::option::some(8), 3);
+        assert!(bcs::constant_serialized_size<u128>() == std::option::some(16), 4);
+        assert!(bcs::constant_serialized_size<address>() == std::option::some(32), 5);
+    }
+
+    public entry fun test_constant_serialized_size_variable(_account: &signer) {
+        // Vectors have variable size
+        assert!(bcs::constant_serialized_size<vector<u8>>() == std::option::none(), 1);
+        // Options (enums) have variable size
+        assert!(bcs::constant_serialized_size<std::option::Option<u64>>() == std::option::none(), 2);
+    }
+
+    public entry fun test_constant_serialized_size_structs(_account: &signer) {
+        // Struct with all constant-size fields
+        assert!(bcs::constant_serialized_size<FixedStruct>() == std::option::some(16), 1);
+        // Nested struct with all constant-size fields
+        assert!(bcs::constant_serialized_size<NestedFixed>() == std::option::some(17), 2);
+    }
+}
+
 // Minimal enum regression test: Option<T> is now an enum in Aptos stdlib
 module 0xa002::enum_test {
     fun make_some_u64(): std::option::Option<u64> {

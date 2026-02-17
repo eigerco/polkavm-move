@@ -392,6 +392,99 @@ pub fn test_from_bcs_bool() -> anyhow::Result<()> {
     Ok(())
 }
 
+// --- BCS size tests ---
+
+#[test]
+pub fn test_serialized_size_primitives() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_serialized_size_primitives", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_serialized_size_primitives failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_serialized_size_matches_to_bytes() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_serialized_size_matches_to_bytes",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_serialized_size_matches_to_bytes failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_constant_serialized_size_primitives() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_constant_serialized_size_primitives",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_constant_serialized_size_primitives failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_constant_serialized_size_variable() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_constant_serialized_size_variable",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_constant_serialized_size_variable failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_constant_serialized_size_structs() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_constant_serialized_size_structs",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_constant_serialized_size_structs failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
 // --- table tests ---
 
 #[test]

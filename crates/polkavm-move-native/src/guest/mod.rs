@@ -457,6 +457,71 @@ pub unsafe extern "C" fn to_bytes(type_v: &MoveType, v: &AnyValue) -> MoveByteVe
     crate::serialization::serialize(type_v, v)
 }
 
+#[export_name = "move_native_bcs_serialized_size"]
+pub unsafe extern "C" fn bcs_serialized_size(type_v: &MoveType, v: &AnyValue) -> u64 {
+    let bytes = crate::serialization::serialize(type_v, v);
+    bytes.length
+}
+
+/// Return type for constant_serialized_size matching Move's Option<u64> enum layout:
+/// { i64 discriminant (0=None, 1=Some), u64 value }
+#[repr(C)]
+pub struct MoveOptionU64 {
+    discriminant: i64,
+    value: u64,
+}
+
+/// Compute the constant BCS serialized size of a type (no value needed).
+/// Returns Option<u64>: Some(size) if constant, None if variable.
+unsafe fn constant_size_for_type(type_v: &MoveType) -> Option<usize> {
+    match type_v.type_desc {
+        TypeDesc::Bool | TypeDesc::U8 => Some(1),
+        TypeDesc::U16 => Some(2),
+        TypeDesc::U32 => Some(4),
+        TypeDesc::U64 => Some(8),
+        TypeDesc::U128 => Some(16),
+        TypeDesc::U256 => Some(32),
+        TypeDesc::Address => Some(32),
+        TypeDesc::Signer => None,
+        TypeDesc::Vector => None,
+        TypeDesc::Reference => None,
+        TypeDesc::Struct => {
+            let structinfo = &(*(type_v.type_info)).struct_;
+            let field_count = structinfo.field_array_len as usize;
+            if field_count == 0 {
+                return Some(0);
+            }
+            let fields = core::slice::from_raw_parts(structinfo.field_array_ptr, field_count);
+            // Detect enums: first field offset > 0 means there's a discriminant tag
+            if fields[0].offset > 0 {
+                return None;
+            }
+            let mut total = 0;
+            for field in fields {
+                match constant_size_for_type(&field.type_) {
+                    Some(sz) => total += sz,
+                    None => return None,
+                }
+            }
+            Some(total)
+        }
+    }
+}
+
+#[export_name = "move_native_bcs_constant_serialized_size"]
+pub unsafe extern "C" fn bcs_constant_serialized_size(type_v: &MoveType) -> MoveOptionU64 {
+    match constant_size_for_type(type_v) {
+        Some(size) => MoveOptionU64 {
+            discriminant: 1,
+            value: size as u64,
+        },
+        None => MoveOptionU64 {
+            discriminant: 0,
+            value: 0,
+        },
+    }
+}
+
 // --- ed25519 native functions ---
 
 #[export_name = "move_native_ed25519_public_key_validate_internal"]
@@ -713,7 +778,7 @@ pub unsafe extern "C" fn from_bcs_from_bytes(
 // --- type_info native functions ---
 
 #[repr(C)]
-struct MoveTypeInfoReturn {
+pub struct MoveTypeInfoReturn {
     account_address: MoveAddress,
     module_name: MoveByteVector,
     struct_name: MoveByteVector,
@@ -827,7 +892,8 @@ const TABLE_VALUE_ALIGN: usize = 8;
 
 #[inline]
 unsafe fn table_store() -> &'static mut alloc::vec::Vec<(u32, alloc::vec::Vec<TableEntry>)> {
-    TABLE_STORE.get_or_insert_with(alloc::vec::Vec::new)
+    let ptr = core::ptr::addr_of_mut!(TABLE_STORE);
+    (*ptr).get_or_insert_with(alloc::vec::Vec::new)
 }
 
 unsafe fn extract_handle_id(table_ptr: *const AnyValue) -> u32 {
@@ -841,8 +907,9 @@ unsafe fn serialize_key_to_vec(type_k: &MoveType, key: *const AnyValue) -> alloc
 
 #[export_name = "move_native_table_new_table_handle"]
 unsafe extern "C" fn table_new_table_handle(_type_k: &MoveType, _type_v: &MoveType) -> MoveAddress {
-    let handle_id = NEXT_TABLE_HANDLE;
-    NEXT_TABLE_HANDLE += 1;
+    let handle_ptr = core::ptr::addr_of_mut!(NEXT_TABLE_HANDLE);
+    let handle_id = *handle_ptr;
+    *handle_ptr += 1;
     table_store().push((handle_id, alloc::vec::Vec::new()));
     let mut addr = [0u8; ACCOUNT_ADDRESS_LENGTH];
     addr[..4].copy_from_slice(&handle_id.to_le_bytes());
