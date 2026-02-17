@@ -812,6 +812,244 @@ pub unsafe extern "C" fn type_info_type_of(type_t: &MoveType) -> MoveTypeInfoRet
     }
 }
 
+// --- table native functions ---
+
+struct TableEntry {
+    key_bytes: alloc::vec::Vec<u8>,
+    value_ptr: *mut u8,
+    value_size: usize,
+}
+
+static mut TABLE_STORE: Option<alloc::vec::Vec<(u32, alloc::vec::Vec<TableEntry>)>> = None;
+static mut NEXT_TABLE_HANDLE: u32 = 1;
+
+const TABLE_VALUE_ALIGN: usize = 8;
+
+#[inline]
+unsafe fn table_store() -> &'static mut alloc::vec::Vec<(u32, alloc::vec::Vec<TableEntry>)> {
+    TABLE_STORE.get_or_insert_with(alloc::vec::Vec::new)
+}
+
+unsafe fn extract_handle_id(table_ptr: *const AnyValue) -> u32 {
+    ptr::read_unaligned(table_ptr as *const u32)
+}
+
+unsafe fn serialize_key_to_vec(type_k: &MoveType, key: *const AnyValue) -> alloc::vec::Vec<u8> {
+    let mbv = crate::serialization::serialize(type_k, &*key);
+    mbv.into_rust_vec()
+}
+
+#[export_name = "move_native_table_new_table_handle"]
+unsafe extern "C" fn table_new_table_handle(_type_k: &MoveType, _type_v: &MoveType) -> MoveAddress {
+    let handle_id = NEXT_TABLE_HANDLE;
+    NEXT_TABLE_HANDLE += 1;
+    table_store().push((handle_id, alloc::vec::Vec::new()));
+    let mut addr = [0u8; ACCOUNT_ADDRESS_LENGTH];
+    addr[..4].copy_from_slice(&handle_id.to_le_bytes());
+    MoveAddress(addr)
+}
+
+#[export_name = "move_native_table_add_box"]
+unsafe extern "C" fn table_add_box(
+    type_k: &MoveType,
+    _type_v: &MoveType,
+    type_b: &MoveType,
+    table: *mut AnyValue,
+    key: *const AnyValue,
+    val: *const AnyValue,
+) {
+    let handle_id = extract_handle_id(table);
+    let key_bytes = serialize_key_to_vec(type_k, key);
+
+    let (_, entries) = match table_store().iter_mut().find(|(id, _)| *id == handle_id) {
+        Some(x) => x,
+        None => {
+            move_rt_abort(200); // add_box: table not found
+            return;
+        }
+    };
+
+    if entries.iter().any(|e| e.key_bytes == key_bytes) {
+        move_rt_abort(100); // EALREADY_EXISTS
+        return;
+    }
+
+    let value_size = size_of_move_type(type_b);
+    let layout = alloc::alloc::Layout::from_size_align(value_size, TABLE_VALUE_ALIGN)
+        .unwrap_or_else(|_| {
+            move_rt_abort(202);
+            core::hint::unreachable_unchecked()
+        });
+    let value_ptr = alloc::alloc::alloc(layout);
+    ptr::copy_nonoverlapping(val as *const u8, value_ptr, value_size);
+
+    entries.push(TableEntry {
+        key_bytes,
+        value_ptr,
+        value_size,
+    });
+}
+
+#[export_name = "move_native_table_borrow_box"]
+unsafe extern "C" fn table_borrow_box(
+    type_k: &MoveType,
+    _type_v: &MoveType,
+    _type_b: &MoveType,
+    table: *const AnyValue,
+    key: *const AnyValue,
+) -> *const AnyValue {
+    let handle_id = extract_handle_id(table);
+    let key_bytes = serialize_key_to_vec(type_k, key);
+
+    let (_, entries) = table_store()
+        .iter()
+        .find(|(id, _)| *id == handle_id)
+        .unwrap_or_else(|| {
+            move_rt_abort(201);
+            core::hint::unreachable_unchecked()
+        });
+
+    for entry in entries.iter() {
+        if entry.key_bytes == key_bytes {
+            return entry.value_ptr as *const AnyValue;
+        }
+    }
+
+    move_rt_abort(101); // ENOT_FOUND
+    core::hint::unreachable_unchecked()
+}
+
+#[export_name = "move_native_table_borrow_box_mut"]
+unsafe extern "C" fn table_borrow_box_mut(
+    type_k: &MoveType,
+    _type_v: &MoveType,
+    _type_b: &MoveType,
+    table: *mut AnyValue,
+    key: *const AnyValue,
+) -> *mut AnyValue {
+    let handle_id = extract_handle_id(table);
+    let key_bytes = serialize_key_to_vec(type_k, key);
+
+    let (_, entries) = table_store()
+        .iter()
+        .find(|(id, _)| *id == handle_id)
+        .unwrap_or_else(|| {
+            move_rt_abort(201);
+            core::hint::unreachable_unchecked()
+        });
+
+    for entry in entries.iter() {
+        if entry.key_bytes == key_bytes {
+            return entry.value_ptr as *mut AnyValue;
+        }
+    }
+
+    move_rt_abort(101); // ENOT_FOUND
+    core::hint::unreachable_unchecked()
+}
+
+#[export_name = "move_native_table_contains_box"]
+unsafe extern "C" fn table_contains_box(
+    type_k: &MoveType,
+    _type_v: &MoveType,
+    _type_b: &MoveType,
+    table: *const AnyValue,
+    key: *const AnyValue,
+) -> bool {
+    let handle_id = extract_handle_id(table);
+    let key_bytes = serialize_key_to_vec(type_k, key);
+
+    let (_, entries) = table_store()
+        .iter()
+        .find(|(id, _)| *id == handle_id)
+        .unwrap_or_else(|| {
+            move_rt_abort(201);
+            core::hint::unreachable_unchecked()
+        });
+
+    entries.iter().any(|e| e.key_bytes == key_bytes)
+}
+
+#[export_name = "move_native_table_remove_box"]
+unsafe extern "C" fn table_remove_box(
+    type_k: &MoveType,
+    _type_v: &MoveType,
+    _type_b: &MoveType,
+    table: *mut AnyValue,
+    key: *const AnyValue,
+    out: *mut AnyValue,
+) {
+    let handle_id = extract_handle_id(table);
+    let key_bytes = serialize_key_to_vec(type_k, key);
+
+    let (_, entries) = table_store()
+        .iter_mut()
+        .find(|(id, _)| *id == handle_id)
+        .unwrap_or_else(|| {
+            move_rt_abort(201);
+            core::hint::unreachable_unchecked()
+        });
+
+    let pos = entries.iter().position(|e| e.key_bytes == key_bytes);
+    match pos {
+        Some(i) => {
+            let entry = entries.remove(i);
+            ptr::copy_nonoverlapping(entry.value_ptr, out as *mut u8, entry.value_size);
+            let layout = alloc::alloc::Layout::from_size_align(entry.value_size, TABLE_VALUE_ALIGN)
+                .unwrap_or_else(|_| {
+                    move_rt_abort(202);
+                    core::hint::unreachable_unchecked()
+                });
+            alloc::alloc::dealloc(entry.value_ptr, layout);
+        }
+        None => {
+            move_rt_abort(101); // ENOT_FOUND
+        }
+    }
+}
+
+#[export_name = "move_native_table_destroy_empty_box"]
+unsafe extern "C" fn table_destroy_empty_box(
+    _type_k: &MoveType,
+    _type_v: &MoveType,
+    _type_b: &MoveType,
+    table: *const AnyValue,
+) {
+    let handle_id = extract_handle_id(table);
+
+    let store = table_store();
+    if let Some((_, entries)) = store.iter().find(|(id, _)| *id == handle_id) {
+        if !entries.is_empty() {
+            move_rt_abort(102); // ENOT_EMPTY
+        }
+    }
+}
+
+#[export_name = "move_native_table_drop_unchecked_box"]
+unsafe extern "C" fn table_drop_unchecked_box(
+    _type_k: &MoveType,
+    _type_v: &MoveType,
+    _type_b: &MoveType,
+    table: *const AnyValue,
+) {
+    let handle_id = extract_handle_id(table);
+    let store = table_store();
+    if let Some(pos) = store.iter().position(|(id, _)| *id == handle_id) {
+        let (_, entries) = store.remove(pos);
+        for entry in entries {
+            if entry.value_size > 0 {
+                let layout =
+                    alloc::alloc::Layout::from_size_align(entry.value_size, TABLE_VALUE_ALIGN)
+                        .unwrap_or_else(|_| {
+                            move_rt_abort(202);
+                            core::hint::unreachable_unchecked()
+                        });
+                alloc::alloc::dealloc(entry.value_ptr, layout);
+            }
+        }
+    }
+}
+
 // --- debug native functions ---
 
 #[export_name = "move_native_debug_test_debug_return_true"]

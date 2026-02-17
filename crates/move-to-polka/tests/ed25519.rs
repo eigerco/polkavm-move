@@ -392,6 +392,83 @@ pub fn test_from_bcs_bool() -> anyhow::Result<()> {
     Ok(())
 }
 
+// --- table tests ---
+
+#[test]
+pub fn test_table_add_and_borrow() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_table_add_and_borrow", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_table_add_and_borrow failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_table_contains() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_table_contains", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_table_contains failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_table_remove() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_table_remove", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_table_remove failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_table_borrow_mut() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_table_borrow_mut", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_table_borrow_mut failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_table_upsert() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_table_upsert", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_table_upsert failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
 // --- BLS12-381 aggregate tests ---
 
 #[test]

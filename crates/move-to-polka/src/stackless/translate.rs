@@ -1909,7 +1909,10 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             let fn_env = global_env.get_function(fn_id);
             let arg_types = fn_env.get_parameter_types();
             let ret_type = fn_env.get_result_type();
-            let return_val_is_generic = matches!(&ret_type, mty::Type::TypeParameter(_));
+            let return_val_is_generic = matches!(&ret_type, mty::Type::TypeParameter(_))
+                || (!ret_type.is_reference()
+                    && !ret_type.is_vector()
+                    && ModuleContext::type_has_type_params(&ret_type));
             (arg_types, return_val_is_generic, ret_type)
         };
         let _return_val_is_tuple = matches!(&ret_type, mty::Type::Tuple(ts) if ts.len() > 1);
@@ -1919,10 +1922,16 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
             .into_iter()
             .zip(callee_arg_types)
             .map(|(local, callee_arg_type)| {
-                // Pass generic values and vectors by their stack pointer
+                // Pass generic values and vectors by their stack pointer.
+                // Also pass structs with unresolved type params as pointers
+                // (matching the ptr_type declaration in declare_native_function).
                 match callee_arg_type {
-                    mty::Type::TypeParameter(_) => local.llval.as_any_value(),
-                    mty::Type::Vector(_) => local.llval.as_any_value(),
+                    mty::Type::TypeParameter(_) | mty::Type::Vector(_) => {
+                        local.llval.as_any_value()
+                    }
+                    ref t if !t.is_reference() && ModuleContext::type_has_type_params(t) => {
+                        local.llval.as_any_value()
+                    }
                     _ => self
                         .module_cx
                         .llvm_builder

@@ -319,6 +319,62 @@ module 0xa002::debug_test {
     }
 }
 
+// table tests — uses table_with_length which wraps table and provides destroy_empty
+module 0xa002::table_test {
+    use aptos_std::table_with_length as table;
+
+    public entry fun test_table_add_and_borrow(_account: &signer) {
+        let t = table::new<u64, u64>();
+        table::add(&mut t, 1, 100);
+        table::add(&mut t, 2, 200);
+        assert!(*table::borrow(&t, 1) == 100, 1);
+        assert!(*table::borrow(&t, 2) == 200, 2);
+        // Clean up: remove all then destroy
+        table::remove(&mut t, 1);
+        table::remove(&mut t, 2);
+        table::destroy_empty(t);
+    }
+
+    public entry fun test_table_contains(_account: &signer) {
+        let t = table::new<u64, u64>();
+        assert!(!table::contains(&t, 42), 1);
+        table::add(&mut t, 42, 999);
+        assert!(table::contains(&t, 42), 2);
+        table::remove(&mut t, 42);
+        table::destroy_empty(t);
+    }
+
+    public entry fun test_table_remove(_account: &signer) {
+        let t = table::new<u64, u64>();
+        table::add(&mut t, 1, 100);
+        let val = table::remove(&mut t, 1);
+        assert!(val == 100, 1);
+        assert!(!table::contains(&t, 1), 2);
+        table::destroy_empty(t);
+    }
+
+    public entry fun test_table_borrow_mut(_account: &signer) {
+        let t = table::new<u64, u64>();
+        table::add(&mut t, 1, 100);
+        let val_ref = table::borrow_mut(&mut t, 1);
+        *val_ref = 200;
+        assert!(*table::borrow(&t, 1) == 200, 1);
+        table::remove(&mut t, 1);
+        table::destroy_empty(t);
+    }
+
+    public entry fun test_table_upsert(_account: &signer) {
+        let t = table::new<u64, u64>();
+        table::upsert(&mut t, 1, 10);
+        assert!(*table::borrow(&t, 1) == 10, 1);
+        table::upsert(&mut t, 1, 20);
+        assert!(*table::borrow(&t, 1) == 20, 2);
+        table::remove(&mut t, 1);
+        table::destroy_empty(t);
+    }
+
+}
+
 // Tests tuple return ABI: secp256k1::ecdsa_recover_internal returns (vector<u8>, bool)
 module 0xa002::secp256k1_tests {
     use aptos_std::secp256k1;

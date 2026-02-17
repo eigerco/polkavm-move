@@ -762,6 +762,20 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
     /// Declare native functions.
     ///
+    /// Returns true if a Move type contains unresolved type parameters.
+    /// Used to decide whether native function parameters/returns should
+    /// be passed as opaque pointers rather than concrete LLVM types.
+    pub fn type_has_type_params(mty: &mty::Type) -> bool {
+        match mty {
+            mty::Type::TypeParameter(_) => true,
+            mty::Type::Struct(_, _, tys) => tys.iter().any(Self::type_has_type_params),
+            mty::Type::Vector(inner) => Self::type_has_type_params(inner),
+            mty::Type::Reference(_, inner) => Self::type_has_type_params(inner),
+            mty::Type::Tuple(ts) => ts.iter().any(Self::type_has_type_params),
+            _ => false,
+        }
+    }
+
     /// Native functions are unlike Move functions in that they
     /// pass type descriptors for generics, and they follow
     /// the C ABI.
@@ -800,6 +814,14 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     } else {
                         (self.to_llvm_type(mty0, &[]).unwrap(), None)
                     }
+                } else if !mty0.is_reference()
+                    && !mty0.is_vector()
+                    && Self::type_has_type_params(mty0)
+                {
+                    // Struct return with unresolved type params (e.g. Box<V>)
+                    // → return via output pointer, like generic returns.
+                    // Vectors are excluded: they always have fixed layout (MoveUntypedVector).
+                    (llcx.void_type(), Some(llcx.ptr_type()))
                 } else {
                     (self.to_llvm_type(mty0, &[]).unwrap(), None)
                 };
@@ -811,8 +833,10 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
 
                 let ll_parm_tys = fn_env.get_parameter_types();
                 let ll_parm_tys = ll_parm_tys.iter().map(|mty| {
-                    // Pass type parameters and vectors as pointers
-                    if mty.is_type_parameter() || mty.is_vector() {
+                    // Pass type parameters, vectors, and structs with
+                    // unresolved type params as pointers.
+                    if mty.is_type_parameter() || mty.is_vector() || Self::type_has_type_params(mty)
+                    {
                         llcx.ptr_type()
                     } else if let Some(ty) = self.to_llvm_type(mty, &[]) {
                         ty
@@ -948,7 +972,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                         Some(stype.as_any_type())
                     } else {
                         debug!(target: "structs", "struct type for '{}' not found", &struct_name);
-                        Some(self.declare_struct_instance(mty, tys))
+                        Some(self.declare_struct_instance(&new_sty, tys))
                     }
                 } else {
                     unreachable!("")
