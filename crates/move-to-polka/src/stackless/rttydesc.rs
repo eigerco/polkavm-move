@@ -407,11 +407,15 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
         let fld_count = s_env.get_field_count();
         assert!(fld_count > 0);
         let ll_fld_count = ll_struct_ty.count_struct_element_types();
-        assert!(fld_count == ll_fld_count);
-        let mut fld_infos = Vec::with_capacity(ll_fld_count);
-        for i in 0..ll_fld_count {
-            let ll_elt_offset = ll_struct_ty.offset_of_element(dl, i);
-            let ll_ety = ll_struct_ty.struct_get_type_at_index(i);
+        // Enum types have an extra i64 discriminant tag as their first LLVM field.
+        let is_enum = s_env.has_variants();
+        let ll_fld_offset: usize = if is_enum { 1 } else { 0 };
+        assert!(fld_count + ll_fld_offset == ll_fld_count);
+        let mut fld_infos = Vec::with_capacity(fld_count);
+        for i in 0..fld_count {
+            let ll_idx = i + ll_fld_offset;
+            let ll_elt_offset = ll_struct_ty.offset_of_element(dl, ll_idx);
+            let ll_ety = ll_struct_ty.struct_get_type_at_index(ll_idx);
             debug!(target: "rtty", "\nmember offset: {}\n{}", ll_elt_offset, ll_ety.dump_properties_to_str(dl));
 
             let f_env = s_env.get_field_by_offset(i);

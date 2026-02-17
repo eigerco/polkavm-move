@@ -268,6 +268,40 @@ pub fn test_multi_ed25519_num_sub_pks() -> anyhow::Result<()> {
     Ok(())
 }
 
-// NOTE: BLS12-381 Move-level tests are skipped because the module references
-// unimplemented native functions (aggregate_pubkeys_internal, etc.) that cause
-// linker errors even when not called from tests.
+// --- BLS12-381 aggregate tests ---
+
+#[test]
+#[ignore] // blocked: Option<T> is now an enum in Aptos stdlib; enum return values corrupt discriminant
+pub fn test_bls12381_aggregate_pubkeys() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_bls12381_aggregate_pubkeys", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_bls12381_aggregate_pubkeys failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+#[ignore] // blocked: Option<T> is now an enum in Aptos stdlib; enum return values corrupt discriminant
+pub fn test_bls12381_aggregate_sigs_and_verify() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(
+            &mut runtime,
+            "test_bls12381_aggregate_sigs_and_verify",
+            (),
+        )
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_bls12381_aggregate_sigs_and_verify failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}

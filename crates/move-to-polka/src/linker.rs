@@ -636,6 +636,94 @@ pub fn create_instance(
         },
     )?;
 
+    // --- bls12381 aggregate host functions ---
+
+    linker.define_typed(
+        "bls12381_aggregate_pubkeys",
+        |caller: Caller<Runtime>, ptr_to_pks: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let pubkey_vecs = from_move_vector_of_byte_vectors(instance, ptr_to_pks)?;
+            let (agg_bytes, success) = crypto::bls12381_aggregate_pubkeys(&pubkey_vecs);
+            let vec_addr = to_move_byte_vector(instance, &mut runtime.allocator, agg_bytes)?;
+            let agg_vec: MoveByteVector = copy_from_guest(instance, vec_addr)?;
+            #[repr(C)]
+            #[derive(Copy, Clone)]
+            struct VecBoolResult {
+                vec: MoveByteVector,
+                success: u8,
+            }
+            let result = VecBoolResult {
+                vec: agg_vec,
+                success: success as u8,
+            };
+            let addr = copy_to_guest(instance, &mut runtime.allocator, &result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    linker.define_typed(
+        "bls12381_aggregate_signatures",
+        |caller: Caller<Runtime>, ptr_to_sigs: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let sig_vecs = from_move_vector_of_byte_vectors(instance, ptr_to_sigs)?;
+            let (agg_bytes, success) = crypto::bls12381_aggregate_signatures(&sig_vecs);
+            let vec_addr = to_move_byte_vector(instance, &mut runtime.allocator, agg_bytes)?;
+            let agg_vec: MoveByteVector = copy_from_guest(instance, vec_addr)?;
+            #[repr(C)]
+            #[derive(Copy, Clone)]
+            struct VecBoolResult {
+                vec: MoveByteVector,
+                success: u8,
+            }
+            let result = VecBoolResult {
+                vec: agg_vec,
+                success: success as u8,
+            };
+            let addr = copy_to_guest(instance, &mut runtime.allocator, &result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    linker.define_typed(
+        "bls12381_verify_aggregate_signature",
+        |caller: Caller<Runtime>,
+         ptr_to_sig: u32,
+         ptr_to_pks: u32,
+         ptr_to_msgs: u32| {
+            let instance = caller.instance;
+            let aggsig = from_move_byte_vector(instance, ptr_to_sig)?;
+            let pubkey_vecs = from_move_vector_of_byte_vectors(instance, ptr_to_pks)?;
+            let msg_vecs = from_move_vector_of_byte_vectors(instance, ptr_to_msgs)?;
+            let valid =
+                crypto::bls12381_verify_aggregate_signature(&aggsig, &pubkey_vecs, &msg_vecs);
+            Result::<u32, ProgramError>::Ok(valid as u32)
+        },
+    )?;
+
+    linker.define_typed("bls12381_generate_keys", |caller: Caller<Runtime>| {
+        let runtime = caller.user_data;
+        let instance = caller.instance;
+        let (sk, pk_with_pop) = crypto::bls12381_generate_keys();
+        let sk_addr = to_move_byte_vector(instance, &mut runtime.allocator, sk)?;
+        let pk_addr = to_move_byte_vector(instance, &mut runtime.allocator, pk_with_pop)?;
+        let sk_vec: MoveByteVector = copy_from_guest(instance, sk_addr)?;
+        let pk_vec: MoveByteVector = copy_from_guest(instance, pk_addr)?;
+        #[repr(C)]
+        #[derive(Copy, Clone)]
+        struct KeyPairResult {
+            sk: MoveByteVector,
+            pk: MoveByteVector,
+        }
+        let result = KeyPairResult {
+            sk: sk_vec,
+            pk: pk_vec,
+        };
+        let addr = copy_to_guest(instance, &mut runtime.allocator, &result)?;
+        Result::<u32, ProgramError>::Ok(addr)
+    })?;
+
     // --- secp256k1 host functions ---
 
     linker.define_typed(
@@ -927,6 +1015,26 @@ fn debug_print(
         debug!("debug_print called. type ptr: 0x{ptr_to_type:X} Data ptr: 0x{ptr_to_data:X}, type: {move_type_string:?}, value: {move_value}");
     }
     Result::<(), ProgramError>::Ok(())
+}
+
+/// Read a `vector<StructWithOneByteVecField>` from guest memory.
+/// In Move, structs like `PublicKeyWithPoP` and `Signature` wrap a single `bytes: vector<u8>`.
+/// In guest memory, this is a `MoveUntypedVector` where each element is a `MoveByteVector` (24 bytes).
+fn from_move_vector_of_byte_vectors(
+    instance: &mut RawInstance,
+    ptr_to_vec: u32,
+) -> Result<Vec<Vec<u8>>, ProgramError> {
+    let outer_vec: MoveByteVector = copy_from_guest(instance, ptr_to_vec)?;
+    let count = outer_vec.length as usize;
+    let elem_size = core::mem::size_of::<MoveByteVector>(); // 24 bytes
+    let mut result = Vec::with_capacity(count);
+    for i in 0..count {
+        let elem_addr = outer_vec.ptr as u32 + (i * elem_size) as u32;
+        let inner_vec: MoveByteVector = copy_from_guest(instance, elem_addr)?;
+        let bytes = copy_bytes_from_guest(instance, inner_vec.ptr as u32, inner_vec.length as usize)?;
+        result.push(bytes);
+    }
+    Ok(result)
 }
 
 fn from_move_byte_vector(

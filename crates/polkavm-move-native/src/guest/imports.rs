@@ -208,3 +208,27 @@ extern "C" {
 extern "C" {
     pub(crate) fn bls12381_generate_proof_of_possession(sk: *const MoveByteVector) -> u32;
 }
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_aggregate_pubkeys(pks: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_aggregate_signatures(sigs: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_verify_aggregate_signature(
+        sig: *const MoveByteVector,
+        pks: *const MoveByteVector,
+        msgs: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn bls12381_generate_keys() -> u32;
+}

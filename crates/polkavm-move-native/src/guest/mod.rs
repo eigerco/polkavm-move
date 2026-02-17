@@ -597,6 +597,94 @@ unsafe extern "C" fn bls12381_generate_proof_of_possession_internal(
     *mv_ptr
 }
 
+// --- bls12381 aggregate native functions ---
+
+#[export_name = "move_native_bls12381_aggregate_pubkeys_internal"]
+unsafe extern "C" fn bls12381_aggregate_pubkeys_internal(
+    pks: *const MoveByteVector,
+    out_vec: *mut MoveByteVector,
+) -> bool {
+    let result_addr = imports::bls12381_aggregate_pubkeys(pks);
+    let result_ptr = result_addr as *const u8;
+    let vec = *(result_ptr as *const MoveByteVector);
+    ptr::write(out_vec, vec);
+    let success = *result_ptr.add(24);
+    success != 0
+}
+
+#[export_name = "move_native_bls12381_aggregate_signatures_internal"]
+unsafe extern "C" fn bls12381_aggregate_signatures_internal(
+    sigs: *const MoveByteVector,
+    out_vec: *mut MoveByteVector,
+) -> bool {
+    let result_addr = imports::bls12381_aggregate_signatures(sigs);
+    let result_ptr = result_addr as *const u8;
+    let vec = *(result_ptr as *const MoveByteVector);
+    ptr::write(out_vec, vec);
+    let success = *result_ptr.add(24);
+    success != 0
+}
+
+#[export_name = "move_native_bls12381_verify_aggregate_signature_internal"]
+unsafe extern "C" fn bls12381_verify_aggregate_signature_internal(
+    sig: *const MoveByteVector,
+    pks: *const MoveByteVector,
+    msgs: *const MoveByteVector,
+) -> bool {
+    imports::bls12381_verify_aggregate_signature(sig, pks, msgs) != 0
+}
+
+#[export_name = "move_native_bls12381_generate_keys_internal"]
+unsafe extern "C" fn bls12381_generate_keys_internal(
+    out_sk: *mut MoveByteVector,
+) -> MoveByteVector {
+    let address = imports::bls12381_generate_keys();
+    // Write first vector (sk) to caller's alloca via pointer
+    let sk_src = address as *const MoveByteVector;
+    ptr::write(out_sk, ptr::read(sk_src));
+    // Return second vector (pk_with_pop) in register
+    let pk_src = (address as *const u8).add(24) as *const MoveByteVector;
+    ptr::read(pk_src)
+}
+
+// --- mem native functions ---
+
+/// Returns the size in bytes of a Move type.
+unsafe fn size_of_move_type(type_ve: &MoveType) -> usize {
+    match type_ve.type_desc {
+        TypeDesc::Bool | TypeDesc::U8 => 1,
+        TypeDesc::U16 => 2,
+        TypeDesc::U32 => 4,
+        TypeDesc::U64 => 8,
+        TypeDesc::U128 => 16,
+        TypeDesc::U256 => core::mem::size_of::<U256>(),
+        TypeDesc::Address => core::mem::size_of::<MoveAddress>(),
+        TypeDesc::Signer => core::mem::size_of::<MoveSigner>(),
+        TypeDesc::Vector => core::mem::size_of::<MoveUntypedVector>(),
+        TypeDesc::Reference => core::mem::size_of::<MoveUntypedReference>(),
+        TypeDesc::Struct => (*type_ve.type_info).struct_.size as usize,
+    }
+}
+
+#[export_name = "move_native_mem_swap"]
+unsafe extern "C" fn mem_swap(type_ve: &MoveType, left: *mut AnyValue, right: *mut AnyValue) {
+    let size = size_of_move_type(type_ve);
+    let left = left as *mut u8;
+    let right = right as *mut u8;
+    // Use a stack buffer for small types, heap for large
+    if size <= 256 {
+        let mut tmp = [0u8; 256];
+        ptr::copy_nonoverlapping(left, tmp.as_mut_ptr(), size);
+        ptr::copy_nonoverlapping(right, left, size);
+        ptr::copy_nonoverlapping(tmp.as_ptr(), right, size);
+    } else {
+        let mut tmp = alloc::vec![0u8; size];
+        ptr::copy_nonoverlapping(left, tmp.as_mut_ptr(), size);
+        ptr::copy_nonoverlapping(right, left, size);
+        ptr::copy_nonoverlapping(tmp.as_ptr(), right, size);
+    }
+}
+
 // --- debug native functions ---
 
 #[export_name = "move_native_debug_test_debug_return_true"]

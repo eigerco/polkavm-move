@@ -273,6 +273,86 @@ pub(crate) fn bls12381_generate_proof_of_possession(sk: &[u8]) -> Vec<u8> {
     signature.to_bytes().to_vec()
 }
 
+pub(crate) fn bls12381_aggregate_pubkeys(pubkeys: &[Vec<u8>]) -> (Vec<u8>, bool) {
+    if pubkeys.is_empty() {
+        return (vec![], false);
+    }
+    let mut agg = match blst::min_pk::PublicKey::from_bytes(&pubkeys[0]) {
+        Ok(pk) => {
+            if pk.validate().is_err() {
+                return (vec![], false);
+            }
+            blst::min_pk::AggregatePublicKey::from_public_key(&pk)
+        }
+        Err(_) => return (vec![], false),
+    };
+    for pk_bytes in &pubkeys[1..] {
+        let Ok(pk) = blst::min_pk::PublicKey::from_bytes(pk_bytes) else {
+            return (vec![], false);
+        };
+        if pk.validate().is_err() {
+            return (vec![], false);
+        }
+        agg.add_public_key(&pk, false).unwrap();
+    }
+    (agg.to_public_key().to_bytes().to_vec(), true)
+}
+
+pub(crate) fn bls12381_aggregate_signatures(sigs: &[Vec<u8>]) -> (Vec<u8>, bool) {
+    if sigs.is_empty() {
+        return (vec![], false);
+    }
+    let mut agg = match blst::min_pk::Signature::from_bytes(&sigs[0]) {
+        Ok(sig) => blst::min_pk::AggregateSignature::from_signature(&sig),
+        Err(_) => return (vec![], false),
+    };
+    for sig_bytes in &sigs[1..] {
+        let Ok(sig) = blst::min_pk::Signature::from_bytes(sig_bytes) else {
+            return (vec![], false);
+        };
+        agg.add_signature(&sig, false).unwrap();
+    }
+    (agg.to_signature().to_bytes().to_vec(), true)
+}
+
+pub(crate) fn bls12381_verify_aggregate_signature(
+    aggsig: &[u8],
+    pubkeys: &[Vec<u8>],
+    messages: &[Vec<u8>],
+) -> bool {
+    if pubkeys.len() != messages.len() || pubkeys.is_empty() {
+        return false;
+    }
+    let Ok(signature) = blst::min_pk::Signature::from_bytes(aggsig) else {
+        return false;
+    };
+    let mut pks = Vec::with_capacity(pubkeys.len());
+    for pk_bytes in pubkeys {
+        let Ok(pk) = blst::min_pk::PublicKey::from_bytes(pk_bytes) else {
+            return false;
+        };
+        pks.push(pk);
+    }
+    let pk_refs: Vec<&blst::min_pk::PublicKey> = pks.iter().collect();
+    let msg_refs: Vec<&[u8]> = messages.iter().map(|m| m.as_slice()).collect();
+    let result = signature.aggregate_verify(true, &msg_refs, BLS_SIG_DST, &pk_refs, true);
+    result == blst::BLST_ERROR::BLST_SUCCESS
+}
+
+pub(crate) fn bls12381_generate_keys() -> (Vec<u8>, Vec<u8>) {
+    let ikm: [u8; 32] = rand::random();
+    let sk = blst::min_pk::SecretKey::key_gen(&ikm, &[]).expect("key_gen failed");
+    let pk = sk.sk_to_pk();
+    let pk_bytes = pk.to_bytes(); // 48 bytes
+    // Generate PoP: sign(sk, pk_bytes) with PoP DST
+    let pop = sk.sign(&pk_bytes, BLS_POP_DST, &[]);
+    let pop_bytes = pop.to_bytes(); // 96 bytes
+    // pk_with_pop = pk(48) || pop(96) = 144 bytes
+    let mut pk_with_pop = pk_bytes.to_vec();
+    pk_with_pop.extend_from_slice(&pop_bytes);
+    (sk.to_bytes().to_vec(), pk_with_pop)
+}
+
 pub(crate) fn secp256k1_ecdsa_recover(msg: &[u8], recovery_id: u8, sig: &[u8]) -> (Vec<u8>, bool) {
     use k256::ecdsa::{RecoveryId, Signature as K256Signature, VerifyingKey};
 
@@ -406,6 +486,86 @@ mod tests {
         // Wrong pk should fail
         let wrong_pk = [0u8; 48];
         assert!(!bls12381_verify_proof_of_possession(&wrong_pk, &pop));
+    }
+
+    #[test]
+    fn test_bls12381_aggregate_pubkeys() {
+        let ikm1 = [1u8; 32];
+        let ikm2 = [2u8; 32];
+        let sk1 = blst::min_pk::SecretKey::key_gen(&ikm1, &[]).unwrap();
+        let sk2 = blst::min_pk::SecretKey::key_gen(&ikm2, &[]).unwrap();
+        let pk1 = sk1.sk_to_pk().to_bytes().to_vec();
+        let pk2 = sk2.sk_to_pk().to_bytes().to_vec();
+
+        let (agg_pk, success) = bls12381_aggregate_pubkeys(&[pk1.clone(), pk2.clone()]);
+        assert!(success);
+        assert_eq!(agg_pk.len(), 48);
+
+        // Empty input should fail
+        let (_, success) = bls12381_aggregate_pubkeys(&[]);
+        assert!(!success);
+    }
+
+    #[test]
+    fn test_bls12381_aggregate_signatures() {
+        let ikm1 = [1u8; 32];
+        let ikm2 = [2u8; 32];
+        let sk1 = blst::min_pk::SecretKey::key_gen(&ikm1, &[]).unwrap();
+        let sk2 = blst::min_pk::SecretKey::key_gen(&ikm2, &[]).unwrap();
+
+        let msg = b"test aggregate";
+        let sig1 = bls12381_sign(&sk1.to_bytes(), msg);
+        let sig2 = bls12381_sign(&sk2.to_bytes(), msg);
+
+        let (agg_sig, success) = bls12381_aggregate_signatures(&[sig1, sig2]);
+        assert!(success);
+        assert_eq!(agg_sig.len(), 96);
+    }
+
+    #[test]
+    fn test_bls12381_verify_aggregate_signature() {
+        let ikm1 = [1u8; 32];
+        let ikm2 = [2u8; 32];
+        let sk1 = blst::min_pk::SecretKey::key_gen(&ikm1, &[]).unwrap();
+        let sk2 = blst::min_pk::SecretKey::key_gen(&ikm2, &[]).unwrap();
+        let pk1 = sk1.sk_to_pk().to_bytes().to_vec();
+        let pk2 = sk2.sk_to_pk().to_bytes().to_vec();
+
+        let msg1 = b"message one".to_vec();
+        let msg2 = b"message two".to_vec();
+        let sig1 = bls12381_sign(&sk1.to_bytes(), &msg1);
+        let sig2 = bls12381_sign(&sk2.to_bytes(), &msg2);
+
+        let (agg_sig, success) = bls12381_aggregate_signatures(&[sig1, sig2]);
+        assert!(success);
+
+        let valid = bls12381_verify_aggregate_signature(
+            &agg_sig,
+            &[pk1.clone(), pk2.clone()],
+            &[msg1.clone(), msg2.clone()],
+        );
+        assert!(valid);
+
+        // Wrong message should fail
+        let valid = bls12381_verify_aggregate_signature(
+            &agg_sig,
+            &[pk1, pk2],
+            &[msg1, b"wrong".to_vec()],
+        );
+        assert!(!valid);
+    }
+
+    #[test]
+    fn test_bls12381_generate_keys() {
+        let (sk, pk_with_pop) = bls12381_generate_keys();
+        assert_eq!(sk.len(), 32);
+        assert_eq!(pk_with_pop.len(), 144); // 48 (pk) + 96 (pop)
+
+        // Validate the generated key
+        let pk_bytes = &pk_with_pop[..48];
+        let pop_bytes = &pk_with_pop[48..];
+        assert!(bls12381_validate_pubkey(pk_bytes));
+        assert!(bls12381_verify_proof_of_possession(pk_bytes, pop_bytes));
     }
 
     #[test]

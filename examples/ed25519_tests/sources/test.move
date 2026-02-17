@@ -61,10 +61,80 @@ module 0xa002::multi_ed25519_tests {
     }
 }
 
-// NOTE: bls12381 Move-level integration tests are skipped because the module
-// references unimplemented native functions (aggregate_pubkeys_internal, etc.)
-// that cause linker errors even when not called from tests. The bls12381 crypto
-// implementations are verified through Rust unit tests in crypto::tests.
+// BLS12-381 aggregate tests using hardcoded test vectors (non-test-only API)
+module 0xa002::bls12381_tests {
+    use aptos_std::bls12381;
+
+    // Test: aggregate two public keys
+    public entry fun test_bls12381_aggregate_pubkeys(_account: &signer) {
+        let pk1_bytes = x"95a254501b7733239ed3cec4d56737977bd09ede881d8a234560e83e5525017add3b1dcc3eabfb85e12a4131b19c253b";
+        let pop1_bytes = x"846aa12a4402eb67cb92a497e0716db573c817a4163783153f0ddca475f4870200049d8e9ed35087c786059c1f26fc9d0d39e3098f1bae074c062f84f24353210666bd58c0d9be3ff76ba9dd9ce905c5b602a12e78a04350275faacce8b7137d";
+        let pk2_bytes = x"ac80a5e08c712d5f08f0306ad743f7d8c215d982489b84a1d6ba805733d94c006e8938f9089a75db3ffa135af33bc69a";
+        let pop2_bytes = x"b1b22261eeb641b36d4f701f7e5635c5dd0ee53102e7ad8c11594be0d785f0bb5d75bd063ec2caa415e953f85e6e18e110d7ae595d18940e60894bd0a39eb157c1f646ee0f2079d64bd7f4e3c6cbc297e74ce69f3ae4e0728f915f1aac3cdf9b";
+
+        let pop1 = bls12381::proof_of_possession_from_bytes(pop1_bytes);
+        let pop2 = bls12381::proof_of_possession_from_bytes(pop2_bytes);
+        let pk_with_pop1_opt = bls12381::public_key_from_bytes_with_pop(pk1_bytes, &pop1);
+        let pk_with_pop2_opt = bls12381::public_key_from_bytes_with_pop(pk2_bytes, &pop2);
+        assert!(std::option::is_some(&pk_with_pop1_opt), 10);
+        assert!(std::option::is_some(&pk_with_pop2_opt), 11);
+
+        let pk_with_pop1 = std::option::extract(&mut pk_with_pop1_opt);
+        let pk_with_pop2 = std::option::extract(&mut pk_with_pop2_opt);
+
+        let pks = std::vector::empty<bls12381::PublicKeyWithPoP>();
+        std::vector::push_back(&mut pks, pk_with_pop1);
+        std::vector::push_back(&mut pks, pk_with_pop2);
+        let agg_pk = bls12381::aggregate_pubkeys(pks);
+
+        // Verify the aggregated key has the expected bytes (48 bytes)
+        let agg_pk_bytes = bls12381::aggregate_pubkey_to_bytes(&agg_pk);
+        assert!(std::vector::length(&agg_pk_bytes) == 48, 1);
+        let expected = x"af9c7a267f7990fc590f743837a3b7e5c171128f0127279e8df2886ccfef3439c5d77f4330bb1a9659af3e378d6a161c";
+        assert!(agg_pk_bytes == expected, 2);
+    }
+
+    // Test: aggregate two signatures and verify with aggregate_verify
+    public entry fun test_bls12381_aggregate_sigs_and_verify(_account: &signer) {
+        let pk1_bytes = x"95a254501b7733239ed3cec4d56737977bd09ede881d8a234560e83e5525017add3b1dcc3eabfb85e12a4131b19c253b";
+        let pop1_bytes = x"846aa12a4402eb67cb92a497e0716db573c817a4163783153f0ddca475f4870200049d8e9ed35087c786059c1f26fc9d0d39e3098f1bae074c062f84f24353210666bd58c0d9be3ff76ba9dd9ce905c5b602a12e78a04350275faacce8b7137d";
+        let pk2_bytes = x"ac80a5e08c712d5f08f0306ad743f7d8c215d982489b84a1d6ba805733d94c006e8938f9089a75db3ffa135af33bc69a";
+        let pop2_bytes = x"b1b22261eeb641b36d4f701f7e5635c5dd0ee53102e7ad8c11594be0d785f0bb5d75bd063ec2caa415e953f85e6e18e110d7ae595d18940e60894bd0a39eb157c1f646ee0f2079d64bd7f4e3c6cbc297e74ce69f3ae4e0728f915f1aac3cdf9b";
+
+        let sig1_bytes = x"8835d17af1d2f32a24c07a7fc11923fec80e73826ff704a7142fd5c80ad3931ac28eb8a09277e05fa1bac358069c8ad014bb868e91d5d71c47273ee566e28722415c49882d03d98a525749e9aaee06a29e5fccd50920eb2f9f5c7da7a34508b2";
+        let sig2_bytes = x"a2563d91b24bed6290cd753dbbabc390992acf730a2a78b154e128c6f54e39f7b891dfa1731009ddd553fadef75ebdcf0e89b75ba27aff21baf6d97002d87919c2e8aacadc5ce87661db8e40ffcc52a1f5671af841f30df2d7016b02b6c77d35";
+
+        // Build PublicKeyWithPoP from raw bytes
+        let pop1 = bls12381::proof_of_possession_from_bytes(pop1_bytes);
+        let pop2 = bls12381::proof_of_possession_from_bytes(pop2_bytes);
+        let pk_with_pop1 = std::option::extract(&mut bls12381::public_key_from_bytes_with_pop(pk1_bytes, &pop1));
+        let pk_with_pop2 = std::option::extract(&mut bls12381::public_key_from_bytes_with_pop(pk2_bytes, &pop2));
+
+        // Build Signatures from raw bytes
+        let sig1 = bls12381::signature_from_bytes(sig1_bytes);
+        let sig2 = bls12381::signature_from_bytes(sig2_bytes);
+
+        // Aggregate signatures
+        let sigs = std::vector::empty<bls12381::Signature>();
+        std::vector::push_back(&mut sigs, sig1);
+        std::vector::push_back(&mut sigs, sig2);
+        let agg_sig_opt = bls12381::aggregate_signatures(sigs);
+        assert!(std::option::is_some(&agg_sig_opt), 2);
+
+        // Verify aggregate signature
+        let agg_sig = std::option::extract(&mut agg_sig_opt);
+        let pks = std::vector::empty<bls12381::PublicKeyWithPoP>();
+        std::vector::push_back(&mut pks, pk_with_pop1);
+        std::vector::push_back(&mut pks, pk_with_pop2);
+
+        let msgs = std::vector::empty<vector<u8>>();
+        std::vector::push_back(&mut msgs, b"message one");
+        std::vector::push_back(&mut msgs, b"message two");
+
+        let valid = bls12381::verify_aggregate_signature(&agg_sig, pks, msgs);
+        assert!(valid, 3);
+    }
+}
 
 // Minimal test: a simple native function returning bool (non-tuple)
 module 0xa002::debug_test {
