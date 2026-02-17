@@ -344,10 +344,10 @@ pub(crate) fn bls12381_generate_keys() -> (Vec<u8>, Vec<u8>) {
     let sk = blst::min_pk::SecretKey::key_gen(&ikm, &[]).expect("key_gen failed");
     let pk = sk.sk_to_pk();
     let pk_bytes = pk.to_bytes(); // 48 bytes
-    // Generate PoP: sign(sk, pk_bytes) with PoP DST
+                                  // Generate PoP: sign(sk, pk_bytes) with PoP DST
     let pop = sk.sign(&pk_bytes, BLS_POP_DST, &[]);
     let pop_bytes = pop.to_bytes(); // 96 bytes
-    // pk_with_pop = pk(48) || pop(96) = 144 bytes
+                                    // pk_with_pop = pk(48) || pop(96) = 144 bytes
     let mut pk_with_pop = pk_bytes.to_vec();
     pk_with_pop.extend_from_slice(&pop_bytes);
     (sk.to_bytes().to_vec(), pk_with_pop)
@@ -547,11 +547,8 @@ mod tests {
         assert!(valid);
 
         // Wrong message should fail
-        let valid = bls12381_verify_aggregate_signature(
-            &agg_sig,
-            &[pk1, pk2],
-            &[msg1, b"wrong".to_vec()],
-        );
+        let valid =
+            bls12381_verify_aggregate_signature(&agg_sig, &[pk1, pk2], &[msg1, b"wrong".to_vec()]);
         assert!(!valid);
     }
 

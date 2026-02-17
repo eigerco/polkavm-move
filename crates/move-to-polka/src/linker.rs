@@ -688,10 +688,7 @@ pub fn create_instance(
 
     linker.define_typed(
         "bls12381_verify_aggregate_signature",
-        |caller: Caller<Runtime>,
-         ptr_to_sig: u32,
-         ptr_to_pks: u32,
-         ptr_to_msgs: u32| {
+        |caller: Caller<Runtime>, ptr_to_sig: u32, ptr_to_pks: u32, ptr_to_msgs: u32| {
             let instance = caller.instance;
             let aggsig = from_move_byte_vector(instance, ptr_to_sig)?;
             let pubkey_vecs = from_move_vector_of_byte_vectors(instance, ptr_to_pks)?;
@@ -1031,7 +1028,8 @@ fn from_move_vector_of_byte_vectors(
     for i in 0..count {
         let elem_addr = outer_vec.ptr as u32 + (i * elem_size) as u32;
         let inner_vec: MoveByteVector = copy_from_guest(instance, elem_addr)?;
-        let bytes = copy_bytes_from_guest(instance, inner_vec.ptr as u32, inner_vec.length as usize)?;
+        let bytes =
+            copy_bytes_from_guest(instance, inner_vec.ptr as u32, inner_vec.length as usize)?;
         result.push(bytes);
     }
     Ok(result)

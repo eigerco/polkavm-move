@@ -1756,7 +1756,8 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 // First load the pointer from the reference alloca, then deref.
                 let ptr_ty = self.module_cx.llvm_cx.ptr_type();
                 let ptr_val = builder.build_load(ptr_ty, self.locals[src[0]].llval, "tv_deref_ptr");
-                let src_val = builder.build_load_from_valref(stype.as_any_type(), ptr_val, "tv_deref_val");
+                let src_val =
+                    builder.build_load_from_valref(stype.as_any_type(), ptr_val, "tv_deref_val");
                 let tag = builder.build_extract_value(src_val, 0, "tv_tag");
                 let tag_ty = self.module_cx.llvm_cx.int_type(64);
                 let expected = Constant::const_int(tag_ty, variant_idx as u64, 0);
