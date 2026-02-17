@@ -469,6 +469,38 @@ pub fn test_table_upsert() -> anyhow::Result<()> {
     Ok(())
 }
 
+// --- Object tests ---
+
+#[test]
+pub fn test_derived_address() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_derived_address", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_derived_address failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_exists_at_empty() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_exists_at_empty", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_exists_at_empty failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
 // --- BLS12-381 aggregate tests ---
 
 #[test]

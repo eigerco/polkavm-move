@@ -1,3 +1,42 @@
+// Minimal object module — avoids pulling in full AptosFramework dependency
+module 0x1::object {
+    native fun exists_at<T: key>(object: address): bool;
+
+    /// Derives a deterministic object address: sha3_256(source || derive_from || 0xFC)
+    public fun create_user_derived_object_address(source: address, derive_from: address): address {
+        let bytes = std::vector::empty<u8>();
+        let source_bytes = std::bcs::to_bytes(&source);
+        std::vector::append(&mut bytes, source_bytes);
+        let derive_from_bytes = std::bcs::to_bytes(&derive_from);
+        std::vector::append(&mut bytes, derive_from_bytes);
+        std::vector::push_back(&mut bytes, 0xFC); // OBJECT_DERIVED_SCHEME
+        let hash = std::hash::sha3_256(bytes);
+        aptos_std::from_bcs::to_address(hash)
+    }
+
+    public fun object_exists_at<T: key>(addr: address): bool {
+        exists_at<T>(addr)
+    }
+}
+
+module 0xa002::object_test {
+    use 0x1::object;
+
+    struct TestResource has key { value: u64 }
+
+    public entry fun test_derived_address(_account: &signer) {
+        let source = @0x1;
+        let derive_from = @0x2;
+        let addr = object::create_user_derived_object_address(source, derive_from);
+        let addr2 = object::create_user_derived_object_address(source, derive_from);
+        assert!(addr == addr2, 1); // deterministic
+    }
+
+    public entry fun test_exists_at_empty(_account: &signer) {
+        assert!(!object::object_exists_at<TestResource>(@0x99), 1); // nothing at empty address
+    }
+}
+
 module 0xa002::ed25519_tests {
     use aptos_std::ed25519;
 

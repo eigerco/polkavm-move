@@ -1891,6 +1891,21 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         src: &[mast::TempIndex],
         _instr: &sbc::Bytecode,
     ) {
+        // Special-case: object::exists_at<T>(addr) → reuse Exists rtcall
+        {
+            let global_env = &self.env.module_env.env;
+            let fn_env = global_env.get_function(fun_id.qualified(mod_id));
+            if fn_env.get_full_name_str().ends_with("::exists_at") {
+                let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
+                assert_eq!(types.len(), 1);
+                assert_eq!(src.len(), 1);
+                assert_eq!(dst.len(), 1);
+                let src0_reg = self.locals[src[0]].llval.as_any_value();
+                self.emit_rtcall(RtCall::Exists(src0_reg, types[0].clone()), dst, _instr);
+                return;
+            }
+        }
+
         let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
         let typarams = self.module_cx.get_rttydesc_ptrs(&types);
 
