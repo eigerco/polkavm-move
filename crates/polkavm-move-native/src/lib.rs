@@ -230,6 +230,7 @@
 
 #[cfg(feature = "host")]
 pub mod allocator;
+pub mod comparison;
 pub mod conv;
 #[cfg(feature = "polkavm")]
 pub mod guest;

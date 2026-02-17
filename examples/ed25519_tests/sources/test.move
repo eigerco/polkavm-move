@@ -136,6 +136,40 @@ module 0xa002::bls12381_tests {
     }
 }
 
+// cmp::compare tests — exercises the native compare function
+module 0xa002::cmp_test {
+    use std::cmp;
+
+    public entry fun test_cmp_integers(_account: &signer) {
+        assert!(cmp::compare(&1u64, &2u64).is_lt(), 1);
+        assert!(cmp::compare(&2u64, &2u64).is_eq(), 2);
+        assert!(cmp::compare(&3u64, &2u64).is_gt(), 3);
+        assert!(cmp::compare(&0u8, &255u8).is_lt(), 4);
+        assert!(cmp::compare(&255u8, &0u8).is_gt(), 5);
+        assert!(cmp::compare(&100u128, &100u128).is_eq(), 6);
+    }
+
+    public entry fun test_cmp_vectors(_account: &signer) {
+        let v1 = vector[1u8, 2u8, 3u8];
+        let v2 = vector[1u8, 2u8, 4u8];
+        let v3 = vector[1u8, 2u8, 3u8];
+        let v4 = vector[1u8, 2u8];
+
+        assert!(cmp::compare(&v1, &v2).is_lt(), 10);
+        assert!(cmp::compare(&v1, &v3).is_eq(), 11);
+        assert!(cmp::compare(&v2, &v1).is_gt(), 12);
+        // Shorter prefix is less
+        assert!(cmp::compare(&v4, &v1).is_lt(), 13);
+        assert!(cmp::compare(&v1, &v4).is_gt(), 14);
+    }
+
+    public entry fun test_cmp_bools(_account: &signer) {
+        assert!(cmp::compare(&false, &true).is_lt(), 20);
+        assert!(cmp::compare(&true, &true).is_eq(), 21);
+        assert!(cmp::compare(&true, &false).is_gt(), 22);
+    }
+}
+
 // Minimal enum regression test: Option<T> is now an enum in Aptos stdlib
 module 0xa002::enum_test {
     fun make_some_u64(): std::option::Option<u64> {

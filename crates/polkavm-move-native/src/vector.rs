@@ -599,6 +599,104 @@ impl<'mv> TypedMoveBorrowedRustVec<'mv> {
     /// # Safety
     ///
     /// Unsafe because the struct path doesn't do necessary assertions on field types.
+    pub unsafe fn cmp_ord(&self, v2: &TypedMoveBorrowedRustVec) -> core::cmp::Ordering {
+        use core::cmp::Ordering;
+
+        let v1t = self;
+        let v2t = v2;
+        let v1_len = v1t.len();
+        let v2_len = v2t.len();
+        let min_len = core::cmp::min(v1_len, v2_len);
+
+        use TypedMoveBorrowedRustVec as V;
+        macro_rules! lex_cmp {
+            ($rv1:expr, $rv2:expr) => {{
+                let a = $rv1.deref();
+                let b = $rv2.deref();
+                a.cmp(b)
+            }};
+        }
+
+        let prefix_ord = match (v1t, v2t) {
+            (V::Bool(rv1), V::Bool(rv2)) => lex_cmp!(rv1, rv2),
+            (V::U8(rv1), V::U8(rv2)) => lex_cmp!(rv1, rv2),
+            (V::U16(rv1), V::U16(rv2)) => lex_cmp!(rv1, rv2),
+            (V::U32(rv1), V::U32(rv2)) => lex_cmp!(rv1, rv2),
+            (V::U64(rv1), V::U64(rv2)) => lex_cmp!(rv1, rv2),
+            (V::U128(rv1), V::U128(rv2)) => lex_cmp!(rv1, rv2),
+            (V::U256(rv1), V::U256(rv2)) => {
+                // U256 doesn't derive Ord so we compare element-wise
+                for i in 0..min_len {
+                    let a = &rv1[i as usize];
+                    let b = &rv2[i as usize];
+                    let ord = a.0[1].cmp(&b.0[1]);
+                    if ord != Ordering::Equal {
+                        return ord;
+                    }
+                    let ord = a.0[0].cmp(&b.0[0]);
+                    if ord != Ordering::Equal {
+                        return ord;
+                    }
+                }
+                v1_len.cmp(&v2_len)
+            }
+            (V::Address(rv1), V::Address(rv2)) => {
+                for i in 0..min_len {
+                    let ord = rv1[i as usize].0.cmp(&rv2[i as usize].0);
+                    if ord != Ordering::Equal {
+                        return ord;
+                    }
+                }
+                v1_len.cmp(&v2_len)
+            }
+            (V::Signer(rv1), V::Signer(rv2)) => {
+                for i in 0..min_len {
+                    let ord = (rv1[i as usize].0).0.cmp(&(rv2[i as usize].0).0);
+                    if ord != Ordering::Equal {
+                        return ord;
+                    }
+                }
+                v1_len.cmp(&v2_len)
+            }
+            (v1t @ V::Vector(elt_t1, _), v2t @ V::Vector(elt_t2, _)) => {
+                assert_eq!(elt_t1.type_desc, elt_t2.type_desc);
+                let inner_element_type = elt_t1;
+                for i in 0..min_len {
+                    let anyval_ref1 = v1t.borrow(i);
+                    let anyval_ref2 = v2t.borrow(i);
+                    let mv_ut_vec1 = &*(anyval_ref1 as *const AnyValue as *const MoveUntypedVector);
+                    let mv_ut_vec2 = &*(anyval_ref2 as *const AnyValue as *const MoveUntypedVector);
+                    let mv_vec1 = TypedMoveBorrowedRustVec::new(inner_element_type, mv_ut_vec1);
+                    let mv_vec2 = TypedMoveBorrowedRustVec::new(inner_element_type, mv_ut_vec2);
+                    let ord = mv_vec1.cmp_ord(&mv_vec2);
+                    if ord != Ordering::Equal {
+                        return ord;
+                    }
+                }
+                v1_len.cmp(&v2_len)
+            }
+            (V::Struct(v1s), V::Struct(v2s)) => {
+                for i in 0..min_len {
+                    let anyval_ref1 = v1s.get(i as usize);
+                    let anyval_ref2 = v2s.get(i as usize);
+                    let ord = crate::comparison::compare(v1s.full_type, anyval_ref1, anyval_ref2);
+                    if ord != Ordering::Equal {
+                        return ord;
+                    }
+                }
+                v1_len.cmp(&v2_len)
+            }
+            _ => todo!("vec_cmp_ord: unhandled element type"),
+        };
+        if prefix_ord != Ordering::Equal {
+            return prefix_ord;
+        }
+        v1_len.cmp(&v2_len)
+    }
+
+    /// # Safety
+    ///
+    /// Unsafe because the struct path doesn't do necessary assertions on field types.
     pub unsafe fn cmp_eq(&self, v2: &TypedMoveBorrowedRustVec) -> bool {
         let v1t = self;
         let v2t = v2;

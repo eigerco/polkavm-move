@@ -647,6 +647,20 @@ unsafe extern "C" fn bls12381_generate_keys_internal(
     ptr::read(pk_src)
 }
 
+// --- cmp native functions ---
+
+#[export_name = "move_native_cmp_compare"]
+pub unsafe extern "C" fn cmp_compare(
+    type_t: &MoveType,
+    first: &AnyValue,
+    second: &AnyValue,
+) -> i64 {
+    // Move Ordering: Less=0, Equal=1, Greater=2
+    // Rust Ordering: Less=-1, Equal=0, Greater=1
+    let ord = crate::comparison::compare(type_t, first, second);
+    ord as i64 + 1
+}
+
 // --- mem native functions ---
 
 /// Returns the size in bytes of a Move type.

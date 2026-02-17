@@ -268,6 +268,49 @@ pub fn test_multi_ed25519_num_sub_pks() -> anyhow::Result<()> {
     Ok(())
 }
 
+// --- cmp::compare tests ---
+
+#[test]
+pub fn test_cmp_integers() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_cmp_integers", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_cmp_integers failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_cmp_vectors() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_cmp_vectors", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_cmp_vectors failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_cmp_bools() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_cmp_bools", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_ok(), "test_cmp_bools failed: {:?}", result.err());
+    Ok(())
+}
+
 // --- Enum regression tests ---
 
 #[test]
