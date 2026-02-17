@@ -136,6 +136,17 @@ module 0xa002::bls12381_tests {
     }
 }
 
+// Minimal enum regression test: Option<T> is now an enum in Aptos stdlib
+module 0xa002::enum_test {
+    fun make_some_u64(): std::option::Option<u64> {
+        std::option::some(42u64)
+    }
+    public entry fun test_option_return(_account: &signer) {
+        let opt = make_some_u64();
+        assert!(std::option::is_some(&opt), 1);
+    }
+}
+
 // Minimal test: a simple native function returning bool (non-tuple)
 module 0xa002::debug_test {
     native fun debug_return_true(): bool;

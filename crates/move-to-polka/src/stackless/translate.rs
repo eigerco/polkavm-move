@@ -1752,8 +1752,11 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 assert_eq!(src.len(), 1);
                 assert_eq!(dst.len(), 1);
 
-                // Load the enum struct, extract tag at index 0, compare with variant_idx.
-                let src_val = builder.load_alloca(self.locals[src[0]].llval, stype.as_any_type());
+                // TestVariant src is a reference (pointer) to the enum struct.
+                // First load the pointer from the reference alloca, then deref.
+                let ptr_ty = self.module_cx.llvm_cx.ptr_type();
+                let ptr_val = builder.build_load(ptr_ty, self.locals[src[0]].llval, "tv_deref_ptr");
+                let src_val = builder.build_load_from_valref(stype.as_any_type(), ptr_val, "tv_deref_val");
                 let tag = builder.build_extract_value(src_val, 0, "tv_tag");
                 let tag_ty = self.module_cx.llvm_cx.int_type(64);
                 let expected = Constant::const_int(tag_ty, variant_idx as u64, 0);

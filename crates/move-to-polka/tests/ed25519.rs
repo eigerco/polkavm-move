@@ -268,10 +268,26 @@ pub fn test_multi_ed25519_num_sub_pks() -> anyhow::Result<()> {
     Ok(())
 }
 
+// --- Enum regression tests ---
+
+#[test]
+pub fn test_option_return() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_option_return", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_option_return failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
 // --- BLS12-381 aggregate tests ---
 
 #[test]
-#[ignore] // blocked: Option<T> is now an enum in Aptos stdlib; enum return values corrupt discriminant
 pub fn test_bls12381_aggregate_pubkeys() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
@@ -287,7 +303,6 @@ pub fn test_bls12381_aggregate_pubkeys() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore] // blocked: Option<T> is now an enum in Aptos stdlib; enum return values corrupt discriminant
 pub fn test_bls12381_aggregate_sigs_and_verify() -> anyhow::Result<()> {
     let blob = create_blob_once();
     let (mut instance, mut runtime) = create_instance(blob)?;
