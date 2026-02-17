@@ -1,7 +1,7 @@
 use crate::{
     types::{
         AnyValue, MoveAddress, MoveAsciiString, MoveByteVector, MoveSigner, MoveType,
-        MoveUntypedReference, MoveUntypedVector, TypeDesc, U256,
+        MoveUntypedReference, MoveUntypedVector, TypeDesc, ACCOUNT_ADDRESS_LENGTH, U256,
     },
     vector::{
         MoveBorrowedRustVecMut, MoveBorrowedRustVecOfStructMut, TypedMoveBorrowedRustVec,
@@ -696,6 +696,119 @@ unsafe extern "C" fn mem_swap(type_ve: &MoveType, left: *mut AnyValue, right: *m
         ptr::copy_nonoverlapping(left, tmp.as_mut_ptr(), size);
         ptr::copy_nonoverlapping(right, left, size);
         ptr::copy_nonoverlapping(tmp.as_ptr(), right, size);
+    }
+}
+
+// --- from_bcs native functions ---
+
+#[export_name = "move_native_from_bcs_from_bytes"]
+pub unsafe extern "C" fn from_bcs_from_bytes(
+    type_t: &MoveType,
+    bytes: &MoveByteVector,
+    out: *mut AnyValue,
+) {
+    crate::serialization::deserialize(type_t, bytes, out);
+}
+
+// --- type_info native functions ---
+
+#[repr(C)]
+struct MoveTypeInfoReturn {
+    account_address: MoveAddress,
+    module_name: MoveByteVector,
+    struct_name: MoveByteVector,
+}
+
+/// Parse a hex address string (e.g. "0x1") into a 32-byte little-endian MoveAddress.
+unsafe fn parse_hex_address(addr_str: &[u8]) -> MoveAddress {
+    // Strip "0x" prefix if present
+    let hex_str = if addr_str.len() >= 2 && addr_str[0] == b'0' && addr_str[1] == b'x' {
+        &addr_str[2..]
+    } else {
+        addr_str
+    };
+
+    let mut bytes = [0u8; ACCOUNT_ADDRESS_LENGTH];
+
+    // Parse hex string into big-endian bytes, right-aligned
+    let hex_len = hex_str.len();
+    let byte_count = (hex_len + 1) / 2;
+    let start = ACCOUNT_ADDRESS_LENGTH - byte_count;
+
+    for i in 0..hex_len {
+        let nibble = match hex_str[i] {
+            b'0'..=b'9' => hex_str[i] - b'0',
+            b'a'..=b'f' => hex_str[i] - b'a' + 10,
+            b'A'..=b'F' => hex_str[i] - b'A' + 10,
+            _ => 0,
+        };
+        let byte_idx = start + (i / 2);
+        // If hex_len is odd, the first nibble is the low nibble of the first byte
+        if hex_len % 2 == 1 && i == 0 {
+            bytes[byte_idx] |= nibble;
+        } else if (hex_len % 2 == 1 && i % 2 == 1) || (hex_len % 2 == 0 && i % 2 == 0) {
+            bytes[byte_idx] |= nibble << 4;
+        } else {
+            bytes[byte_idx] |= nibble;
+        }
+    }
+
+    // Reverse to little-endian (MoveAddress stores LE)
+    bytes.reverse();
+    MoveAddress(bytes)
+}
+
+#[export_name = "move_native_type_info_type_name"]
+pub unsafe extern "C" fn type_info_type_name(type_t: &MoveType) -> MoveAsciiString {
+    let name_bytes = core::slice::from_raw_parts(type_t.name.ptr, type_t.name.len as usize);
+    MoveAsciiString {
+        bytes: MoveByteVector::from_rust_vec(name_bytes.to_vec()),
+    }
+}
+
+#[export_name = "move_native_type_info_type_of"]
+pub unsafe extern "C" fn type_info_type_of(type_t: &MoveType) -> MoveTypeInfoReturn {
+    let name_bytes = core::slice::from_raw_parts(type_t.name.ptr, type_t.name.len as usize);
+
+    // Find first "::" — separates address from module
+    let mut first_sep = None;
+    for i in 0..name_bytes.len().saturating_sub(1) {
+        if name_bytes[i] == b':' && name_bytes[i + 1] == b':' {
+            first_sep = Some(i);
+            break;
+        }
+    }
+
+    if let Some(fs) = first_sep {
+        let addr_str = &name_bytes[..fs];
+        let after_addr = &name_bytes[fs + 2..];
+
+        // Find second "::" — separates module from struct name
+        let mut second_sep = None;
+        for i in 0..after_addr.len().saturating_sub(1) {
+            if after_addr[i] == b':' && after_addr[i + 1] == b':' {
+                second_sep = Some(i);
+                break;
+            }
+        }
+
+        if let Some(ss) = second_sep {
+            let module_str = &after_addr[..ss];
+            let struct_str = &after_addr[ss + 2..];
+
+            return MoveTypeInfoReturn {
+                account_address: parse_hex_address(addr_str),
+                module_name: MoveByteVector::from_rust_vec(module_str.to_vec()),
+                struct_name: MoveByteVector::from_rust_vec(struct_str.to_vec()),
+            };
+        }
+    }
+
+    // For primitives or types without "::", return zeroed address and empty strings
+    MoveTypeInfoReturn {
+        account_address: MoveAddress([0u8; ACCOUNT_ADDRESS_LENGTH]),
+        module_name: MoveByteVector::from_rust_vec(alloc::vec::Vec::new()),
+        struct_name: MoveByteVector::from_rust_vec(name_bytes.to_vec()),
     }
 }
 

@@ -170,6 +170,42 @@ module 0xa002::cmp_test {
     }
 }
 
+// type_info tests
+module 0xa002::type_info_test {
+    use aptos_std::type_info;
+    use std::string;
+
+    public entry fun test_type_name_primitives(_account: &signer) {
+        assert!(type_info::type_name<u64>() == string::utf8(b"u64"), 1);
+        assert!(type_info::type_name<bool>() == string::utf8(b"bool"), 2);
+        assert!(type_info::type_name<vector<u8>>() == string::utf8(b"vector<u8>"), 3);
+    }
+
+    public entry fun test_type_of_struct(_account: &signer) {
+        let ti = type_info::type_of<type_info::TypeInfo>();
+        assert!(type_info::module_name(&ti) == b"type_info", 10);
+    }
+}
+
+// from_bcs tests
+module 0xa002::from_bcs_test {
+    use aptos_std::from_bcs;
+    use std::bcs;
+
+    public entry fun test_from_bcs_u64(_account: &signer) {
+        let v: u64 = 42;
+        let bytes = bcs::to_bytes(&v);
+        let result = from_bcs::to_u64(bytes);
+        assert!(result == 42, 1);
+    }
+
+    public entry fun test_from_bcs_bool(_account: &signer) {
+        let bytes = bcs::to_bytes(&true);
+        let result = from_bcs::to_bool(bytes);
+        assert!(result == true, 2);
+    }
+}
+
 // Minimal enum regression test: Option<T> is now an enum in Aptos stdlib
 module 0xa002::enum_test {
     fun make_some_u64(): std::option::Option<u64> {

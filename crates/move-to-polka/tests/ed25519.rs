@@ -328,6 +328,70 @@ pub fn test_option_return() -> anyhow::Result<()> {
     Ok(())
 }
 
+// --- type_info tests ---
+
+#[test]
+pub fn test_type_name_primitives() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_type_name_primitives", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_type_name_primitives failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_type_of_struct() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_type_of_struct", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_type_of_struct failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+// --- from_bcs tests ---
+
+#[test]
+pub fn test_from_bcs_u64() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_from_bcs_u64", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_from_bcs_u64 failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_from_bcs_bool() -> anyhow::Result<()> {
+    let blob = create_blob_once();
+    let (mut instance, mut runtime) = create_instance(blob)?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_from_bcs_bool", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_from_bcs_bool failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
 // --- BLS12-381 aggregate tests ---
 
 #[test]
