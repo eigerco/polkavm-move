@@ -10,8 +10,8 @@ use move_package::source_package::{
     layout::SourcePackageLayout, manifest_parser, parsed_manifest::SubstOrRename,
 };
 use polkavm::{
-    Caller, Config, Engine, Instance, Linker, MemoryAccessError, Module, ModuleConfig, ProgramBlob,
-    RawInstance,
+    Caller, Config, Engine, Instance, InstancePre, Linker, MemoryAccessError, Module, ModuleConfig,
+    ProgramBlob, RawInstance,
 };
 use polkavm_linker::TargetInstructionSet;
 use polkavm_move_native::{
@@ -220,29 +220,65 @@ fn fetch_git_dep(
     Ok(())
 }
 
-/// Creates a new PolkaVM instance with the Move program blob.
-pub fn create_instance(
+/// Creates a pre-instantiated PolkaVM module with all host functions linked.
+/// This is the expensive step (engine + module + linker setup) and the result
+/// is `Send + Sync`, so it can be shared across threads via `Arc` or `OnceCell`.
+/// Use `create_instance_from_pre` to cheaply create per-test instances.
+pub fn create_instance_pre(
     blob: ProgramBlob,
-) -> Result<(Instance<Runtime, ProgramError>, Runtime), anyhow::Error> {
-    // AUX segment is used to inject data into the guest. The guest allocates on the heap
-    // using the LeakingAllocator.
+) -> Result<InstancePre<Runtime, ProgramError>, anyhow::Error> {
     let config = Config::from_env()?;
 
     let mut module_config = ModuleConfig::new();
-    // enforce module loading fail if not all host functions are provided
     module_config.set_strict(true);
 
     let engine = Engine::new(&config)?;
-    let module = Module::from_blob(&engine, &module_config, blob.clone())?;
-    // Create a memory allocator for the module's heap region.
+    let module = Module::from_blob(&engine, &module_config, blob)?;
+    let mut linker: MoveProgramLinker = Linker::new();
+    define_host_functions(&mut linker)?;
+
+    let instance_pre = linker.instantiate_pre(&module)?;
+    Ok(instance_pre)
+}
+
+/// Creates a fresh PolkaVM instance from a pre-instantiated module.
+/// This is cheap and should be called per-test.
+pub fn create_instance_from_pre(
+    pre: &InstancePre<Runtime, ProgramError>,
+) -> Result<(Instance<Runtime, ProgramError>, Runtime), anyhow::Error> {
+    let module = pre.module();
     let allocator = MemAllocator::init(module.memory_map());
     let storage = polkavm_move_native::storage::GlobalStorage::default();
     let runtime = Runtime {
         allocator,
         storage: Box::new(storage),
     };
-    let mut linker: MoveProgramLinker = Linker::new();
 
+    let mut instance = pre.instantiate()?;
+    let heap_size = module.memory_map().max_heap_size();
+    instance
+        .sbrk(heap_size)
+        .map_err(|e| anyhow::anyhow!("sbrk failed: {e}"))?
+        .ok_or_else(|| anyhow::anyhow!("sbrk returned None"))?;
+    debug!(
+        "Module loaded with RW data size: {}, RO data size: {}, heap base: {:x?}, heap size: {}",
+        module.memory_map().rw_data_size(),
+        module.memory_map().ro_data_size(),
+        module.memory_map().heap_base(),
+        instance.heap_size(),
+    );
+    Ok((instance, runtime))
+}
+
+/// Creates a new PolkaVM instance with the Move program blob.
+pub fn create_instance(
+    blob: ProgramBlob,
+) -> Result<(Instance<Runtime, ProgramError>, Runtime), anyhow::Error> {
+    let pre = create_instance_pre(blob)?;
+    create_instance_from_pre(&pre)
+}
+
+fn define_host_functions(linker: &mut MoveProgramLinker) -> Result<(), anyhow::Error> {
     // Define the host functions that will be used by the Move program.
     // Note: when using the low-level `run_lowlevel` function, these are not called automatically,
     // but the program loop must handle the `Ecalli` interrupts and call these functions manually
@@ -755,25 +791,7 @@ pub fn create_instance(
 
     linker.define_typed("chain_id_internal", || -> u32 { 4u32 })?;
 
-    // Link the host functions with the module.
-    let instance_pre = linker.instantiate_pre(&module)?;
-
-    // Instantiate the module.
-    let mut instance = instance_pre.instantiate()?;
-    // Grow the heap so the allocator can write to it.
-    let heap_size = module.memory_map().max_heap_size();
-    instance
-        .sbrk(heap_size)
-        .map_err(|e| anyhow::anyhow!("sbrk failed: {e}"))?
-        .ok_or_else(|| anyhow::anyhow!("sbrk returned None"))?;
-    debug!(
-        "Module loaded with RW data size: {}, RO data size: {}, heap base: {:x?}, heap size: {}",
-        module.memory_map().rw_data_size(),
-        module.memory_map().ro_data_size(),
-        module.memory_map().heap_base(),
-        instance.heap_size(),
-    );
-    Ok((instance, runtime))
+    Ok(())
 }
 
 /// Copy memory host -> guest (aux)
