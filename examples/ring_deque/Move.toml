@@ -1,0 +1,10 @@
+[package]
+name = "RingDeque"
+version = "0.0.0"
+
+[addresses]
+std = "0x1"
+ring_deque = "0xa002"
+
+[dependencies]
+MoveStdlib = { git = "https://github.com/eigerco/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "main" }

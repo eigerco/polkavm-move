@@ -723,6 +723,7 @@ module aptos_framework::aggregator_v2 {
 module 0xa002::event_test {
     use aptos_framework::event;
 
+    #[event]
     struct TestEvent has drop, store {
         value: u64,
     }

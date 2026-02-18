@@ -88,6 +88,8 @@ pub fn load_from_elf_with_polka_linker(data: &[u8]) -> anyhow::Result<Vec<u8>> {
     let mut config = polkavm_linker::Config::default();
     config.set_strip(false);
     config.set_optimize(false);
+    // Default stack is only 8KB (2 pages). Increase to 128KB for complex programs.
+    config.set_min_stack_size(128 * 1024);
 
     let res = polkavm_linker::program_from_elf(config, TargetInstructionSet::Latest, data)?;
     Ok(res)
