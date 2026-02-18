@@ -563,6 +563,92 @@ pub fn test_exists_at_empty() -> anyhow::Result<()> {
     Ok(())
 }
 
+// --- Ristretto255 tests ---
+
+#[test]
+pub fn test_scalar_arithmetic() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_scalar_arithmetic", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_scalar_arithmetic failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_point_identity_compress() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_point_identity_compress", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_point_identity_compress failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_point_add_sub_roundtrip() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_point_add_sub_roundtrip", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_point_add_sub_roundtrip failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_basepoint_mul() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_basepoint_mul", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_basepoint_mul failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_decompress_roundtrip() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_decompress_roundtrip", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_decompress_roundtrip failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_multi_scalar_mul() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_multi_scalar_mul", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_multi_scalar_mul failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
 // --- BLS12-381 aggregate tests ---
 
 #[test]

@@ -13,7 +13,9 @@ atty = "0.2.14"
 blake2-rfc = "0.2"
 blst = "0.3"
 blake3 = "1.5"
+bulletproofs = "4.0.0"
 bs58 = "0.5.0"
+curve25519-dalek = { package = "curve25519-dalek-ng", version = "4" }
 build-tools = { path = "../build-tools" }
 chrono = { version = "0.4" }
 clap = { version = "4.5", features = ["derive"] }
@@ -35,6 +37,7 @@ libc = "0.2"
 # we can not upgrade llvm as ubuntu does not have a newer version
 llvm-sys = "191.0"
 log = "0.4.14"
+merlin = "3"
 move-binary-format = { git = "https://github.com/eigerco/aptos-core.git", branch = "main" }
 move-bytecode-source-map = { git = "https://github.com/eigerco/aptos-core.git", branch = "main" }
 move-command-line-common = { git = "https://github.com/eigerco/aptos-core.git", branch = "main" }

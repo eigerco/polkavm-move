@@ -791,6 +791,552 @@ fn define_host_functions(linker: &mut MoveProgramLinker) -> Result<(), anyhow::E
 
     linker.define_typed("chain_id_internal", || -> u32 { 4u32 })?;
 
+    // --- ristretto255 host functions ---
+
+    let point_store = crypto::new_point_store();
+
+    // Scalar operations (no point store needed)
+
+    linker.define_typed(
+        "ristretto255_scalar_is_canonical_internal",
+        |caller: Caller<Runtime>, ptr_to_bytes: u32| {
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_bytes)?;
+            Result::<u32, ProgramError>::Ok(crypto::ristretto255_scalar_is_canonical(&bytes) as u32)
+        },
+    )?;
+
+    linker.define_typed(
+        "ristretto255_scalar_from_u64_internal",
+        |caller: Caller<Runtime>, val: u64| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let result = crypto::ristretto255_scalar_from_u64(val);
+            let addr = to_move_byte_vector(instance, &mut runtime.allocator, result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    linker.define_typed(
+        "ristretto255_scalar_from_u128_internal",
+        |caller: Caller<Runtime>, val_lo: u64, val_hi: u64| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let val = (val_hi as u128) << 64 | (val_lo as u128);
+            let result = crypto::ristretto255_scalar_from_u128(val);
+            let addr = to_move_byte_vector(instance, &mut runtime.allocator, result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    linker.define_typed(
+        "ristretto255_scalar_reduced_from_32_bytes_internal",
+        |caller: Caller<Runtime>, ptr_to_bytes: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_bytes)?;
+            let result = crypto::ristretto255_scalar_reduced_from_32_bytes(&bytes);
+            let addr = to_move_byte_vector(instance, &mut runtime.allocator, result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    linker.define_typed(
+        "ristretto255_scalar_uniform_from_64_bytes_internal",
+        |caller: Caller<Runtime>, ptr_to_bytes: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_bytes)?;
+            let result = crypto::ristretto255_scalar_uniform_from_64_bytes(&bytes);
+            let addr = to_move_byte_vector(instance, &mut runtime.allocator, result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    linker.define_typed(
+        "ristretto255_scalar_from_sha512_internal",
+        |caller: Caller<Runtime>, ptr_to_bytes: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_bytes)?;
+            let result = crypto::ristretto255_scalar_from_sha512(&bytes);
+            let addr = to_move_byte_vector(instance, &mut runtime.allocator, result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    linker.define_typed(
+        "ristretto255_scalar_invert_internal",
+        |caller: Caller<Runtime>, ptr_to_bytes: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_bytes)?;
+            let result = crypto::ristretto255_scalar_invert(&bytes);
+            let addr = to_move_byte_vector(instance, &mut runtime.allocator, result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    linker.define_typed(
+        "ristretto255_scalar_mul_internal",
+        |caller: Caller<Runtime>, ptr_a: u32, ptr_b: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let a = from_move_byte_vector(instance, ptr_a)?;
+            let b = from_move_byte_vector(instance, ptr_b)?;
+            let result = crypto::ristretto255_scalar_mul(&a, &b);
+            let addr = to_move_byte_vector(instance, &mut runtime.allocator, result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    linker.define_typed(
+        "ristretto255_scalar_add_internal",
+        |caller: Caller<Runtime>, ptr_a: u32, ptr_b: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let a = from_move_byte_vector(instance, ptr_a)?;
+            let b = from_move_byte_vector(instance, ptr_b)?;
+            let result = crypto::ristretto255_scalar_add(&a, &b);
+            let addr = to_move_byte_vector(instance, &mut runtime.allocator, result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    linker.define_typed(
+        "ristretto255_scalar_sub_internal",
+        |caller: Caller<Runtime>, ptr_a: u32, ptr_b: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let a = from_move_byte_vector(instance, ptr_a)?;
+            let b = from_move_byte_vector(instance, ptr_b)?;
+            let result = crypto::ristretto255_scalar_sub(&a, &b);
+            let addr = to_move_byte_vector(instance, &mut runtime.allocator, result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    linker.define_typed(
+        "ristretto255_scalar_neg_internal",
+        |caller: Caller<Runtime>, ptr_a: u32| {
+            let runtime = caller.user_data;
+            let instance = caller.instance;
+            let a = from_move_byte_vector(instance, ptr_a)?;
+            let result = crypto::ristretto255_scalar_neg(&a);
+            let addr = to_move_byte_vector(instance, &mut runtime.allocator, result)?;
+            Result::<u32, ProgramError>::Ok(addr)
+        },
+    )?;
+
+    // Point operations (need point store)
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed("ristretto255_point_identity_internal", move || -> u64 {
+            crypto::ristretto255_point_identity(&ps)
+        })?;
+    }
+
+    linker.define_typed(
+        "ristretto255_point_is_canonical_internal",
+        |caller: Caller<Runtime>, ptr_to_bytes: u32| {
+            let instance = caller.instance;
+            let bytes = from_move_byte_vector(instance, ptr_to_bytes)?;
+            Result::<u32, ProgramError>::Ok(crypto::ristretto255_point_is_canonical(&bytes) as u32)
+        },
+    )?;
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_point_decompress_internal",
+            move |caller: Caller<Runtime>, ptr_to_bytes: u32| {
+                let runtime = caller.user_data;
+                let instance = caller.instance;
+                let bytes = from_move_byte_vector(instance, ptr_to_bytes)?;
+                let (handle, ok) = crypto::ristretto255_point_decompress(&ps, &bytes);
+                #[repr(C)]
+                #[derive(Copy, Clone)]
+                struct HandleBool {
+                    handle: u64,
+                    ok: u32,
+                }
+                let result = HandleBool {
+                    handle,
+                    ok: ok as u32,
+                };
+                let addr = copy_to_guest(instance, &mut runtime.allocator, &result)?;
+                Result::<u32, ProgramError>::Ok(addr)
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_point_clone_internal",
+            move |handle: u64| -> u64 { crypto::ristretto255_point_clone(&ps, handle) },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_point_compress_internal",
+            move |caller: Caller<Runtime>, handle: u64| {
+                let runtime = caller.user_data;
+                let instance = caller.instance;
+                let result = crypto::ristretto255_point_compress(&ps, handle);
+                let addr = to_move_byte_vector(instance, &mut runtime.allocator, result)?;
+                Result::<u32, ProgramError>::Ok(addr)
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_point_mul_internal",
+            move |caller: Caller<Runtime>, handle: u64, ptr_scalar: u32, in_place: u32| {
+                let instance = caller.instance;
+                let scalar_bytes = from_move_byte_vector(instance, ptr_scalar)?;
+                Result::<u64, ProgramError>::Ok(crypto::ristretto255_point_mul(
+                    &ps,
+                    handle,
+                    &scalar_bytes,
+                    in_place != 0,
+                ))
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_point_add_internal",
+            move |h1: u64, h2: u64, in_place: u32| -> u64 {
+                crypto::ristretto255_point_add(&ps, h1, h2, in_place != 0)
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_point_sub_internal",
+            move |h1: u64, h2: u64, in_place: u32| -> u64 {
+                crypto::ristretto255_point_sub(&ps, h1, h2, in_place != 0)
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_point_neg_internal",
+            move |handle: u64, in_place: u32| -> u64 {
+                crypto::ristretto255_point_neg(&ps, handle, in_place != 0)
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_point_equals",
+            move |h1: u64, h2: u64| -> u32 {
+                crypto::ristretto255_point_equals(&ps, h1, h2) as u32
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_basepoint_mul_internal",
+            move |caller: Caller<Runtime>, ptr_scalar: u32| {
+                let instance = caller.instance;
+                let scalar_bytes = from_move_byte_vector(instance, ptr_scalar)?;
+                Result::<u64, ProgramError>::Ok(crypto::ristretto255_basepoint_mul(
+                    &ps,
+                    &scalar_bytes,
+                ))
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_basepoint_double_mul_internal",
+            move |caller: Caller<Runtime>, ptr_a: u32, handle: u64, ptr_b: u32| {
+                let instance = caller.instance;
+                let a_bytes = from_move_byte_vector(instance, ptr_a)?;
+                let b_bytes = from_move_byte_vector(instance, ptr_b)?;
+                Result::<u64, ProgramError>::Ok(crypto::ristretto255_basepoint_double_mul(
+                    &ps, &a_bytes, handle, &b_bytes,
+                ))
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_double_scalar_mul_internal",
+            move |caller: Caller<Runtime>, h1: u64, h2: u64, ptr_s1: u32, ptr_s2: u32| {
+                let instance = caller.instance;
+                let s1_bytes = from_move_byte_vector(instance, ptr_s1)?;
+                let s2_bytes = from_move_byte_vector(instance, ptr_s2)?;
+                Result::<u64, ProgramError>::Ok(crypto::ristretto255_double_scalar_mul(
+                    &ps, h1, h2, &s1_bytes, &s2_bytes,
+                ))
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_new_point_from_sha512_internal",
+            move |caller: Caller<Runtime>, ptr_to_bytes: u32| {
+                let instance = caller.instance;
+                let bytes = from_move_byte_vector(instance, ptr_to_bytes)?;
+                Result::<u64, ProgramError>::Ok(crypto::ristretto255_new_point_from_sha512(
+                    &ps, &bytes,
+                ))
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_new_point_from_64_uniform_bytes_internal",
+            move |caller: Caller<Runtime>, ptr_to_bytes: u32| {
+                let instance = caller.instance;
+                let bytes = from_move_byte_vector(instance, ptr_to_bytes)?;
+                Result::<u64, ProgramError>::Ok(
+                    crypto::ristretto255_new_point_from_64_uniform_bytes(&ps, &bytes),
+                )
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_multi_scalar_mul_internal",
+            move |caller: Caller<Runtime>, ptr_points: u32, ptr_scalars: u32| {
+                let instance = caller.instance;
+                // Read the vector of RistrettoPoint structs (each contains a u64 handle)
+                let points_vec: MoveByteVector = copy_from_guest(instance, ptr_points)?;
+                let num_points = points_vec.length as usize;
+                let mut handles = Vec::with_capacity(num_points);
+                // Each RistrettoPoint struct is 8 bytes (a u64 handle)
+                for i in 0..num_points {
+                    let elem_addr = points_vec.ptr as u32 + (i * 8) as u32;
+                    let handle: u64 = copy_from_guest(instance, elem_addr)?;
+                    handles.push(handle);
+                }
+                // Read the vector of Scalar structs (each is a MoveByteVector wrapping 32 bytes)
+                let scalars_vec: MoveByteVector = copy_from_guest(instance, ptr_scalars)?;
+                let num_scalars = scalars_vec.length as usize;
+                let elem_size = core::mem::size_of::<MoveByteVector>();
+                let mut scalar_bytes_list = Vec::with_capacity(num_scalars);
+                for i in 0..num_scalars {
+                    let elem_addr = scalars_vec.ptr as u32 + (i * elem_size) as u32;
+                    let inner_vec: MoveByteVector = copy_from_guest(instance, elem_addr)?;
+                    let bytes = copy_bytes_from_guest(
+                        instance,
+                        inner_vec.ptr as u32,
+                        inner_vec.length as usize,
+                    )?;
+                    scalar_bytes_list.push(bytes);
+                }
+                Result::<u64, ProgramError>::Ok(crypto::ristretto255_multi_scalar_mul(
+                    &ps,
+                    &handles,
+                    &scalar_bytes_list,
+                ))
+            },
+        )?;
+    }
+
+    // --- Bulletproofs host functions ---
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_bulletproofs_verify_range_proof_internal",
+            move |caller: Caller<Runtime>,
+                  ptr_com: u32,
+                  val_base_handle: u64,
+                  rand_base_handle: u64,
+                  ptr_proof: u32,
+                  num_bits: u64,
+                  ptr_dst: u32| {
+                let instance = caller.instance;
+                let com_bytes = from_move_byte_vector(instance, ptr_com)?;
+                let proof_bytes = from_move_byte_vector(instance, ptr_proof)?;
+                let dst = from_move_byte_vector(instance, ptr_dst)?;
+                Result::<u32, ProgramError>::Ok(
+                    crypto::ristretto255_bulletproofs_verify_range_proof(
+                        &ps,
+                        &com_bytes,
+                        val_base_handle,
+                        rand_base_handle,
+                        &proof_bytes,
+                        num_bits,
+                        &dst,
+                    ) as u32,
+                )
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_bulletproofs_verify_batch_range_proof_internal",
+            move |caller: Caller<Runtime>,
+                  ptr_coms: u32,
+                  val_base_handle: u64,
+                  rand_base_handle: u64,
+                  ptr_proof: u32,
+                  num_bits: u64,
+                  ptr_dst: u32| {
+                let instance = caller.instance;
+                let com_bytes_list = from_move_vector_of_byte_vectors(instance, ptr_coms)?;
+                let proof_bytes = from_move_byte_vector(instance, ptr_proof)?;
+                let dst = from_move_byte_vector(instance, ptr_dst)?;
+                Result::<u32, ProgramError>::Ok(
+                    crypto::ristretto255_bulletproofs_verify_batch_range_proof(
+                        &ps,
+                        &com_bytes_list,
+                        val_base_handle,
+                        rand_base_handle,
+                        &proof_bytes,
+                        num_bits,
+                        &dst,
+                    ) as u32,
+                )
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_bulletproofs_prove_range_internal",
+            move |caller: Caller<Runtime>,
+                  ptr_val: u32,
+                  ptr_r: u32,
+                  num_bits: u64,
+                  ptr_dst: u32,
+                  val_base_handle: u64,
+                  rand_base_handle: u64| {
+                let runtime = caller.user_data;
+                let instance = caller.instance;
+                let val_bytes = from_move_byte_vector(instance, ptr_val)?;
+                let r_bytes = from_move_byte_vector(instance, ptr_r)?;
+                let dst = from_move_byte_vector(instance, ptr_dst)?;
+                let (proof_bytes, com_bytes) = crypto::ristretto255_bulletproofs_prove_range(
+                    &ps,
+                    &val_bytes,
+                    &r_bytes,
+                    num_bits,
+                    &dst,
+                    val_base_handle,
+                    rand_base_handle,
+                );
+                let proof_addr =
+                    to_move_byte_vector(instance, &mut runtime.allocator, proof_bytes)?;
+                let proof_vec: MoveByteVector = copy_from_guest(instance, proof_addr)?;
+                let com_addr = to_move_byte_vector(instance, &mut runtime.allocator, com_bytes)?;
+                let com_vec: MoveByteVector = copy_from_guest(instance, com_addr)?;
+                #[repr(C)]
+                #[derive(Copy, Clone)]
+                struct ProveResult {
+                    proof: MoveByteVector,
+                    com: MoveByteVector,
+                }
+                let result = ProveResult {
+                    proof: proof_vec,
+                    com: com_vec,
+                };
+                let addr = copy_to_guest(instance, &mut runtime.allocator, &result)?;
+                Result::<u32, ProgramError>::Ok(addr)
+            },
+        )?;
+    }
+
+    {
+        let ps = point_store.clone();
+        linker.define_typed(
+            "ristretto255_bulletproofs_prove_batch_range_internal",
+            move |caller: Caller<Runtime>,
+                  ptr_vals: u32,
+                  ptr_rs: u32,
+                  num_bits: u64,
+                  ptr_dst: u32,
+                  val_base_handle: u64,
+                  rand_base_handle: u64| {
+                let runtime = caller.user_data;
+                let instance = caller.instance;
+                let val_bytes_list = from_move_vector_of_byte_vectors(instance, ptr_vals)?;
+                let rs_vec = from_move_vector_of_byte_vectors(instance, ptr_rs)?;
+                let dst = from_move_byte_vector(instance, ptr_dst)?;
+                let (proof_bytes, com_bytes_list) =
+                    crypto::ristretto255_bulletproofs_prove_batch_range(
+                        &ps,
+                        &val_bytes_list,
+                        &rs_vec,
+                        num_bits,
+                        &dst,
+                        val_base_handle,
+                        rand_base_handle,
+                    );
+                let proof_addr =
+                    to_move_byte_vector(instance, &mut runtime.allocator, proof_bytes)?;
+                let proof_vec: MoveByteVector = copy_from_guest(instance, proof_addr)?;
+                // Build vector of commitment byte vectors in guest
+                let elem_size = core::mem::size_of::<MoveByteVector>();
+                let total_size = com_bytes_list.len() * elem_size;
+                let data_addr = runtime.allocator.alloc(total_size, 8)?;
+                for (i, com_bytes) in com_bytes_list.iter().enumerate() {
+                    let inner_addr =
+                        to_move_byte_vector(instance, &mut runtime.allocator, com_bytes.clone())?;
+                    let inner_vec: MoveByteVector = copy_from_guest(instance, inner_addr)?;
+                    let elem_addr = data_addr + (i * elem_size) as u32;
+                    instance.write_memory(elem_addr, unsafe {
+                        core::slice::from_raw_parts(
+                            &inner_vec as *const MoveByteVector as *const u8,
+                            elem_size,
+                        )
+                    })?;
+                }
+                let coms_vec = MoveByteVector {
+                    ptr: data_addr as *mut u8,
+                    capacity: com_bytes_list.len() as u64,
+                    length: com_bytes_list.len() as u64,
+                };
+                #[repr(C)]
+                #[derive(Copy, Clone)]
+                struct BatchProveResult {
+                    proof: MoveByteVector,
+                    coms: MoveByteVector,
+                }
+                let result = BatchProveResult {
+                    proof: proof_vec,
+                    coms: coms_vec,
+                };
+                let addr = copy_to_guest(instance, &mut runtime.allocator, &result)?;
+                Result::<u32, ProgramError>::Ok(addr)
+            },
+        )?;
+    }
+
     Ok(())
 }
 

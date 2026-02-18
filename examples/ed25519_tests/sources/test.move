@@ -548,3 +548,109 @@ module 0xa002::unit_test_test {
     }
 }
 
+// --- Ristretto255 module ---
+// --- Ristretto255 test module ---
+module 0xa002::ristretto255_test {
+    use aptos_std::ristretto255;
+
+    // Test scalar arithmetic roundtrip
+    public entry fun test_scalar_arithmetic(_account: &signer) {
+        let two = ristretto255::new_scalar_from_u64(2);
+        let three = ristretto255::new_scalar_from_u64(3);
+        let five = ristretto255::new_scalar_from_u64(5);
+        let six = ristretto255::new_scalar_from_u64(6);
+
+        // 2 + 3 = 5
+        let sum = ristretto255::scalar_add(&two, &three);
+        assert!(ristretto255::scalar_to_bytes(&sum) == ristretto255::scalar_to_bytes(&five), 1);
+
+        // 2 * 3 = 6
+        let prod = ristretto255::scalar_mul(&two, &three);
+        assert!(ristretto255::scalar_to_bytes(&prod) == ristretto255::scalar_to_bytes(&six), 2);
+
+        // 5 - 3 = 2
+        let diff = ristretto255::scalar_sub(&five, &three);
+        assert!(ristretto255::scalar_to_bytes(&diff) == ristretto255::scalar_to_bytes(&two), 3);
+
+        // neg(2) + 2 = 0
+        let neg_two = ristretto255::scalar_neg(&two);
+        let zero = ristretto255::scalar_add(&two, &neg_two);
+        let scalar_zero = ristretto255::scalar_zero();
+        assert!(ristretto255::scalar_to_bytes(&zero) == ristretto255::scalar_to_bytes(&scalar_zero), 4);
+    }
+
+    // Test point identity compresses to the known identity encoding (all zeros)
+    public entry fun test_point_identity_compress(_account: &signer) {
+        let id = ristretto255::point_identity();
+        let compressed = ristretto255::point_compress(&id);
+        let bytes = ristretto255::point_to_bytes(&compressed);
+        assert!(std::vector::length(&bytes) == 32, 1);
+        // Ristretto identity compresses to 32 zero bytes
+        let i = 0;
+        while (i < 32) {
+            assert!(*std::vector::borrow(&bytes, i) == 0, 2);
+            i = i + 1;
+        };
+    }
+
+    // Test P + Q - Q == P
+    public entry fun test_point_add_sub_roundtrip(_account: &signer) {
+        let s1 = ristretto255::new_scalar_from_u64(42);
+        let s2 = ristretto255::new_scalar_from_u64(99);
+        let p = ristretto255::basepoint_mul(&s1);
+        let q = ristretto255::basepoint_mul(&s2);
+
+        let pq = ristretto255::point_add(&p, &q);
+        let p_back = ristretto255::point_sub(&pq, &q);
+        assert!(ristretto255::point_equals(&p, &p_back), 1);
+    }
+
+    // Test basepoint_mul and compress
+    public entry fun test_basepoint_mul(_account: &signer) {
+        let one = ristretto255::scalar_one();
+        let bp = ristretto255::basepoint_mul(&one);
+        let compressed = ristretto255::point_compress(&bp);
+        let bytes = ristretto255::point_to_bytes(&compressed);
+        assert!(std::vector::length(&bytes) == 32, 1);
+        // Known basepoint compressed encoding (first byte 0xe2)
+        assert!(*std::vector::borrow(&bytes, 0) == 0xe2, 2);
+    }
+
+    // Test decompress roundtrip: compress then decompress equals original
+    // Note: point_decompress in Aptos stdlib returns RistrettoPoint (not Option)
+    public entry fun test_decompress_roundtrip(_account: &signer) {
+        let s = ristretto255::new_scalar_from_u64(12345);
+        let p = ristretto255::basepoint_mul(&s);
+        let compressed = ristretto255::point_compress(&p);
+        let decompressed = ristretto255::point_decompress(&compressed);
+        assert!(ristretto255::point_equals(&p, &decompressed), 1);
+    }
+
+    // Test multi_scalar_mul consistency: s1*P1 + s2*P2 via MSM == via individual ops
+    // Note: avoid point_clone (feature-gated), create fresh points instead
+    public entry fun test_multi_scalar_mul(_account: &signer) {
+        let s1 = ristretto255::new_scalar_from_u64(7);
+        let s2 = ristretto255::new_scalar_from_u64(11);
+        let s3 = ristretto255::new_scalar_from_u64(3);
+        let s5 = ristretto255::new_scalar_from_u64(5);
+        let p1 = ristretto255::basepoint_mul(&s3);
+        let p2 = ristretto255::basepoint_mul(&s5);
+
+        // MSM: s1*P1 + s2*P2 (create fresh points for the vector)
+        let p1_msm = ristretto255::basepoint_mul(&s3);
+        let p2_msm = ristretto255::basepoint_mul(&s5);
+        let points = vector[p1_msm, p2_msm];
+        let scalars = vector[s1, s2];
+        let msm_result = ristretto255::multi_scalar_mul(&points, &scalars);
+
+        // Manual: s1*P1 + s2*P2
+        let s1 = ristretto255::new_scalar_from_u64(7);
+        let s2 = ristretto255::new_scalar_from_u64(11);
+        let t1 = ristretto255::point_mul(&p1, &s1);
+        let t2 = ristretto255::point_mul(&p2, &s2);
+        let manual_result = ristretto255::point_add(&t1, &t2);
+
+        assert!(ristretto255::point_equals(&msm_result, &manual_result), 1);
+    }
+}
+

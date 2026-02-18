@@ -1,4 +1,11 @@
+use curve25519_dalek::{
+    constants::RISTRETTO_BASEPOINT_POINT,
+    ristretto::{CompressedRistretto, RistrettoPoint},
+    scalar::Scalar,
+    traits::{Identity, VartimeMultiscalarMul},
+};
 use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
+use std::sync::{Arc, Mutex};
 
 pub(crate) fn ed25519_public_key_validate(bytes: &[u8]) -> bool {
     if bytes.len() != 32 {
@@ -377,6 +384,412 @@ pub(crate) fn secp256k1_ecdsa_recover(msg: &[u8], recovery_id: u8, sig: &[u8]) -
         }
         Err(_) => (vec![0u8; 64], false),
     }
+}
+
+// --- Ristretto255 ---
+
+/// A store of RistrettoPoints indexed by u64 handles.
+/// Uses Arc<Mutex<...>> to satisfy Send + Sync requirements of the linker.
+pub type PointStore = Arc<Mutex<Vec<RistrettoPoint>>>;
+
+pub(crate) fn new_point_store() -> PointStore {
+    Arc::new(Mutex::new(Vec::new()))
+}
+
+fn push_point(store: &PointStore, point: RistrettoPoint) -> u64 {
+    let mut s = store.lock().unwrap();
+    s.push(point);
+    (s.len() - 1) as u64
+}
+
+fn get_point(store: &PointStore, handle: u64) -> RistrettoPoint {
+    store.lock().unwrap()[handle as usize]
+}
+
+fn set_point(store: &PointStore, handle: u64, point: RistrettoPoint) {
+    store.lock().unwrap()[handle as usize] = point;
+}
+
+fn scalar_from_bytes(bytes: &[u8]) -> Option<Scalar> {
+    if bytes.len() != 32 {
+        return None;
+    }
+    let arr: [u8; 32] = bytes.try_into().ok()?;
+    Scalar::from_canonical_bytes(arr)
+}
+
+// --- Scalar operations ---
+
+pub(crate) fn ristretto255_scalar_is_canonical(bytes: &[u8]) -> bool {
+    if bytes.len() != 32 {
+        return false;
+    }
+    let arr: [u8; 32] = bytes.try_into().unwrap();
+    Scalar::from_canonical_bytes(arr).is_some()
+}
+
+pub(crate) fn ristretto255_scalar_from_u64(v: u64) -> Vec<u8> {
+    Scalar::from(v).to_bytes().to_vec()
+}
+
+pub(crate) fn ristretto255_scalar_from_u128(v: u128) -> Vec<u8> {
+    Scalar::from(v).to_bytes().to_vec()
+}
+
+pub(crate) fn ristretto255_scalar_reduced_from_32_bytes(bytes: &[u8]) -> Vec<u8> {
+    let arr: [u8; 32] = bytes.try_into().expect("expected 32 bytes");
+    Scalar::from_bytes_mod_order(arr).to_bytes().to_vec()
+}
+
+pub(crate) fn ristretto255_scalar_uniform_from_64_bytes(bytes: &[u8]) -> Vec<u8> {
+    let arr: [u8; 64] = bytes.try_into().expect("expected 64 bytes");
+    Scalar::from_bytes_mod_order_wide(&arr).to_bytes().to_vec()
+}
+
+pub(crate) fn ristretto255_scalar_from_sha512(bytes: &[u8]) -> Vec<u8> {
+    use sha2::Digest;
+    let hash = sha2::Sha512::digest(bytes);
+    let arr: [u8; 64] = hash.into();
+    Scalar::from_bytes_mod_order_wide(&arr).to_bytes().to_vec()
+}
+
+pub(crate) fn ristretto255_scalar_invert(bytes: &[u8]) -> Vec<u8> {
+    let s = scalar_from_bytes(bytes).expect("invalid scalar");
+    s.invert().to_bytes().to_vec()
+}
+
+pub(crate) fn ristretto255_scalar_mul(a: &[u8], b: &[u8]) -> Vec<u8> {
+    let sa = scalar_from_bytes(a).expect("invalid scalar a");
+    let sb = scalar_from_bytes(b).expect("invalid scalar b");
+    (sa * sb).to_bytes().to_vec()
+}
+
+pub(crate) fn ristretto255_scalar_add(a: &[u8], b: &[u8]) -> Vec<u8> {
+    let sa = scalar_from_bytes(a).expect("invalid scalar a");
+    let sb = scalar_from_bytes(b).expect("invalid scalar b");
+    (sa + sb).to_bytes().to_vec()
+}
+
+pub(crate) fn ristretto255_scalar_sub(a: &[u8], b: &[u8]) -> Vec<u8> {
+    let sa = scalar_from_bytes(a).expect("invalid scalar a");
+    let sb = scalar_from_bytes(b).expect("invalid scalar b");
+    (sa - sb).to_bytes().to_vec()
+}
+
+pub(crate) fn ristretto255_scalar_neg(a: &[u8]) -> Vec<u8> {
+    let sa = scalar_from_bytes(a).expect("invalid scalar");
+    (-sa).to_bytes().to_vec()
+}
+
+// --- Point operations ---
+
+pub(crate) fn ristretto255_point_identity(store: &PointStore) -> u64 {
+    push_point(store, RistrettoPoint::identity())
+}
+
+pub(crate) fn ristretto255_point_is_canonical(bytes: &[u8]) -> bool {
+    if bytes.len() != 32 {
+        return false;
+    }
+    CompressedRistretto::from_slice(bytes)
+        .decompress()
+        .is_some()
+}
+
+pub(crate) fn ristretto255_point_decompress(store: &PointStore, bytes: &[u8]) -> (u64, bool) {
+    if bytes.len() != 32 {
+        return (0, false);
+    }
+    match CompressedRistretto::from_slice(bytes).decompress() {
+        Some(point) => (push_point(store, point), true),
+        None => (0, false),
+    }
+}
+
+pub(crate) fn ristretto255_point_clone(store: &PointStore, handle: u64) -> u64 {
+    let point = get_point(store, handle);
+    push_point(store, point)
+}
+
+pub(crate) fn ristretto255_point_compress(store: &PointStore, handle: u64) -> Vec<u8> {
+    get_point(store, handle).compress().to_bytes().to_vec()
+}
+
+pub(crate) fn ristretto255_point_mul(
+    store: &PointStore,
+    handle: u64,
+    scalar_bytes: &[u8],
+    in_place: bool,
+) -> u64 {
+    let s = scalar_from_bytes(scalar_bytes).expect("invalid scalar");
+    let result = get_point(store, handle) * s;
+    if in_place {
+        set_point(store, handle, result);
+        handle
+    } else {
+        push_point(store, result)
+    }
+}
+
+pub(crate) fn ristretto255_point_add(store: &PointStore, h1: u64, h2: u64, in_place: bool) -> u64 {
+    let result = get_point(store, h1) + get_point(store, h2);
+    if in_place {
+        set_point(store, h1, result);
+        h1
+    } else {
+        push_point(store, result)
+    }
+}
+
+pub(crate) fn ristretto255_point_sub(store: &PointStore, h1: u64, h2: u64, in_place: bool) -> u64 {
+    let result = get_point(store, h1) - get_point(store, h2);
+    if in_place {
+        set_point(store, h1, result);
+        h1
+    } else {
+        push_point(store, result)
+    }
+}
+
+pub(crate) fn ristretto255_point_neg(store: &PointStore, handle: u64, in_place: bool) -> u64 {
+    let result = -get_point(store, handle);
+    if in_place {
+        set_point(store, handle, result);
+        handle
+    } else {
+        push_point(store, result)
+    }
+}
+
+pub(crate) fn ristretto255_point_equals(store: &PointStore, h1: u64, h2: u64) -> bool {
+    get_point(store, h1) == get_point(store, h2)
+}
+
+pub(crate) fn ristretto255_basepoint_mul(store: &PointStore, scalar_bytes: &[u8]) -> u64 {
+    let s = scalar_from_bytes(scalar_bytes).expect("invalid scalar");
+    push_point(store, RISTRETTO_BASEPOINT_POINT * s)
+}
+
+pub(crate) fn ristretto255_basepoint_double_mul(
+    store: &PointStore,
+    a_bytes: &[u8],
+    handle: u64,
+    b_bytes: &[u8],
+) -> u64 {
+    let a = scalar_from_bytes(a_bytes).expect("invalid scalar a");
+    let b = scalar_from_bytes(b_bytes).expect("invalid scalar b");
+    let point = get_point(store, handle);
+    let result =
+        RistrettoPoint::vartime_multiscalar_mul(&[a, b], &[point, RISTRETTO_BASEPOINT_POINT]);
+    push_point(store, result)
+}
+
+pub(crate) fn ristretto255_double_scalar_mul(
+    store: &PointStore,
+    h1: u64,
+    h2: u64,
+    s1_bytes: &[u8],
+    s2_bytes: &[u8],
+) -> u64 {
+    let s1 = scalar_from_bytes(s1_bytes).expect("invalid scalar s1");
+    let s2 = scalar_from_bytes(s2_bytes).expect("invalid scalar s2");
+    let p1 = get_point(store, h1);
+    let p2 = get_point(store, h2);
+    let result = RistrettoPoint::vartime_multiscalar_mul(&[s1, s2], &[p1, p2]);
+    push_point(store, result)
+}
+
+pub(crate) fn ristretto255_new_point_from_sha512(store: &PointStore, bytes: &[u8]) -> u64 {
+    use sha2::Digest;
+    let hash = sha2::Sha512::digest(bytes);
+    let arr: [u8; 64] = hash.into();
+    push_point(store, RistrettoPoint::from_uniform_bytes(&arr))
+}
+
+pub(crate) fn ristretto255_new_point_from_64_uniform_bytes(
+    store: &PointStore,
+    bytes: &[u8],
+) -> u64 {
+    let arr: [u8; 64] = bytes.try_into().expect("expected 64 bytes");
+    push_point(store, RistrettoPoint::from_uniform_bytes(&arr))
+}
+
+pub(crate) fn ristretto255_multi_scalar_mul(
+    store: &PointStore,
+    handles: &[u64],
+    scalar_bytes_list: &[Vec<u8>],
+) -> u64 {
+    let points: Vec<RistrettoPoint> = handles.iter().map(|&h| get_point(store, h)).collect();
+    let scalars: Vec<Scalar> = scalar_bytes_list
+        .iter()
+        .map(|b| scalar_from_bytes(b).expect("invalid scalar"))
+        .collect();
+    let result = RistrettoPoint::vartime_multiscalar_mul(&scalars, &points);
+    push_point(store, result)
+}
+
+// --- Bulletproofs ---
+
+/// Leaks a byte slice to get a `'static` reference.
+/// merlin v3's `Transcript::new` requires `&'static [u8]`.
+fn leak_dst(dst: &[u8]) -> &'static [u8] {
+    Box::leak(dst.to_vec().into_boxed_slice())
+}
+
+pub(crate) fn ristretto255_bulletproofs_verify_range_proof(
+    store: &PointStore,
+    com_bytes: &[u8],
+    val_base_handle: u64,
+    rand_base_handle: u64,
+    proof_bytes: &[u8],
+    num_bits: u64,
+    dst: &[u8],
+) -> bool {
+    use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
+
+    if com_bytes.len() != 32 {
+        return false;
+    }
+    let commitment = CompressedRistretto::from_slice(com_bytes);
+    let val_base = get_point(store, val_base_handle);
+    let rand_base = get_point(store, rand_base_handle);
+
+    let Ok(proof) = RangeProof::from_bytes(proof_bytes) else {
+        return false;
+    };
+
+    let pg = PedersenGens {
+        B: val_base,
+        B_blinding: rand_base,
+    };
+    let bp_gens = BulletproofGens::new(num_bits as usize, 1);
+    let mut transcript = merlin::Transcript::new(leak_dst(dst));
+
+    proof
+        .verify_single(
+            &bp_gens,
+            &pg,
+            &mut transcript,
+            &commitment,
+            num_bits as usize,
+        )
+        .is_ok()
+}
+
+pub(crate) fn ristretto255_bulletproofs_verify_batch_range_proof(
+    store: &PointStore,
+    com_bytes_list: &[Vec<u8>],
+    val_base_handle: u64,
+    rand_base_handle: u64,
+    proof_bytes: &[u8],
+    num_bits: u64,
+    dst: &[u8],
+) -> bool {
+    use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
+
+    let commitments: Vec<CompressedRistretto> = com_bytes_list
+        .iter()
+        .map(|b| CompressedRistretto::from_slice(b))
+        .collect();
+    let val_base = get_point(store, val_base_handle);
+    let rand_base = get_point(store, rand_base_handle);
+
+    let Ok(proof) = RangeProof::from_bytes(proof_bytes) else {
+        return false;
+    };
+
+    let pg = PedersenGens {
+        B: val_base,
+        B_blinding: rand_base,
+    };
+    let bp_gens = BulletproofGens::new(num_bits as usize, com_bytes_list.len());
+    let mut transcript = merlin::Transcript::new(leak_dst(dst));
+
+    proof
+        .verify_multiple(
+            &bp_gens,
+            &pg,
+            &mut transcript,
+            &commitments,
+            num_bits as usize,
+        )
+        .is_ok()
+}
+
+pub(crate) fn ristretto255_bulletproofs_prove_range(
+    store: &PointStore,
+    val_bytes: &[u8],
+    r_bytes: &[u8],
+    num_bits: u64,
+    dst: &[u8],
+    val_base_handle: u64,
+    rand_base_handle: u64,
+) -> (Vec<u8>, Vec<u8>) {
+    use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
+
+    let val_scalar = scalar_from_bytes(val_bytes).expect("invalid value scalar");
+    // Extract u64 value from scalar bytes (little-endian)
+    let val = u64::from_le_bytes(val_bytes[..8].try_into().unwrap());
+    let r = scalar_from_bytes(r_bytes).expect("invalid randomness scalar");
+    let _ = val_scalar; // val_scalar validates canonical form
+    let val_base = get_point(store, val_base_handle);
+    let rand_base = get_point(store, rand_base_handle);
+
+    let pg = PedersenGens {
+        B: val_base,
+        B_blinding: rand_base,
+    };
+    let bp_gens = BulletproofGens::new(num_bits as usize, 1);
+    let mut transcript = merlin::Transcript::new(leak_dst(dst));
+
+    let (proof, commitment) =
+        RangeProof::prove_single(&bp_gens, &pg, &mut transcript, val, &r, num_bits as usize)
+            .expect("prove_single failed");
+
+    (proof.to_bytes(), commitment.to_bytes().to_vec())
+}
+
+pub(crate) fn ristretto255_bulletproofs_prove_batch_range(
+    store: &PointStore,
+    val_bytes_list: &[Vec<u8>],
+    r_bytes_list: &[Vec<u8>],
+    num_bits: u64,
+    dst: &[u8],
+    val_base_handle: u64,
+    rand_base_handle: u64,
+) -> (Vec<u8>, Vec<Vec<u8>>) {
+    use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
+
+    let vals: Vec<u64> = val_bytes_list
+        .iter()
+        .map(|b| u64::from_le_bytes(b[..8].try_into().unwrap()))
+        .collect();
+    let rs: Vec<Scalar> = r_bytes_list
+        .iter()
+        .map(|b| scalar_from_bytes(b).expect("invalid randomness scalar"))
+        .collect();
+    let val_base = get_point(store, val_base_handle);
+    let rand_base = get_point(store, rand_base_handle);
+
+    let pg = PedersenGens {
+        B: val_base,
+        B_blinding: rand_base,
+    };
+    let bp_gens = BulletproofGens::new(num_bits as usize, vals.len());
+    let mut transcript = merlin::Transcript::new(leak_dst(dst));
+
+    let (proof, commitments) = RangeProof::prove_multiple(
+        &bp_gens,
+        &pg,
+        &mut transcript,
+        &vals,
+        &rs,
+        num_bits as usize,
+    )
+    .expect("prove_multiple failed");
+
+    let com_bytes_list: Vec<Vec<u8>> = commitments.iter().map(|c| c.to_bytes().to_vec()).collect();
+    (proof.to_bytes(), com_bytes_list)
 }
 
 #[cfg(test)]

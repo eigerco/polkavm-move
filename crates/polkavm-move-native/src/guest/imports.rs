@@ -232,3 +232,222 @@ extern "C" {
 extern "C" {
     pub(crate) fn bls12381_generate_keys() -> u32;
 }
+
+// --- ristretto255 host functions ---
+
+// Scalar operations
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_scalar_is_canonical_internal(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_scalar_from_u64_internal(v: u64) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_scalar_from_u128_internal(lo: u64, hi: u64) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_scalar_reduced_from_32_bytes_internal(
+        v: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_scalar_uniform_from_64_bytes_internal(
+        v: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_scalar_from_sha512_internal(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_scalar_invert_internal(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_scalar_mul_internal(
+        a: *const MoveByteVector,
+        b: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_scalar_add_internal(
+        a: *const MoveByteVector,
+        b: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_scalar_sub_internal(
+        a: *const MoveByteVector,
+        b: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_scalar_neg_internal(a: *const MoveByteVector) -> u32;
+}
+
+// Point operations
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_point_identity_internal() -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_point_is_canonical_internal(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_point_decompress_internal(v: *const MoveByteVector) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_point_clone_internal(handle: u64) -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_point_compress_internal(handle: u64) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_point_mul_internal(
+        handle: u64,
+        scalar: *const MoveByteVector,
+        in_place: u32,
+    ) -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_point_add_internal(h1: u64, h2: u64, in_place: u32) -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_point_sub_internal(h1: u64, h2: u64, in_place: u32) -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_point_neg_internal(handle: u64, in_place: u32) -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_point_equals(h1: u64, h2: u64) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_basepoint_mul_internal(scalar: *const MoveByteVector) -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_basepoint_double_mul_internal(
+        a: *const MoveByteVector,
+        handle: u64,
+        b: *const MoveByteVector,
+    ) -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_double_scalar_mul_internal(
+        h1: u64,
+        h2: u64,
+        s1: *const MoveByteVector,
+        s2: *const MoveByteVector,
+    ) -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_new_point_from_sha512_internal(v: *const MoveByteVector) -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_new_point_from_64_uniform_bytes_internal(
+        v: *const MoveByteVector,
+    ) -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_multi_scalar_mul_internal(
+        points: *const MoveByteVector,
+        scalars: *const MoveByteVector,
+    ) -> u64;
+}
+
+// Bulletproofs
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_bulletproofs_verify_range_proof_internal(
+        com: *const MoveByteVector,
+        val_base_handle: u64,
+        rand_base_handle: u64,
+        proof: *const MoveByteVector,
+        num_bits: u64,
+        dst: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_bulletproofs_verify_batch_range_proof_internal(
+        coms: *const MoveByteVector,
+        val_base_handle: u64,
+        rand_base_handle: u64,
+        proof: *const MoveByteVector,
+        num_bits: u64,
+        dst: *const MoveByteVector,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_bulletproofs_prove_range_internal(
+        val: *const MoveByteVector,
+        r: *const MoveByteVector,
+        num_bits: u64,
+        dst: *const MoveByteVector,
+        val_base_handle: u64,
+        rand_base_handle: u64,
+    ) -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn ristretto255_bulletproofs_prove_batch_range_internal(
+        vals: *const MoveByteVector,
+        rs: *const MoveByteVector,
+        num_bits: u64,
+        dst: *const MoveByteVector,
+        val_base_handle: u64,
+        rand_base_handle: u64,
+    ) -> u32;
+}

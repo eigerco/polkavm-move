@@ -1200,6 +1200,328 @@ unsafe extern "C" fn chain_id_internal() -> u8 {
     imports::chain_id_internal() as u8
 }
 
+// --- ristretto255 native functions ---
+
+// Scalar operations
+
+#[export_name = "move_native_ristretto255_scalar_is_canonical_internal"]
+unsafe extern "C" fn ristretto255_scalar_is_canonical_internal(
+    bytes: *const MoveByteVector,
+) -> bool {
+    imports::ristretto255_scalar_is_canonical_internal(bytes) != 0
+}
+
+#[export_name = "move_native_ristretto255_scalar_from_u64_internal"]
+unsafe extern "C" fn ristretto255_scalar_from_u64_internal(v: u64) -> MoveByteVector {
+    let addr = imports::ristretto255_scalar_from_u64_internal(v);
+    *(addr as *const MoveByteVector)
+}
+
+#[export_name = "move_native_ristretto255_scalar_from_u128_internal"]
+unsafe extern "C" fn ristretto255_scalar_from_u128_internal(lo: u64, hi: u64) -> MoveByteVector {
+    let addr = imports::ristretto255_scalar_from_u128_internal(lo, hi);
+    *(addr as *const MoveByteVector)
+}
+
+#[export_name = "move_native_ristretto255_scalar_reduced_from_32_bytes_internal"]
+unsafe extern "C" fn ristretto255_scalar_reduced_from_32_bytes_internal(
+    bytes: *const MoveByteVector,
+) -> MoveByteVector {
+    let addr = imports::ristretto255_scalar_reduced_from_32_bytes_internal(bytes);
+    *(addr as *const MoveByteVector)
+}
+
+#[export_name = "move_native_ristretto255_scalar_uniform_from_64_bytes_internal"]
+unsafe extern "C" fn ristretto255_scalar_uniform_from_64_bytes_internal(
+    bytes: *const MoveByteVector,
+) -> MoveByteVector {
+    let addr = imports::ristretto255_scalar_uniform_from_64_bytes_internal(bytes);
+    *(addr as *const MoveByteVector)
+}
+
+#[export_name = "move_native_ristretto255_scalar_from_sha512_internal"]
+unsafe extern "C" fn ristretto255_scalar_from_sha512_internal(
+    bytes: *const MoveByteVector,
+) -> MoveByteVector {
+    let addr = imports::ristretto255_scalar_from_sha512_internal(bytes);
+    *(addr as *const MoveByteVector)
+}
+
+#[export_name = "move_native_ristretto255_scalar_invert_internal"]
+unsafe extern "C" fn ristretto255_scalar_invert_internal(
+    bytes: *const MoveByteVector,
+) -> MoveByteVector {
+    let addr = imports::ristretto255_scalar_invert_internal(bytes);
+    *(addr as *const MoveByteVector)
+}
+
+#[export_name = "move_native_ristretto255_scalar_mul_internal"]
+unsafe extern "C" fn ristretto255_scalar_mul_internal(
+    a: *const MoveByteVector,
+    b: *const MoveByteVector,
+) -> MoveByteVector {
+    let addr = imports::ristretto255_scalar_mul_internal(a, b);
+    *(addr as *const MoveByteVector)
+}
+
+#[export_name = "move_native_ristretto255_scalar_add_internal"]
+unsafe extern "C" fn ristretto255_scalar_add_internal(
+    a: *const MoveByteVector,
+    b: *const MoveByteVector,
+) -> MoveByteVector {
+    let addr = imports::ristretto255_scalar_add_internal(a, b);
+    *(addr as *const MoveByteVector)
+}
+
+#[export_name = "move_native_ristretto255_scalar_sub_internal"]
+unsafe extern "C" fn ristretto255_scalar_sub_internal(
+    a: *const MoveByteVector,
+    b: *const MoveByteVector,
+) -> MoveByteVector {
+    let addr = imports::ristretto255_scalar_sub_internal(a, b);
+    *(addr as *const MoveByteVector)
+}
+
+#[export_name = "move_native_ristretto255_scalar_neg_internal"]
+unsafe extern "C" fn ristretto255_scalar_neg_internal(a: *const MoveByteVector) -> MoveByteVector {
+    let addr = imports::ristretto255_scalar_neg_internal(a);
+    *(addr as *const MoveByteVector)
+}
+
+// Point operations
+
+#[export_name = "move_native_ristretto255_point_identity_internal"]
+unsafe extern "C" fn ristretto255_point_identity_internal() -> u64 {
+    imports::ristretto255_point_identity_internal()
+}
+
+#[export_name = "move_native_ristretto255_point_is_canonical_internal"]
+unsafe extern "C" fn ristretto255_point_is_canonical_internal(
+    bytes: *const MoveByteVector,
+) -> bool {
+    imports::ristretto255_point_is_canonical_internal(bytes) != 0
+}
+
+#[export_name = "move_native_ristretto255_point_decompress_internal"]
+unsafe extern "C" fn ristretto255_point_decompress_internal(
+    bytes: *const MoveByteVector,
+    out_handle: *mut u64,
+) -> bool {
+    let result_addr = imports::ristretto255_point_decompress_internal(bytes);
+    // Result struct: { handle: u64, ok: u32 }
+    let result_ptr = result_addr as *const u8;
+    let handle = *(result_ptr as *const u64);
+    let ok = *(result_ptr.add(8) as *const u32);
+    ptr::write(out_handle, handle);
+    ok != 0
+}
+
+#[export_name = "move_native_ristretto255_point_clone_internal"]
+unsafe extern "C" fn ristretto255_point_clone_internal(handle: u64) -> u64 {
+    imports::ristretto255_point_clone_internal(handle)
+}
+
+#[export_name = "move_native_ristretto255_point_compress_internal"]
+unsafe extern "C" fn ristretto255_point_compress_internal(point_ref: *const u64) -> MoveByteVector {
+    let handle = *point_ref;
+    let addr = imports::ristretto255_point_compress_internal(handle);
+    *(addr as *const MoveByteVector)
+}
+
+#[export_name = "move_native_ristretto255_point_mul_internal"]
+unsafe extern "C" fn ristretto255_point_mul_internal(
+    point_ref: *const u64,
+    scalar: *const MoveByteVector,
+    in_place: bool,
+) -> u64 {
+    let handle = *point_ref;
+    imports::ristretto255_point_mul_internal(handle, scalar, in_place as u32)
+}
+
+#[export_name = "move_native_ristretto255_point_add_internal"]
+unsafe extern "C" fn ristretto255_point_add_internal(
+    a_ref: *const u64,
+    b_ref: *const u64,
+    in_place: bool,
+) -> u64 {
+    let h1 = *a_ref;
+    let h2 = *b_ref;
+    imports::ristretto255_point_add_internal(h1, h2, in_place as u32)
+}
+
+#[export_name = "move_native_ristretto255_point_sub_internal"]
+unsafe extern "C" fn ristretto255_point_sub_internal(
+    a_ref: *const u64,
+    b_ref: *const u64,
+    in_place: bool,
+) -> u64 {
+    let h1 = *a_ref;
+    let h2 = *b_ref;
+    imports::ristretto255_point_sub_internal(h1, h2, in_place as u32)
+}
+
+#[export_name = "move_native_ristretto255_point_neg_internal"]
+unsafe extern "C" fn ristretto255_point_neg_internal(a_ref: *const u64, in_place: bool) -> u64 {
+    let handle = *a_ref;
+    imports::ristretto255_point_neg_internal(handle, in_place as u32)
+}
+
+#[export_name = "move_native_ristretto255_point_equals"]
+unsafe extern "C" fn ristretto255_point_equals(g_ref: *const u64, h_ref: *const u64) -> bool {
+    let h1 = *g_ref;
+    let h2 = *h_ref;
+    imports::ristretto255_point_equals(h1, h2) != 0
+}
+
+#[export_name = "move_native_ristretto255_basepoint_mul_internal"]
+unsafe extern "C" fn ristretto255_basepoint_mul_internal(scalar: *const MoveByteVector) -> u64 {
+    imports::ristretto255_basepoint_mul_internal(scalar)
+}
+
+#[export_name = "move_native_ristretto255_basepoint_double_mul_internal"]
+unsafe extern "C" fn ristretto255_basepoint_double_mul_internal(
+    a: *const MoveByteVector,
+    point_ref: *const u64,
+    b: *const MoveByteVector,
+) -> u64 {
+    let handle = *point_ref;
+    imports::ristretto255_basepoint_double_mul_internal(a, handle, b)
+}
+
+#[export_name = "move_native_ristretto255_double_scalar_mul_internal"]
+unsafe extern "C" fn ristretto255_double_scalar_mul_internal(
+    h1: u64,
+    h2: u64,
+    s1: *const MoveByteVector,
+    s2: *const MoveByteVector,
+) -> u64 {
+    imports::ristretto255_double_scalar_mul_internal(h1, h2, s1, s2)
+}
+
+#[export_name = "move_native_ristretto255_new_point_from_sha512_internal"]
+unsafe extern "C" fn ristretto255_new_point_from_sha512_internal(
+    bytes: *const MoveByteVector,
+) -> u64 {
+    imports::ristretto255_new_point_from_sha512_internal(bytes)
+}
+
+#[export_name = "move_native_ristretto255_new_point_from_64_uniform_bytes_internal"]
+unsafe extern "C" fn ristretto255_new_point_from_64_uniform_bytes_internal(
+    bytes: *const MoveByteVector,
+) -> u64 {
+    imports::ristretto255_new_point_from_64_uniform_bytes_internal(bytes)
+}
+
+#[export_name = "move_native_ristretto255_multi_scalar_mul_internal"]
+unsafe extern "C" fn ristretto255_multi_scalar_mul_internal(
+    _type_desc_p: *const u8, // type descriptor for P (RistrettoPoint)
+    _type_desc_s: *const u8, // type descriptor for S (Scalar)
+    points: *const MoveByteVector,
+    scalars: *const MoveByteVector,
+) -> u64 {
+    imports::ristretto255_multi_scalar_mul_internal(points, scalars)
+}
+
+// Bulletproofs
+
+#[export_name = "move_native_ristretto255_bulletproofs_verify_range_proof_internal"]
+unsafe extern "C" fn ristretto255_bulletproofs_verify_range_proof_internal(
+    com: *const MoveByteVector,
+    val_base_ref: *const u64,
+    rand_base_ref: *const u64,
+    proof: *const MoveByteVector,
+    num_bits: u64,
+    dst: *const MoveByteVector,
+) -> bool {
+    let val_base_handle = *val_base_ref;
+    let rand_base_handle = *rand_base_ref;
+    imports::ristretto255_bulletproofs_verify_range_proof_internal(
+        com,
+        val_base_handle,
+        rand_base_handle,
+        proof,
+        num_bits,
+        dst,
+    ) != 0
+}
+
+#[export_name = "move_native_ristretto255_bulletproofs_verify_batch_range_proof_internal"]
+unsafe extern "C" fn ristretto255_bulletproofs_verify_batch_range_proof_internal(
+    coms: *const MoveByteVector,
+    val_base_ref: *const u64,
+    rand_base_ref: *const u64,
+    proof: *const MoveByteVector,
+    num_bits: u64,
+    dst: *const MoveByteVector,
+) -> bool {
+    let val_base_handle = *val_base_ref;
+    let rand_base_handle = *rand_base_ref;
+    imports::ristretto255_bulletproofs_verify_batch_range_proof_internal(
+        coms,
+        val_base_handle,
+        rand_base_handle,
+        proof,
+        num_bits,
+        dst,
+    ) != 0
+}
+
+#[export_name = "move_native_ristretto255_bulletproofs_prove_range_internal"]
+unsafe extern "C" fn ristretto255_bulletproofs_prove_range_internal(
+    val: *const MoveByteVector,
+    r: *const MoveByteVector,
+    num_bits: u64,
+    dst: *const MoveByteVector,
+    val_base_ref: *const u64,
+    rand_base_ref: *const u64,
+    out_proof: *mut MoveByteVector,
+) -> MoveByteVector {
+    let val_base_handle = *val_base_ref;
+    let rand_base_handle = *rand_base_ref;
+    let result_addr = imports::ristretto255_bulletproofs_prove_range_internal(
+        val,
+        r,
+        num_bits,
+        dst,
+        val_base_handle,
+        rand_base_handle,
+    );
+    // Result struct: { proof: MoveByteVector (24 bytes), com: MoveByteVector (24 bytes) }
+    let result_ptr = result_addr as *const u8;
+    let proof_vec = *(result_ptr as *const MoveByteVector);
+    ptr::write(out_proof, proof_vec);
+    let com_vec = *(result_ptr.add(24) as *const MoveByteVector);
+    com_vec
+}
+
+#[export_name = "move_native_ristretto255_bulletproofs_prove_batch_range_internal"]
+unsafe extern "C" fn ristretto255_bulletproofs_prove_batch_range_internal(
+    vals: *const MoveByteVector,
+    rs: *const MoveByteVector,
+    num_bits: u64,
+    dst: *const MoveByteVector,
+    val_base_ref: *const u64,
+    rand_base_ref: *const u64,
+    out_proof: *mut MoveByteVector,
+) -> MoveByteVector {
+    let val_base_handle = *val_base_ref;
+    let rand_base_handle = *rand_base_ref;
+    let result_addr = imports::ristretto255_bulletproofs_prove_batch_range_internal(
+        vals,
+        rs,
+        num_bits,
+        dst,
+        val_base_handle,
+        rand_base_handle,
+    );
+    // Result struct: { proof: MoveByteVector (24 bytes), coms: MoveByteVector (24 bytes) }
+    let result_ptr = result_addr as *const u8;
+    let proof_vec = *(result_ptr as *const MoveByteVector);
+    ptr::write(out_proof, proof_vec);
+    let coms_vec = *(result_ptr.add(24) as *const MoveByteVector);
+    coms_vec
+}
+
 #[allow(dead_code)]
 unsafe fn print_vec(vec: &MoveByteVector) {
     let typ_string = MoveType::vec();
