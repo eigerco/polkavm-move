@@ -738,3 +738,209 @@ pub fn test_create_signers_empty() -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+// --- Event tests ---
+
+#[test]
+pub fn test_event_emit() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_event_emit", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_ok(), "test_event_emit failed: {:?}", result.err());
+    Ok(())
+}
+
+// --- create_signer tests ---
+
+#[test]
+pub fn test_create_signer() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_create_signer", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_create_signer failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_create_signer_zero() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_create_signer_zero", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_create_signer_zero failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+// --- transaction_context tests ---
+
+#[test]
+pub fn test_chain_id() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_chain_id", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_ok(), "test_chain_id failed: {:?}", result.err());
+    Ok(())
+}
+
+#[test]
+pub fn test_get_txn_hash() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_get_txn_hash", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_get_txn_hash failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_get_script_hash() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_get_script_hash", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_get_script_hash failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_gas_amounts() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_gas_amounts", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_gas_amounts failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_sender() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_sender", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(result.is_ok(), "test_sender failed: {:?}", result.err());
+    Ok(())
+}
+
+#[test]
+pub fn test_secondary_signers() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_secondary_signers", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_secondary_signers failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+// --- aggregator_v2 tests ---
+
+#[test]
+pub fn test_aggregator_basic() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_aggregator_basic", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_aggregator_basic failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_aggregator_overflow() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_aggregator_overflow", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_aggregator_overflow failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_aggregator_sub() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_aggregator_sub", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_aggregator_sub failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_aggregator_snapshot() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_aggregator_snapshot", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_aggregator_snapshot failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_aggregator_u128() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_aggregator_u128", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_aggregator_u128 failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_aggregator_unbounded() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_aggregator_unbounded", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_aggregator_unbounded failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}

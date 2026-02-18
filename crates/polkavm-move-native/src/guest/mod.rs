@@ -1522,6 +1522,262 @@ unsafe extern "C" fn ristretto255_bulletproofs_prove_batch_range_internal(
     coms_vec
 }
 
+// --- event native functions (no-ops) ---
+
+#[export_name = "move_native_event_write_module_event_to_store"]
+unsafe extern "C" fn event_write_module_event_to_store(_type_desc: *const u8, _msg: *const u8) {
+    // No-op: events are fire-and-forget in our PolkaVM context
+}
+
+#[export_name = "move_native_event_write_to_event_store"]
+unsafe extern "C" fn event_write_to_event_store(
+    _type_desc: *const u8,
+    _guid: *const MoveByteVector,
+    _count: u64,
+    _msg: *const u8,
+) {
+    // No-op: deprecated event function
+}
+
+// --- transaction_context native functions ---
+
+#[export_name = "move_native_transaction_context_chain_id_internal"]
+unsafe extern "C" fn transaction_context_chain_id_internal() -> u8 {
+    imports::chain_id_internal() as u8
+}
+
+#[export_name = "move_native_transaction_context_get_txn_hash"]
+unsafe extern "C" fn transaction_context_get_txn_hash() -> MoveByteVector {
+    let ptr = imports::txn_hash();
+    *(ptr as *const MoveByteVector)
+}
+
+#[export_name = "move_native_transaction_context_get_script_hash"]
+unsafe extern "C" fn transaction_context_get_script_hash() -> MoveByteVector {
+    MoveByteVector {
+        ptr: core::ptr::null_mut(),
+        capacity: 0,
+        length: 0,
+    }
+}
+
+#[export_name = "move_native_transaction_context_max_gas_amount_internal"]
+unsafe extern "C" fn transaction_context_max_gas_amount_internal() -> u64 {
+    imports::max_gas_amount()
+}
+
+#[export_name = "move_native_transaction_context_gas_unit_price_internal"]
+unsafe extern "C" fn transaction_context_gas_unit_price_internal() -> u64 {
+    imports::gas_unit_price()
+}
+
+#[export_name = "move_native_transaction_context_sender_internal"]
+unsafe extern "C" fn transaction_context_sender_internal(out: *mut u8) {
+    imports::sender_address(out);
+}
+
+#[export_name = "move_native_transaction_context_gas_payer_internal"]
+unsafe extern "C" fn transaction_context_gas_payer_internal(out: *mut u8) {
+    // Gas payer is same as sender in our test environment
+    imports::sender_address(out);
+}
+
+#[export_name = "move_native_transaction_context_generate_unique_address"]
+unsafe extern "C" fn transaction_context_generate_unique_address(out: *mut u8) {
+    imports::generate_unique_addr(out);
+}
+
+#[export_name = "move_native_transaction_context_secondary_signers_internal"]
+unsafe extern "C" fn transaction_context_secondary_signers_internal() -> MoveByteVector {
+    // No secondary signers in test environment — return empty vector
+    MoveByteVector {
+        ptr: core::ptr::null_mut(),
+        capacity: 0,
+        length: 0,
+    }
+}
+
+// --- aggregator_v2 native functions ---
+
+// Helper: read u64 or u128 value from a pointer based on type descriptor
+unsafe fn aggregator_read_int(ptr: *const u8, td: *const u8) -> u128 {
+    let move_type = &*(td as *const MoveType);
+    match move_type.type_desc {
+        TypeDesc::U64 => *(ptr as *const u64) as u128,
+        TypeDesc::U128 => *(ptr as *const u128),
+        _ => {
+            move_rt_abort(0xdead);
+            core::hint::unreachable_unchecked()
+        }
+    }
+}
+
+// Helper: write u64 or u128 value to a pointer based on type descriptor
+unsafe fn aggregator_write_int(ptr: *mut u8, td: *const u8, val: u128) {
+    let move_type = &*(td as *const MoveType);
+    match move_type.type_desc {
+        TypeDesc::U64 => *(ptr as *mut u64) = val as u64,
+        TypeDesc::U128 => *(ptr as *mut u128) = val,
+        _ => {
+            move_rt_abort(0xdead);
+            core::hint::unreachable_unchecked()
+        }
+    }
+}
+
+// Helper: get the byte size of an int element from type descriptor
+unsafe fn aggregator_int_size(td: *const u8) -> usize {
+    let move_type = &*(td as *const MoveType);
+    match move_type.type_desc {
+        TypeDesc::U64 => 8,
+        TypeDesc::U128 => 16,
+        _ => {
+            move_rt_abort(0xdead);
+            core::hint::unreachable_unchecked()
+        }
+    }
+}
+
+// Helper: get max value for type
+unsafe fn aggregator_max_for_type(td: *const u8) -> u128 {
+    let move_type = &*(td as *const MoveType);
+    match move_type.type_desc {
+        TypeDesc::U64 => u64::MAX as u128,
+        TypeDesc::U128 => u128::MAX,
+        _ => {
+            move_rt_abort(0xdead);
+            core::hint::unreachable_unchecked()
+        }
+    }
+}
+
+/// create_aggregator<I>(max_value: I) -> Aggregator<I>
+/// Aggregator struct: { value: I, max_value: I }
+/// Generic return → output pointer is last arg
+#[export_name = "move_native_aggregator_v2_create_aggregator"]
+unsafe extern "C" fn aggregator_v2_create_aggregator(
+    type_desc: *const u8,
+    max_value: *const u8,
+    out: *mut u8,
+) {
+    let int_size = aggregator_int_size(type_desc);
+    // value = 0
+    core::ptr::write_bytes(out, 0, int_size);
+    // max_value = max_value arg
+    core::ptr::copy_nonoverlapping(max_value, out.add(int_size), int_size);
+}
+
+/// create_unbounded_aggregator<I>() -> Aggregator<I>
+#[export_name = "move_native_aggregator_v2_create_unbounded_aggregator"]
+unsafe extern "C" fn aggregator_v2_create_unbounded_aggregator(type_desc: *const u8, out: *mut u8) {
+    let int_size = aggregator_int_size(type_desc);
+    let max_val = aggregator_max_for_type(type_desc);
+    // value = 0
+    core::ptr::write_bytes(out, 0, int_size);
+    // max_value = MAX
+    aggregator_write_int(out.add(int_size), type_desc, max_val);
+}
+
+/// try_add<I>(&mut self, value: I) -> bool
+/// self is &mut Aggregator<I> = pointer to {value: I, max_value: I}
+/// For generic `value` param: passed as pointer
+#[export_name = "move_native_aggregator_v2_try_add"]
+unsafe extern "C" fn aggregator_v2_try_add(
+    type_desc: *const u8,
+    self_ptr: *mut u8,
+    value_ptr: *const u8,
+) -> u32 {
+    let int_size = aggregator_int_size(type_desc);
+    let current = aggregator_read_int(self_ptr, type_desc);
+    let add_val = aggregator_read_int(value_ptr, type_desc);
+    let max_val = aggregator_read_int(self_ptr.add(int_size), type_desc);
+    if current + add_val <= max_val {
+        aggregator_write_int(self_ptr, type_desc, current + add_val);
+        1 // true
+    } else {
+        0 // false
+    }
+}
+
+/// try_sub<I>(&mut self, value: I) -> bool
+#[export_name = "move_native_aggregator_v2_try_sub"]
+unsafe extern "C" fn aggregator_v2_try_sub(
+    type_desc: *const u8,
+    self_ptr: *mut u8,
+    value_ptr: *const u8,
+) -> u32 {
+    let current = aggregator_read_int(self_ptr, type_desc);
+    let sub_val = aggregator_read_int(value_ptr, type_desc);
+    if current >= sub_val {
+        aggregator_write_int(self_ptr, type_desc, current - sub_val);
+        1 // true
+    } else {
+        0 // false
+    }
+}
+
+/// is_at_least_impl<I>(&self, min_amount: I) -> bool
+#[export_name = "move_native_aggregator_v2_is_at_least_impl"]
+unsafe extern "C" fn aggregator_v2_is_at_least_impl(
+    type_desc: *const u8,
+    self_ptr: *const u8,
+    min_ptr: *const u8,
+) -> u32 {
+    let current = aggregator_read_int(self_ptr, type_desc);
+    let min_val = aggregator_read_int(min_ptr, type_desc);
+    if current >= min_val {
+        1
+    } else {
+        0
+    }
+}
+
+/// read<I>(&self) -> I
+/// Return type is TypeParameter → generic return via output pointer
+#[export_name = "move_native_aggregator_v2_read"]
+unsafe extern "C" fn aggregator_v2_read(type_desc: *const u8, self_ptr: *const u8, out: *mut u8) {
+    let int_size = aggregator_int_size(type_desc);
+    core::ptr::copy_nonoverlapping(self_ptr, out, int_size);
+}
+
+/// snapshot<I>(&self) -> AggregatorSnapshot<I>
+/// AggregatorSnapshot has one field: value: I
+/// Generic return → output pointer
+#[export_name = "move_native_aggregator_v2_snapshot"]
+unsafe extern "C" fn aggregator_v2_snapshot(
+    type_desc: *const u8,
+    self_ptr: *const u8,
+    out: *mut u8,
+) {
+    let int_size = aggregator_int_size(type_desc);
+    // Copy just the value field (first field of Aggregator)
+    core::ptr::copy_nonoverlapping(self_ptr, out, int_size);
+}
+
+/// create_snapshot<I>(value: I) -> AggregatorSnapshot<I>
+/// Generic return → output pointer
+#[export_name = "move_native_aggregator_v2_create_snapshot"]
+unsafe extern "C" fn aggregator_v2_create_snapshot(
+    type_desc: *const u8,
+    value_ptr: *const u8,
+    out: *mut u8,
+) {
+    let int_size = aggregator_int_size(type_desc);
+    core::ptr::copy_nonoverlapping(value_ptr, out, int_size);
+}
+
+/// read_snapshot<I>(&self) -> I
+/// Generic return → output pointer
+#[export_name = "move_native_aggregator_v2_read_snapshot"]
+unsafe extern "C" fn aggregator_v2_read_snapshot(
+    type_desc: *const u8,
+    self_ptr: *const u8,
+    out: *mut u8,
+) {
+    let int_size = aggregator_int_size(type_desc);
+    core::ptr::copy_nonoverlapping(self_ptr, out, int_size);
+}
+
 #[allow(dead_code)]
 unsafe fn print_vec(vec: &MoveByteVector) {
     let typ_string = MoveType::vec();

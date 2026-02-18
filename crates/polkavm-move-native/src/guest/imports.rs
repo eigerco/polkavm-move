@@ -126,6 +126,33 @@ extern "C" {
     pub(crate) fn chain_id_internal() -> u32;
 }
 
+// --- transaction_context host functions ---
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn txn_hash() -> u32;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn max_gas_amount() -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn gas_unit_price() -> u64;
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn sender_address(out: *mut u8);
+}
+
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    pub(crate) fn generate_unique_addr(out: *mut u8);
+}
+
 // --- multi_ed25519 host functions ---
 
 #[polkavm_derive::polkavm_import]

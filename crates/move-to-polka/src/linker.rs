@@ -787,9 +787,52 @@ fn define_host_functions(linker: &mut MoveProgramLinker) -> Result<(), anyhow::E
         },
     )?;
 
-    // --- type_info host functions ---
+    // --- type_info / transaction_context host functions ---
 
     linker.define_typed("chain_id_internal", || -> u32 { 4u32 })?;
+
+    linker.define_typed("txn_hash", |caller: Caller<Runtime>| {
+        let runtime = caller.user_data;
+        let instance = caller.instance;
+        // Return a deterministic 32-byte hash for testing
+        let hash = vec![
+            0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45,
+            0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01,
+            0x23, 0x45, 0x67, 0x89,
+        ];
+        let addr = to_move_byte_vector(instance, &mut runtime.allocator, hash)?;
+        Result::<u32, ProgramError>::Ok(addr)
+    })?;
+
+    linker.define_typed("max_gas_amount", || -> u64 { 1_000_000u64 })?;
+
+    linker.define_typed("gas_unit_price", || -> u64 { 100u64 })?;
+
+    // Test sender address: 32 bytes (Move address size)
+    const TEST_SENDER: &[u8] = &[
+        0xa0, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0,
+    ];
+
+    linker.define_typed("sender_address", |caller: Caller<Runtime>, out_ptr: u32| {
+        let instance = caller.instance;
+        instance.write_memory(out_ptr, TEST_SENDER)?;
+        Result::<(), ProgramError>::Ok(())
+    })?;
+
+    let unique_addr_counter = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1));
+    linker.define_typed(
+        "generate_unique_addr",
+        move |caller: Caller<Runtime>, out_ptr: u32| {
+            let instance = caller.instance;
+            let counter = unique_addr_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            // Generate unique address: counter bytes in first 8 bytes, rest zeroed
+            let mut addr = [0u8; 32];
+            addr[..8].copy_from_slice(&counter.to_le_bytes());
+            instance.write_memory(out_ptr, &addr)?;
+            Result::<(), ProgramError>::Ok(())
+        },
+    )?;
 
     // --- ristretto255 host functions ---
 

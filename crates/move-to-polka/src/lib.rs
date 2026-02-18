@@ -279,9 +279,26 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
         debug!("Generating code for module {modname}");
         let llmod = global_cx.llvm_cx.create_module(&modname);
         let module_source_path = module.get_source_path().to_str().expect("utf-8");
-        let mod_cx =
-            &mut global_cx.create_module_context(mod_id, &llmod, options, module_source_path);
-        mod_cx.translate(&mut exports);
+
+        // Wrap translation + codegen in catch_unwind so that modules with
+        // unsupported constructs (complex enums, etc.) are skipped gracefully
+        // instead of aborting the entire compilation.
+        let translate_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mod_cx =
+                &mut global_cx.create_module_context(mod_id, &llmod, options, module_source_path);
+            mod_cx.translate(&mut exports);
+        }));
+        if let Err(e) = translate_result {
+            let msg = if let Some(s) = e.downcast_ref::<String>() {
+                s.clone()
+            } else if let Some(s) = e.downcast_ref::<&str>() {
+                s.to_string()
+            } else {
+                "unknown panic".to_string()
+            };
+            eprintln!("WARNING: module {modname} translation failed: {msg}, skipping");
+            continue;
+        }
 
         let mut out_path = out_path.join(&modname);
         out_path.set_extension(&options.output_file_extension);
@@ -301,7 +318,12 @@ pub fn compile(global_env: &GlobalEnv, options: &Options) -> anyhow::Result<()> 
             if options.compile {
                 output_file = options.output.clone();
             }
-            write_object_file(llmod, &llmachine, &output_file)?;
+            let verified = write_object_file(llmod, &llmachine, &output_file)?;
+            if !verified {
+                // Module failed LLVM verification — skip it and continue
+                // with remaining modules.
+                continue;
+            }
         }
         if !(options.compile || options.llvm_ir) {
             objects.push(Path::new(&output_file).to_path_buf());

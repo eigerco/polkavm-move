@@ -108,7 +108,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             .print_log_unresoled_types(UnresolvedPrintLogLevel::Warning);
         self.llvm_di_builder.finalize();
         self.llvm_module.finalize(); // this generates the inline ASM for the polkavm sections
-        self.llvm_module.verify();
+                                     // Note: verification is done in write_object_file, which can skip modules that fail.
     }
 
     /// Generate LLVM IR struct declarations for all Move structures.
@@ -717,6 +717,15 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 debug!("Skipping function {name} as it is not an entry function");
                 continue;
             }
+            // The call selector only passes a signer pointer.
+            // Skip entry functions that take extra parameters beyond the signer.
+            if func.count_params() != 1 {
+                debug!(
+                    "Skipping entry function {name} from call selector: expects {} params, call selector only provides signer",
+                    func.count_params()
+                );
+                continue;
+            }
             debug!("Adding call selector function {name} to exports");
             let mut keccak = Keccak::v256();
             keccak.update(name.as_bytes());
@@ -794,6 +803,19 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
     ) {
         debug!("Declare native function {}", fn_env.get_full_name_str());
         assert!(fn_env.is_native());
+
+        // Skip declaring functions that are intercepted in translate_native_fun_call.
+        // These have ABI mismatches (32-byte address/signer by value) and are either
+        // handled inline (create_signer) or declared with correct ABI at the call site.
+        let full_name = fn_env.get_full_name_str();
+        if full_name.ends_with("::create_signer")
+            || full_name.ends_with("::sender_internal")
+            || full_name.ends_with("::gas_payer_internal")
+            || full_name.ends_with("::generate_unique_address")
+        {
+            debug!("Skipping declaration for intercepted native: {full_name}");
+            return;
+        }
 
         let llcx = &self.llvm_cx;
         let ll_native_sym_name = fn_env.llvm_native_fn_symbol_name();

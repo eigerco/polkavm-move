@@ -654,3 +654,192 @@ module 0xa002::ristretto255_test {
     }
 }
 
+// --- Minimal aptos_framework shim modules ---
+
+module aptos_framework::event {
+    native fun write_module_event_to_store<T: drop + store>(msg: T);
+    native fun write_to_event_store<T: drop + store>(guid: vector<u8>, count: u64, msg: T);
+
+    public fun emit<T: drop + store>(msg: T) {
+        write_module_event_to_store(msg);
+    }
+}
+
+module aptos_framework::create_signer {
+    public(friend) native fun create_signer(addr: address): signer;
+
+    friend aptos_framework::create_signer_test;
+}
+
+module aptos_framework::transaction_context {
+    native fun get_txn_hash(): vector<u8>;
+    native fun get_script_hash(): vector<u8>;
+    native fun chain_id_internal(): u8;
+    native fun max_gas_amount_internal(): u64;
+    native fun gas_unit_price_internal(): u64;
+    native fun sender_internal(): address;
+    native fun gas_payer_internal(): address;
+    native fun generate_unique_address(): address;
+    native fun secondary_signers_internal(): vector<address>;
+
+    public fun get_transaction_hash(): vector<u8> { get_txn_hash() }
+    public fun get_chain_id(): u8 { chain_id_internal() }
+    public fun get_max_gas_amount(): u64 { max_gas_amount_internal() }
+    public fun get_gas_unit_price(): u64 { gas_unit_price_internal() }
+    public fun get_sender(): address { sender_internal() }
+    public fun get_gas_payer(): address { gas_payer_internal() }
+    public fun generate_auid_address(): address { generate_unique_address() }
+    public fun get_secondary_signers(): vector<address> { secondary_signers_internal() }
+    public fun get_script_hash_public(): vector<u8> { get_script_hash() }
+}
+
+module aptos_framework::aggregator_v2 {
+    struct Aggregator<IntElement> has store, drop {
+        value: IntElement,
+        max_value: IntElement,
+    }
+
+    struct AggregatorSnapshot<IntElement> has store, drop {
+        value: IntElement,
+    }
+
+    public native fun create_aggregator<IntElement: copy + drop>(max_value: IntElement): Aggregator<IntElement>;
+    public native fun create_unbounded_aggregator<IntElement: copy + drop>(): Aggregator<IntElement>;
+    public native fun try_add<IntElement>(self: &mut Aggregator<IntElement>, value: IntElement): bool;
+    public native fun try_sub<IntElement>(self: &mut Aggregator<IntElement>, value: IntElement): bool;
+    native fun is_at_least_impl<IntElement>(self: &Aggregator<IntElement>, min_amount: IntElement): bool;
+    public native fun read<IntElement>(self: &Aggregator<IntElement>): IntElement;
+    public native fun snapshot<IntElement>(self: &Aggregator<IntElement>): AggregatorSnapshot<IntElement>;
+    public native fun create_snapshot<IntElement: copy + drop>(value: IntElement): AggregatorSnapshot<IntElement>;
+    public native fun read_snapshot<IntElement>(self: &AggregatorSnapshot<IntElement>): IntElement;
+
+    public fun is_at_least<IntElement>(self: &Aggregator<IntElement>, min_amount: IntElement): bool {
+        is_at_least_impl(self, min_amount)
+    }
+}
+
+// --- Test modules for aptos_framework natives ---
+
+module 0xa002::event_test {
+    use aptos_framework::event;
+
+    struct TestEvent has drop, store {
+        value: u64,
+    }
+
+    public entry fun test_event_emit(_account: &signer) {
+        // Events are no-ops — just verify they don't crash
+        event::emit(TestEvent { value: 42 });
+        event::emit(TestEvent { value: 100 });
+    }
+}
+
+module aptos_framework::create_signer_test {
+    use aptos_framework::create_signer;
+    use std::signer;
+
+    public entry fun test_create_signer(_account: &signer) {
+        let addr = @0x42;
+        let s = create_signer::create_signer(addr);
+        assert!(signer::address_of(&s) == addr, 1);
+    }
+
+    public entry fun test_create_signer_zero(_account: &signer) {
+        let addr = @0x0;
+        let s = create_signer::create_signer(addr);
+        assert!(signer::address_of(&s) == addr, 1);
+    }
+}
+
+module 0xa002::transaction_context_test {
+    use aptos_framework::transaction_context;
+
+    public entry fun test_chain_id(_account: &signer) {
+        let chain_id = transaction_context::get_chain_id();
+        assert!(chain_id == 4, 1); // test chain_id is 4
+    }
+
+    public entry fun test_get_txn_hash(_account: &signer) {
+        let hash = transaction_context::get_transaction_hash();
+        assert!(std::vector::length(&hash) == 32, 1); // hash should be 32 bytes
+    }
+
+    public entry fun test_get_script_hash(_account: &signer) {
+        let hash = transaction_context::get_script_hash_public();
+        assert!(std::vector::length(&hash) == 0, 1); // empty in test env
+    }
+
+    public entry fun test_gas_amounts(_account: &signer) {
+        let max_gas = transaction_context::get_max_gas_amount();
+        assert!(max_gas > 0, 1);
+        let gas_price = transaction_context::get_gas_unit_price();
+        assert!(gas_price > 0, 2);
+    }
+
+    public entry fun test_sender(_account: &signer) {
+        let sender = transaction_context::get_sender();
+        // Just check it doesn't crash and returns a valid address
+        let _ = sender;
+    }
+
+    public entry fun test_secondary_signers(_account: &signer) {
+        let signers = transaction_context::get_secondary_signers();
+        assert!(std::vector::length(&signers) == 0, 1); // empty in test env
+    }
+}
+
+module 0xa002::aggregator_test {
+    use aptos_framework::aggregator_v2;
+
+    public entry fun test_aggregator_basic(_account: &signer) {
+        let agg = aggregator_v2::create_aggregator<u64>(100);
+        assert!(aggregator_v2::read(&agg) == 0, 1);
+        assert!(aggregator_v2::try_add(&mut agg, 50), 2);
+        assert!(aggregator_v2::read(&agg) == 50, 3);
+        assert!(aggregator_v2::try_add(&mut agg, 30), 4);
+        assert!(aggregator_v2::read(&agg) == 80, 5);
+    }
+
+    public entry fun test_aggregator_overflow(_account: &signer) {
+        let agg = aggregator_v2::create_aggregator<u64>(100);
+        assert!(aggregator_v2::try_add(&mut agg, 90), 1);
+        assert!(!aggregator_v2::try_add(&mut agg, 20), 2); // would exceed max
+        assert!(aggregator_v2::read(&agg) == 90, 3); // unchanged
+    }
+
+    public entry fun test_aggregator_sub(_account: &signer) {
+        let agg = aggregator_v2::create_aggregator<u64>(100);
+        assert!(aggregator_v2::try_add(&mut agg, 50), 1);
+        assert!(aggregator_v2::try_sub(&mut agg, 30), 2);
+        assert!(aggregator_v2::read(&agg) == 20, 3);
+        assert!(!aggregator_v2::try_sub(&mut agg, 30), 4); // underflow
+        assert!(aggregator_v2::read(&agg) == 20, 5); // unchanged
+    }
+
+    public entry fun test_aggregator_snapshot(_account: &signer) {
+        let agg = aggregator_v2::create_aggregator<u64>(100);
+        assert!(aggregator_v2::try_add(&mut agg, 42), 1);
+        let snap = aggregator_v2::snapshot(&agg);
+        assert!(aggregator_v2::read_snapshot(&snap) == 42, 2);
+
+        let snap2 = aggregator_v2::create_snapshot<u64>(99);
+        assert!(aggregator_v2::read_snapshot(&snap2) == 99, 3);
+    }
+
+    public entry fun test_aggregator_u128(_account: &signer) {
+        let agg = aggregator_v2::create_aggregator<u128>(1000);
+        assert!(aggregator_v2::try_add(&mut agg, 500), 1);
+        assert!(aggregator_v2::read(&agg) == 500, 2);
+        assert!(aggregator_v2::try_sub(&mut agg, 200), 3);
+        assert!(aggregator_v2::read(&agg) == 300, 4);
+        assert!(aggregator_v2::is_at_least(&agg, 200), 5);
+        assert!(!aggregator_v2::is_at_least(&agg, 400), 6);
+    }
+
+    public entry fun test_aggregator_unbounded(_account: &signer) {
+        let agg = aggregator_v2::create_unbounded_aggregator<u64>();
+        assert!(aggregator_v2::try_add(&mut agg, 18446744073709551615), 1); // u64::MAX
+        assert!(aggregator_v2::read(&agg) == 18446744073709551615, 2);
+    }
+}
+

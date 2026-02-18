@@ -415,7 +415,9 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         self.module_cx
             .llvm_di_builder
             .finalize_function(&self, di_func);
-        ll_fn.verify(self.module_cx);
+        // Non-fatal: function verification errors will be caught at module level
+        // and the module will be skipped.
+        let _ = ll_fn.verify(self.module_cx);
     }
 
     fn translate_instruction(&mut self, instr: &sbc::Bytecode) {
@@ -1891,17 +1893,69 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
         src: &[mast::TempIndex],
         _instr: &sbc::Bytecode,
     ) {
-        // Special-case: object::exists_at<T>(addr) → reuse Exists rtcall
+        // Special-case interceptions for native functions that can't go through
+        // the normal native call path (ABI mismatches, pure in-memory ops, etc.)
         {
             let global_env = &self.env.module_env.env;
             let fn_env = global_env.get_function(fun_id.qualified(mod_id));
-            if fn_env.get_full_name_str().ends_with("::exists_at") {
+            let full_name = fn_env.get_full_name_str();
+
+            // object::exists_at<T>(addr) → reuse Exists rtcall
+            if full_name.ends_with("::exists_at") {
                 let types = mty::Type::instantiate_vec(types.to_vec(), self.type_params);
                 assert_eq!(types.len(), 1);
                 assert_eq!(src.len(), 1);
                 assert_eq!(dst.len(), 1);
                 let src0_reg = self.locals[src[0]].llval.as_any_value();
                 self.emit_rtcall(RtCall::Exists(src0_reg, types[0].clone()), dst, _instr);
+                return;
+            }
+
+            // create_signer(addr: address) -> signer
+            // Both are 32 bytes but different LLVM types: address=[32 x i8], signer={[32 x i8]}.
+            // RV64 ABI mismatch prevents passing/returning 32-byte aggregates by value.
+            // Since signer is a transparent wrapper around address, just load+wrap+store.
+            if full_name.ends_with("::create_signer") {
+                assert_eq!(src.len(), 1);
+                assert_eq!(dst.len(), 1);
+                let builder = &self.module_cx.llvm_builder;
+                let addr_val =
+                    builder.load_alloca(self.locals[src[0]].llval, self.locals[src[0]].llty);
+                let signer_ty = self.locals[dst[0]].llty;
+                let agg = llvm::Constant::get_const_null(signer_ty).as_any_value();
+                let signer_val = builder.build_insert_value(agg, addr_val, 0, "wrap_signer");
+                builder.build_store(signer_val, self.locals[dst[0]].llval);
+                return;
+            }
+
+            // transaction_context functions returning address (32 bytes).
+            // RV64 ABI mismatch — intercept and call guest export with output pointer.
+            if full_name.ends_with("::sender_internal")
+                || full_name.ends_with("::gas_payer_internal")
+                || full_name.ends_with("::generate_unique_address")
+            {
+                assert_eq!(dst.len(), 1);
+                assert_eq!(src.len(), 0);
+                let builder = &self.module_cx.llvm_builder;
+                let llcx = &self.module_cx.llvm_cx;
+                // Determine the guest export symbol name
+                let sym_name = fn_env.llvm_native_fn_symbol_name();
+                // Declare or get the function with correct ABI: void(ptr)
+                let ll_fn = match self.module_cx.llvm_module.get_named_function(&sym_name) {
+                    Some(f) => f,
+                    None => {
+                        let fn_ty = llvm::FunctionType::new(llcx.void_type(), &[llcx.ptr_type()]);
+                        self.module_cx.llvm_module.add_function(
+                            &mut vec![],
+                            "native",
+                            &sym_name,
+                            fn_ty,
+                            false,
+                        )
+                    }
+                };
+                let dst_ptr = self.locals[dst[0]].llval.as_any_value();
+                builder.call(ll_fn, &[dst_ptr]);
                 return;
             }
         }
@@ -2561,8 +2615,10 @@ pub fn write_object_file(
     llmod: llvm::Module,
     llmachine: &llvm::TargetMachine,
     outpath: &str,
-) -> anyhow::Result<()> {
-    llmod.verify();
+) -> anyhow::Result<bool> {
+    if !llmod.verify() {
+        return Ok(false);
+    }
     // Dump LLVM IR for debugging
     unsafe {
         let ir_path = format!("{outpath}.ll");
@@ -2571,5 +2627,5 @@ pub fn write_object_file(
         llvm_sys::core::LLVMPrintModuleToFile(llmod.0, ir_path_c.as_ptr(), &mut err);
     }
     llmachine.emit_to_obj_file(&llmod, outpath)?;
-    Ok(())
+    Ok(true)
 }

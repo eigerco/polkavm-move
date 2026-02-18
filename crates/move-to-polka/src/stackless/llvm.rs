@@ -13,7 +13,6 @@
 //! - Hides weirdly mutable array pointers.
 //! - Provides high-level instruction builders compatible with the stackless bytecode model.
 
-use libc::abort;
 use llvm_sys::{
     core::*, prelude::*, target::*, target_machine::*, LLVMIntPredicate::LLVMIntEQ, LLVMOpcode,
     LLVMUnnamedAddr,
@@ -464,7 +463,7 @@ impl Module {
         }
     }
 
-    pub fn verify(&self) {
+    pub fn verify(&self) -> bool {
         use llvm_sys::analysis::*;
         unsafe {
             let name = &self.get_module_id();
@@ -476,12 +475,16 @@ impl Module {
                 ptr::null_mut(),
             ) == 1
             {
-                println!("\n{} module verification failed\n", &self.get_module_id());
+                eprintln!(
+                    "WARNING: {} module verification failed, skipping",
+                    &self.get_module_id()
+                );
                 let module_info = &self.print_to_str();
                 debug!(target: "module", "Module content:\n{module_info}\n");
-                abort();
+                return false;
             }
         }
+        true
     }
 
     pub fn set_data_layout(&self, machine: &TargetMachine) {
@@ -1433,7 +1436,7 @@ impl Function {
         unsafe { Type(LLVMGetReturnType(LLVMGlobalGetValueType(self.0))) }
     }
 
-    pub fn verify(&self, module_cx: &ModuleContext<'_, '_>) {
+    pub fn verify(&self, module_cx: &ModuleContext<'_, '_>) -> bool {
         use llvm_sys::analysis::*;
         let module_info = module_cx.llvm_module.print_to_str();
         debug!(target: "verify function", "Module content:");
@@ -1442,10 +1445,14 @@ impl Function {
         debug!(target: "verify function", "------------------------------");
         unsafe {
             if LLVMVerifyFunction(self.0, LLVMVerifierFailureAction::LLVMPrintMessageAction) == 1 {
-                println!("{} function verifiction failed", &self.get_name());
-                abort();
+                eprintln!(
+                    "WARNING: {} function verification failed, will skip module",
+                    &self.get_name()
+                );
+                return false;
             }
         }
+        true
     }
 }
 

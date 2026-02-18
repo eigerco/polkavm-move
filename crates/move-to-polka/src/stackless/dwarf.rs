@@ -600,7 +600,7 @@ impl<'up> DIBuilder<'up> {
             let module_di_info = print_module_to_str(&module_di);
             debug!(target: "dwarf", "DIBuilder bof DI starting at next line and until line starting with !!!\n{module_di_info}\n!!!\n");
 
-            module.verify();
+            assert!(module.verify(), "DWARF DI module verification failed");
 
             DIBuilder(Some(builder_core))
         } else {
