@@ -1984,8 +1984,8 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     && ModuleContext::type_has_type_params(&ret_type));
             (arg_types, return_val_is_generic, ret_type)
         };
-        let _return_val_is_tuple = !return_val_is_generic
-            && matches!(&ret_type, mty::Type::Tuple(ts) if ts.len() > 1);
+        let _return_val_is_tuple =
+            !return_val_is_generic && matches!(&ret_type, mty::Type::Tuple(ts) if ts.len() > 1);
 
         let typarams = typarams.into_iter().map(|llval| llval.as_any_value());
         let src = src_locals

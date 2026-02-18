@@ -1009,11 +1009,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                         .iter()
                         .map(|move_type| self.to_llvm_type(move_type, tyvec))
                         .collect();
-                    llvm_types.map(|types| {
-                        self.llvm_cx
-                            .anonymous_struct_type(&types)
-                            .as_any_type()
-                    })
+                    llvm_types.map(|types| self.llvm_cx.anonymous_struct_type(&types).as_any_type())
                 }
             }
             Type::Fun(_, _, _)
