@@ -504,3 +504,47 @@ module 0xa002::secp256k1_tests {
     }
 }
 
+// Minimal unit_test module — normally #[test_only] in stdlib
+module std::unit_test {
+    native public fun create_signers_for_testing(num_signers: u64): vector<signer>;
+}
+
+module 0xa002::unit_test_test {
+    use std::unit_test;
+    use std::signer;
+
+    public entry fun test_create_signers_count(_account: &signer) {
+        let signers = unit_test::create_signers_for_testing(5);
+        assert!(std::vector::length(&signers) == 5, 1);
+    }
+
+    public entry fun test_create_signers_deterministic(_account: &signer) {
+        let signers1 = unit_test::create_signers_for_testing(3);
+        let signers2 = unit_test::create_signers_for_testing(3);
+        // Same input should produce same addresses
+        let i = 0;
+        while (i < 3) {
+            let addr1 = signer::address_of(std::vector::borrow(&signers1, i));
+            let addr2 = signer::address_of(std::vector::borrow(&signers2, i));
+            assert!(addr1 == addr2, 2);
+            i = i + 1;
+        };
+    }
+
+    public entry fun test_create_signers_unique(_account: &signer) {
+        let signers = unit_test::create_signers_for_testing(3);
+        let addr0 = signer::address_of(std::vector::borrow(&signers, 0));
+        let addr1 = signer::address_of(std::vector::borrow(&signers, 1));
+        let addr2 = signer::address_of(std::vector::borrow(&signers, 2));
+        // All addresses should be different
+        assert!(addr0 != addr1, 3);
+        assert!(addr1 != addr2, 4);
+        assert!(addr0 != addr2, 5);
+    }
+
+    public entry fun test_create_signers_empty(_account: &signer) {
+        let signers = unit_test::create_signers_for_testing(0);
+        assert!(std::vector::length(&signers) == 0, 6);
+    }
+}
+

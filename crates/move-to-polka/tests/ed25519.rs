@@ -596,3 +596,59 @@ pub fn test_bls12381_aggregate_sigs_and_verify() -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+#[test]
+pub fn test_create_signers_count() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_create_signers_count", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_create_signers_count failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_create_signers_deterministic() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_create_signers_deterministic", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_create_signers_deterministic failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_create_signers_unique() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_create_signers_unique", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_create_signers_unique failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_create_signers_empty() -> anyhow::Result<()> {
+    let (mut instance, mut runtime) = new_instance()?;
+    let result = instance
+        .call_typed_and_get_result::<(), ()>(&mut runtime, "test_create_signers_empty", ())
+        .map_err(|e| anyhow::anyhow!("{e:?}"));
+    assert!(
+        result.is_ok(),
+        "test_create_signers_empty failed: {:?}",
+        result.err()
+    );
+    Ok(())
+}

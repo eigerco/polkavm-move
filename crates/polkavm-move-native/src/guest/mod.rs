@@ -877,6 +877,20 @@ pub unsafe extern "C" fn type_info_type_of(type_t: &MoveType) -> MoveTypeInfoRet
     }
 }
 
+// --- unit_test native functions ---
+
+#[export_name = "move_native_unit_test_create_signers_for_testing"]
+unsafe extern "C" fn unit_test_create_signers_for_testing(num_signers: u64) -> MoveUntypedVector {
+    let signers: alloc::vec::Vec<MoveSigner> = (0..num_signers)
+        .map(|i| {
+            let mut addr = [0u8; ACCOUNT_ADDRESS_LENGTH];
+            addr[..8].copy_from_slice(&i.to_le_bytes());
+            MoveSigner(MoveAddress(addr))
+        })
+        .collect();
+    MoveUntypedVector::from_rust_vec(signers)
+}
+
 // --- table native functions ---
 
 struct TableEntry {
