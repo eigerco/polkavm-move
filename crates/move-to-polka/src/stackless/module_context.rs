@@ -827,23 +827,23 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                     matches!(&fn_data.result_type, mty::Type::Tuple(ts) if ts.len() > 1);
                 let (ll_rty, ll_byref_rty) = if mty0.is_type_parameter() {
                     (llcx.void_type(), Some(llcx.ptr_type()))
+                } else if !mty0.is_reference()
+                    && !mty0.is_vector()
+                    && Self::type_has_type_params(mty0)
+                {
+                    // Tuples or structs with unresolved type params (e.g. Box<V>)
+                    // → return via output pointer, like generic returns.
+                    // Vectors are excluded: they always have fixed layout (MoveUntypedVector).
+                    (llcx.void_type(), Some(llcx.ptr_type()))
                 } else if is_tuple_return {
-                    // Tuple returns: return the LAST field in a register,
-                    // pass pointers for preceding fields as extra args.
+                    // Tuple returns (concrete types only): return the LAST field
+                    // in a register, pass pointers for preceding fields as extra args.
                     if let mty::Type::Tuple(ts) = &fn_data.result_type {
                         let last_ty = self.to_llvm_type(ts.last().unwrap(), &[]).unwrap();
                         (last_ty, None)
                     } else {
                         (self.to_llvm_type(mty0, &[]).unwrap(), None)
                     }
-                } else if !mty0.is_reference()
-                    && !mty0.is_vector()
-                    && Self::type_has_type_params(mty0)
-                {
-                    // Struct return with unresolved type params (e.g. Box<V>)
-                    // → return via output pointer, like generic returns.
-                    // Vectors are excluded: they always have fixed layout (MoveUntypedVector).
-                    (llcx.void_type(), Some(llcx.ptr_type()))
                 } else {
                     (self.to_llvm_type(mty0, &[]).unwrap(), None)
                 };
@@ -1005,18 +1005,15 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 if types_vec.is_empty() {
                     Some(self.llvm_cx.void_type())
                 } else {
-                    let llvm_types = types_vec
+                    let llvm_types: Option<Vec<_>> = types_vec
                         .iter()
-                        .map(|move_type| {
-                            self.to_llvm_type(move_type, &[])
-                                .unwrap_or_else(|| panic!("{move_type:?} should be available"))
-                        })
-                        .collect::<Vec<_>>();
-                    Some(
+                        .map(|move_type| self.to_llvm_type(move_type, tyvec))
+                        .collect();
+                    llvm_types.map(|types| {
                         self.llvm_cx
-                            .anonymous_struct_type(&llvm_types)
-                            .as_any_type(),
-                    )
+                            .anonymous_struct_type(&types)
+                            .as_any_type()
+                    })
                 }
             }
             Type::Fun(_, _, _)
