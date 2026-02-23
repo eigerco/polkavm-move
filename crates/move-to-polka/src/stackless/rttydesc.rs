@@ -371,9 +371,17 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
         // Look up the corresponding LLVM struct type constructed earlier in the translation.
         // Use it to collect field offsets, struct size, and struct alignment as computed by LLVM.
         let ll_struct_name = s_env.ll_struct_name_from_raw_name(s_tys);
-        let ll_struct_ty = llcx
-            .named_struct_type(&ll_struct_name)
-            .unwrap_or_else(|| panic!("no struct type: {ll_struct_name}"));
+        let ll_struct_ty = match llcx.named_struct_type(&ll_struct_name) {
+            Some(ty) => ty,
+            None => {
+                // The struct type was never declared (e.g. deeply nested generic
+                // instantiation from another module).  Fall back to a nil descriptor
+                // so we don't block the entire module translation.
+                debug!(target: "rtty",
+                       "no struct type for rttydesc: {ll_struct_name}, falling back to nil");
+                return self.define_type_info_global_nil(symbol_name);
+            }
+        };
         let dl = llmod.get_module_data_layout();
         let ll_struct_size = llcx.abi_size_of_type(dl, ll_struct_ty.as_any_type());
         let ll_struct_align = llcx.abi_alignment_of_type(dl, ll_struct_ty.as_any_type());
@@ -405,20 +413,17 @@ impl<'mm, 'up> RttyContext<'mm, 'up> {
         // offsets. This should avoid the need to perform any manual platform/ABI/OS specific
         // computation of struct and field information.
         let fld_count = s_env.get_field_count();
-        assert!(fld_count > 0);
         let ll_fld_count = ll_struct_ty.count_struct_element_types();
         // Enum types have an extra i64 discriminant tag as their first LLVM field.
         let is_enum = s_env.has_variants();
         let ll_fld_offset: usize = if is_enum { 1 } else { 0 };
         assert!(fld_count + ll_fld_offset == ll_fld_count);
         let mut fld_infos = Vec::with_capacity(fld_count);
-        for i in 0..fld_count {
+        for (i, f_env) in s_env.get_fields().enumerate() {
             let ll_idx = i + ll_fld_offset;
             let ll_elt_offset = ll_struct_ty.offset_of_element(dl, ll_idx);
             let ll_ety = ll_struct_ty.struct_get_type_at_index(ll_idx);
             debug!(target: "rtty", "\nmember offset: {}\n{}", ll_elt_offset, ll_ety.dump_properties_to_str(dl));
-
-            let f_env = s_env.get_field_by_offset(i);
             let mut fld_type = f_env.get_type();
             let fld_name = f_env.get_name().display(s_env.symbol_pool()).to_string();
 

@@ -126,11 +126,10 @@ pub impl FunctionEnvExt for mm::FunctionEnv<'_> {
     }
 
     fn llvm_linkage(&self) -> llvm::LLVMLinkage {
-        if self.is_exposed() || self.is_native() {
-            llvm::LLVMLinkage::LLVMExternalLinkage
-        } else {
-            llvm::LLVMLinkage::LLVMPrivateLinkage
-        }
+        // Use external linkage for all non-generic functions.  Private functions
+        // may still be called cross-module (friend visibility, inlined generics,
+        // etc.) and `--gc-sections` strips unreferenced symbols during linking.
+        llvm::LLVMLinkage::LLVMExternalLinkage
     }
 
     /// Gets the qualified inst id of this function (not in the model yet).

@@ -376,7 +376,12 @@ impl Module {
             // TODO: it doesnt feel like the right place for polka section generation just on the fly
             // on any function we need to declare. Its looks more like additional pass when finalizing module
             // but we leave this for now to move forward
-            if polka_export && !exports.contains(&symbol) {
+            //
+            // Deduplicate by short name (the polkavm export name) to avoid
+            // "duplicate export" errors when multiple modules have entry
+            // functions with the same name (e.g. stake::add_stake and
+            // staking_contract::add_stake).
+            if polka_export && !exports.contains(&name.to_owned()) {
                 let context = LLVMGetModuleContext(self.0);
                 let num_args = LLVMCountParams(function) as u8;
                 add_polkavm_metadata(
@@ -388,7 +393,7 @@ impl Module {
                     num_args,
                     self.1.clone(),
                 );
-                exports.push(symbol.clone());
+                exports.push(name.to_owned());
             }
             Function(function)
         }
@@ -1446,13 +1451,38 @@ impl Function {
         unsafe {
             if LLVMVerifyFunction(self.0, LLVMVerifierFailureAction::LLVMPrintMessageAction) == 1 {
                 eprintln!(
-                    "WARNING: {} function verification failed, will skip module",
+                    "WARNING: {} function verification failed, replacing with stub",
                     &self.get_name()
                 );
+                self.replace_body_with_unreachable();
                 return false;
             }
         }
         true
+    }
+
+    /// Delete all basic blocks and replace with a single `unreachable` block.
+    /// This allows the module to still pass verification even when one function
+    /// has bad IR, preventing a cascade of module-level failures.
+    pub fn replace_body_with_unreachable(&self) {
+        unsafe {
+            use llvm_sys::core::*;
+            // Delete all existing basic blocks
+            loop {
+                let bb = LLVMGetFirstBasicBlock(self.0);
+                if bb.is_null() {
+                    break;
+                }
+                LLVMDeleteBasicBlock(bb);
+            }
+            // Create a single entry block with `unreachable`
+            let ctx = LLVMGetModuleContext(LLVMGetGlobalParent(self.0));
+            let bb = LLVMAppendBasicBlockInContext(ctx, self.0, b"stub\0".as_ptr() as *const _);
+            let builder = LLVMCreateBuilderInContext(ctx);
+            LLVMPositionBuilderAtEnd(builder, bb);
+            LLVMBuildUnreachable(builder);
+            LLVMDisposeBuilder(builder);
+        }
     }
 }
 

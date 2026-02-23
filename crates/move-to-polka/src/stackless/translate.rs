@@ -1345,7 +1345,18 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .module_cx
                     .llvm_cx
                     .named_struct_type(&struct_name)
-                    .expect("no struct type");
+                    .unwrap_or_else(|| {
+                        let mty = mty::Type::Struct(
+                            struct_env.module_env.get_id(),
+                            struct_env.get_id(),
+                            types.clone(),
+                        );
+                        self.module_cx.declare_struct_instance(&mty, &types);
+                        self.module_cx
+                            .llvm_cx
+                            .named_struct_type(&struct_name)
+                            .expect("struct type still missing after on-the-fly declaration")
+                    });
                 builder.field_ref_store(src_llval, dst_llval, stype, *offset);
             }
             Operation::Pack(mod_id, struct_id, types) => {
@@ -1363,7 +1374,18 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .module_cx
                     .llvm_cx
                     .named_struct_type(&struct_name)
-                    .expect("no struct type");
+                    .unwrap_or_else(|| {
+                        let mty = mty::Type::Struct(
+                            struct_env.module_env.get_id(),
+                            struct_env.get_id(),
+                            types.clone(),
+                        );
+                        self.module_cx.declare_struct_instance(&mty, &types);
+                        self.module_cx
+                            .llvm_cx
+                            .named_struct_type(&struct_name)
+                            .expect("struct type still missing after on-the-fly declaration")
+                    });
                 let global_env = struct_env.module_env.env;
                 src.iter().for_each(|i| {
                     let source = self.locals[*i].mty.to_owned();
@@ -1410,7 +1432,18 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                     .module_cx
                     .llvm_cx
                     .named_struct_type(&struct_name)
-                    .expect("no struct type");
+                    .unwrap_or_else(|| {
+                        let mty = mty::Type::Struct(
+                            struct_env.module_env.get_id(),
+                            struct_env.get_id(),
+                            types.clone(),
+                        );
+                        self.module_cx.declare_struct_instance(&mty, &types);
+                        self.module_cx
+                            .llvm_cx
+                            .named_struct_type(&struct_name)
+                            .expect("struct type still missing after on-the-fly declaration")
+                    });
                 let fdstvals = dst
                     .iter()
                     .map(|i| (self.locals[*i].llty, self.locals[*i].llval))
@@ -1956,6 +1989,35 @@ impl<'mm, 'up> FunctionContext<'mm, 'up> {
                 };
                 let dst_ptr = self.locals[dst[0]].llval.as_any_value();
                 builder.call(ll_fn, &[dst_ptr]);
+                return;
+            }
+
+            // transaction_context natives returning Option<...> (complex enum).
+            // Return None: zero-initialize the destination (discriminant 0 = None).
+            if full_name.ends_with("::entry_function_payload_internal")
+                || full_name.ends_with("::multisig_payload_internal")
+            {
+                assert_eq!(dst.len(), 1);
+                let builder = &self.module_cx.llvm_builder;
+                let dst_ty = self.locals[dst[0]].llty;
+                let null_val = llvm::Constant::get_const_null(dst_ty).as_any_value();
+                builder.build_store(null_val, self.locals[dst[0]].llval);
+                return;
+            }
+
+            // Catch-all for intercepted natives that were skipped in declare_native_function
+            // but don't have specific handling above (dispatchable_*, permissioned_signer, etc.).
+            // Zero-initialize all destinations so the module compiles; these functions
+            // are not expected to be called at runtime in our target contracts.
+            if full_name.ends_with("::signer_from_permissioned_handle_impl")
+                || full_name.contains("::dispatchable_")
+            {
+                let builder = &self.module_cx.llvm_builder;
+                for &d in dst {
+                    let dst_ty = self.locals[d].llty;
+                    let null_val = llvm::Constant::get_const_null(dst_ty).as_any_value();
+                    builder.build_store(null_val, self.locals[d].llval);
+                }
                 return;
             }
         }

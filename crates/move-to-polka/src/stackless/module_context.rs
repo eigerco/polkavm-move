@@ -537,13 +537,14 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             return;
         } else if curr_fn_env.get_type_parameter_count() == 0 {
             let curr_fn_qiid = curr_fn_qid.module_id.qualified_inst(curr_fn_qid.id, vec![]);
-            self.declare_move_function(
-                curr_fn_env,
-                &[],
-                &fn_data,
-                curr_fn_env.llvm_linkage(),
-                exports,
-            );
+            // Foreign functions (from other modules) are body-less declarations and
+            // MUST use external linkage.  LLVM rejects declarations with private linkage.
+            let linkage = if curr_fn_qid.module_id != mod_env.get_id() {
+                llvm::LLVMLinkage::LLVMExternalLinkage
+            } else {
+                curr_fn_env.llvm_linkage()
+            };
+            self.declare_move_function(curr_fn_env, &[], &fn_data, linkage, exports);
             if curr_fn_qid.module_id != mod_env.get_id() {
                 // True foreign functions are only declared in our module, don't process further.
                 return;
@@ -559,8 +560,9 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 return;
             }
 
-            // Note that we may be declaring a foreign function here. But since it is being
-            // expanded into our current module, its linkage is effectively private.
+            // Generic instantiations may appear in multiple modules (e.g. coin::transfer<AptosCoin>
+            // instantiated from both `coin` and `aptos_account`).  Use weak ODR linkage so the
+            // linker can deduplicate them, similar to C++ template instantiation.
             let curr_fn_qiid = curr_fn_qid
                 .module_id
                 .qualified_inst(curr_fn_qid.id, curr_type_vec.clone());
@@ -568,7 +570,7 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
                 curr_fn_env,
                 &curr_type_vec,
                 &fn_data,
-                llvm::LLVMLinkage::LLVMPrivateLinkage,
+                llvm::LLVMLinkage::LLVMWeakODRLinkage,
                 exports,
             );
             self.expanded_functions.push(curr_fn_qiid);
@@ -652,7 +654,11 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             }
             let unit_test = self.options.unit_test_function.clone().unwrap_or_default();
             if fn_env.is_entry() || fn_env.get_full_name_str().replace("::", "__") == unit_test {
-                linkage = llvm::LLVMLinkage::LLVMExternalLinkage;
+                // For generic instantiations (WeakODR), keep weak linkage to allow dedup.
+                // Only override to external for non-generic entry/test functions.
+                if linkage != llvm::LLVMLinkage::LLVMWeakODRLinkage {
+                    linkage = llvm::LLVMLinkage::LLVMExternalLinkage;
+                }
             }
             let tfn = self.llvm_module.add_function(
                 exports,
@@ -812,6 +818,10 @@ impl<'mm: 'up, 'up> ModuleContext<'mm, 'up> {
             || full_name.ends_with("::sender_internal")
             || full_name.ends_with("::gas_payer_internal")
             || full_name.ends_with("::generate_unique_address")
+            || full_name.ends_with("::entry_function_payload_internal")
+            || full_name.ends_with("::multisig_payload_internal")
+            || full_name.ends_with("::signer_from_permissioned_handle_impl")
+            || full_name.contains("::dispatchable_")
         {
             debug!("Skipping declaration for intercepted native: {full_name}");
             return;

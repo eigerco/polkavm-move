@@ -134,6 +134,11 @@ unsafe extern "C" fn aptos_hash_keccak256(bytes: *const MoveByteVector) -> MoveB
     move_native_keccak256(bytes)
 }
 
+#[export_name = "move_native_aptos_hash_sip_hash"]
+unsafe extern "C" fn aptos_hash_sip_hash(bytes: *const MoveByteVector) -> MoveByteVector {
+    move_native_sip_hash(bytes)
+}
+
 #[export_name = "move_rt_move_to"]
 unsafe extern "C" fn move_to(
     type_ve: &MoveType,
@@ -1597,6 +1602,117 @@ unsafe extern "C" fn transaction_context_secondary_signers_internal() -> MoveByt
     }
 }
 
+// Note: entry_function_payload_internal and multisig_payload_internal
+// are intercepted in the translator (return None inline), no guest export needed.
+
+#[export_name = "move_native_transaction_context_monotonically_increasing_counter_internal"]
+unsafe extern "C" fn transaction_context_monotonically_increasing_counter_internal(
+    _timestamp_us: u64,
+) -> u128 {
+    // Stub: return 0 in test environment
+    0
+}
+
+#[export_name = "move_native_transaction_context_monotonically_increasing_counter_internal_for_test_only"]
+unsafe extern "C" fn transaction_context_monotonically_increasing_counter_internal_for_test_only(
+) -> u128 {
+    0
+}
+
+// --- permissioned_signer native functions ---
+
+#[export_name = "move_native_permissioned_signer_is_permissioned_signer_impl"]
+unsafe extern "C" fn permissioned_signer_is_permissioned_signer_impl(_s: *const u8) -> bool {
+    // No permissioned signers in our environment
+    false
+}
+
+#[export_name = "move_native_permissioned_signer_permission_address"]
+unsafe extern "C" fn permissioned_signer_permission_address(_s: *const u8, out: *mut u8) {
+    // Return zero address
+    core::ptr::write_bytes(out, 0, 32);
+}
+
+// --- misc framework native stubs ---
+
+#[export_name = "move_native_object_exists_at"]
+unsafe extern "C" fn object_exists_at_native(_td: *const u8, _addr: *const u8) -> bool {
+    false
+}
+
+#[export_name = "move_native_randomness_is_unbiasable"]
+unsafe extern "C" fn randomness_is_unbiasable() -> bool {
+    false
+}
+
+#[export_name = "move_native_randomness_fetch_and_increment_txn_counter"]
+unsafe extern "C" fn randomness_fetch_and_increment_txn_counter() -> MoveByteVector {
+    MoveByteVector {
+        ptr: core::ptr::null_mut(),
+        capacity: 0,
+        length: 0,
+    }
+}
+
+#[export_name = "move_native_function_info_check_dispatch_type_compatibility_impl"]
+unsafe extern "C" fn function_info_check_dispatch_type_compatibility_impl(
+    _lhs: *const u8,
+    _rhs: *const u8,
+) -> bool {
+    false
+}
+
+#[export_name = "move_native_function_info_is_identifier"]
+unsafe extern "C" fn function_info_is_identifier(_s: *const u8) -> bool {
+    true
+}
+
+#[export_name = "move_native_function_info_load_function_impl"]
+unsafe extern "C" fn function_info_load_function_impl(_f: *const u8) {
+    // No-op
+}
+
+#[export_name = "move_native_state_storage_get_state_storage_usage_only_at_epoch_beginning"]
+unsafe extern "C" fn state_storage_get_usage(out: *mut u8) {
+    // Return zeroed Usage struct
+    core::ptr::write_bytes(out, 0, 16);
+}
+
+#[export_name = "move_native_code_request_publish"]
+unsafe extern "C" fn code_request_publish(
+    _owner: *const u8,
+    _expected: *const u8,
+    _bundle: *const u8,
+    _policy: u64,
+) {
+    // No-op
+}
+
+#[export_name = "move_native_code_request_publish_with_allowed_deps"]
+unsafe extern "C" fn code_request_publish_with_allowed_deps(
+    _owner: *const u8,
+    _expected: *const u8,
+    _bundle: *const u8,
+    _allowed: *const u8,
+    _policy: u64,
+) {
+    // No-op
+}
+
+#[export_name = "move_native_transaction_context_validator_txn_enabled_internal"]
+unsafe extern "C" fn transaction_context_validator_txn_enabled_internal(
+    _config_bytes: *const u8,
+) -> bool {
+    false
+}
+
+#[export_name = "move_native_consensus_config_validator_txn_enabled_internal"]
+unsafe extern "C" fn consensus_config_validator_txn_enabled_internal(
+    _config_bytes: *const u8,
+) -> bool {
+    false
+}
+
 // --- aggregator_v2 native functions ---
 
 // Helper: read u64 or u128 value from a pointer based on type descriptor
@@ -1776,6 +1892,298 @@ unsafe extern "C" fn aggregator_v2_read_snapshot(
 ) {
     let int_size = aggregator_int_size(type_desc);
     core::ptr::copy_nonoverlapping(self_ptr, out, int_size);
+}
+
+// --- Aggregator V1 stubs (deprecated but still referenced by framework modules) ---
+
+#[no_mangle]
+#[export_name = "move_native_aggregator_factory_new_aggregator"]
+unsafe extern "C" fn aggregator_factory_new_aggregator(
+    _table_handle: u128,
+    _key: u128,
+    _limit: u128,
+    out: *mut u128,
+) {
+    // Return a zero aggregator handle
+    *out = 0;
+}
+
+#[no_mangle]
+#[export_name = "move_native_aggregator_add"]
+unsafe extern "C" fn aggregator_add(_agg: *mut u8, _value: u128) {
+    // no-op stub
+}
+
+#[no_mangle]
+#[export_name = "move_native_aggregator_sub"]
+unsafe extern "C" fn aggregator_sub(_agg: *mut u8, _value: u128) {
+    // no-op stub
+}
+
+#[no_mangle]
+#[export_name = "move_native_aggregator_read"]
+unsafe extern "C" fn aggregator_read(_agg: *const u8) -> u128 {
+    0
+}
+
+#[no_mangle]
+#[export_name = "move_native_aggregator_destroy"]
+unsafe extern "C" fn aggregator_destroy(_agg: *mut u8) {
+    // no-op stub
+}
+
+// --- Additional aggregator_v2 stubs ---
+
+#[no_mangle]
+#[export_name = "move_native_aggregator_v2_copy_snapshot"]
+unsafe extern "C" fn aggregator_v2_copy_snapshot(
+    type_desc: *const u8,
+    self_ptr: *const u8,
+    out: *mut u8,
+) {
+    let int_size = aggregator_int_size(type_desc);
+    core::ptr::copy_nonoverlapping(self_ptr, out, int_size);
+}
+
+#[no_mangle]
+#[export_name = "move_native_aggregator_v2_create_derived_string"]
+unsafe extern "C" fn aggregator_v2_create_derived_string(
+    _value_ptr: *const MoveByteVector,
+    out: *mut MoveByteVector,
+) {
+    // Return empty derived string
+    *out = MoveByteVector::from_rust_vec(alloc::vec![]);
+}
+
+#[no_mangle]
+#[export_name = "move_native_aggregator_v2_read_derived_string"]
+unsafe extern "C" fn aggregator_v2_read_derived_string(
+    _self_ptr: *const u8,
+    out: *mut MoveByteVector,
+) {
+    *out = MoveByteVector::from_rust_vec(alloc::vec![]);
+}
+
+#[no_mangle]
+#[export_name = "move_native_aggregator_v2_derive_string_concat"]
+unsafe extern "C" fn aggregator_v2_derive_string_concat(
+    _prefix: *const MoveByteVector,
+    _snapshot: *const u8,
+    _suffix: *const MoveByteVector,
+    out: *mut u8,
+) {
+    // Zero-init the output (DerivedStringSnapshot stub)
+    core::ptr::write_bytes(out, 0, 64);
+}
+
+#[no_mangle]
+#[export_name = "move_native_aggregator_v2_string_concat"]
+unsafe extern "C" fn aggregator_v2_string_concat(
+    _before: *const MoveByteVector,
+    _snapshot: *const u8,
+    _after: *const MoveByteVector,
+    out: *mut u8,
+) {
+    core::ptr::write_bytes(out, 0, 64);
+}
+
+// --- crypto_algebra stubs (abstract algebra for cryptographic groups) ---
+
+#[no_mangle]
+#[export_name = "move_native_crypto_algebra_abort_unless_cryptography_algebra_natives_enabled"]
+unsafe extern "C" fn crypto_algebra_abort_unless_enabled() {
+    // no-op: allow algebra operations
+}
+
+macro_rules! crypto_algebra_stub {
+    ($export:literal, $name:ident $(, $arg:ident : $ty:ty)*) => {
+        #[no_mangle]
+        #[export_name = $export]
+        unsafe extern "C" fn $name($(_: $ty),*) {
+            // Stub: crypto_algebra not yet implemented
+            move_rt_abort(0xFF);
+        }
+    };
+    ($export:literal, $name:ident, ret $ret_ty:ty $(, $arg:ident : $ty:ty)*) => {
+        #[no_mangle]
+        #[export_name = $export]
+        unsafe extern "C" fn $name($(_: $ty),*) -> $ret_ty {
+            move_rt_abort(0xFF);
+            core::hint::unreachable_unchecked()
+        }
+    };
+}
+
+crypto_algebra_stub!("move_native_crypto_algebra_add_internal", crypto_algebra_add, a: *const u8, b: *const u8, c: *const u8, d: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_sub_internal", crypto_algebra_sub, a: *const u8, b: *const u8, c: *const u8, d: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_mul_internal", crypto_algebra_mul, a: *const u8, b: *const u8, c: *const u8, d: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_div_internal", crypto_algebra_div, a: *const u8, b: *const u8, c: *const u8, d: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_neg_internal", crypto_algebra_neg, a: *const u8, b: *const u8, c: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_inv_internal", crypto_algebra_inv, a: *const u8, b: *const u8, c: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_sqr_internal", crypto_algebra_sqr, a: *const u8, b: *const u8, c: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_double_internal", crypto_algebra_double, a: *const u8, b: *const u8, c: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_eq_internal", crypto_algebra_eq, ret bool, a: *const u8, b: *const u8, c: *const u8);
+crypto_algebra_stub!("move_native_crypto_algebra_from_u64_internal", crypto_algebra_from_u64, a: *const u8, b: u64, c: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_zero_internal", crypto_algebra_zero, a: *const u8, b: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_one_internal", crypto_algebra_one, a: *const u8, b: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_serialize_internal", crypto_algebra_serialize, a: *const u8, b: *const u8, c: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_deserialize_internal", crypto_algebra_deserialize, a: *const u8, b: *const u8, c: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_order_internal", crypto_algebra_order, a: *const u8, b: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_upcast_internal", crypto_algebra_upcast, a: *const u8, b: *const u8, c: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_downcast_internal", crypto_algebra_downcast, a: *const u8, b: *const u8, c: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_hash_to_internal", crypto_algebra_hash_to, a: *const u8, b: *const u8, c: *const u8, d: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_pairing_internal", crypto_algebra_pairing, a: *const u8, b: *const u8, c: *const u8, d: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_multi_pairing_internal", crypto_algebra_multi_pairing, a: *const u8, b: *const u8, c: *const u8, d: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_multi_scalar_mul_internal", crypto_algebra_multi_scalar_mul, a: *const u8, b: *const u8, c: *const u8, d: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_scalar_mul_internal", crypto_algebra_scalar_mul, a: *const u8, b: *const u8, c: *const u8, d: *mut u8);
+crypto_algebra_stub!("move_native_crypto_algebra_rand_insecure_internal", crypto_algebra_rand_insecure, a: *const u8, b: *mut u8);
+
+// --- debug stubs ---
+
+#[no_mangle]
+#[export_name = "move_native_debug_native_print"]
+unsafe extern "C" fn debug_native_print(_type_desc: *const u8, _val: *const u8) {
+    // no-op stub for native_print
+}
+
+#[no_mangle]
+#[export_name = "move_native_debug_native_stack_trace"]
+unsafe extern "C" fn debug_native_stack_trace(out: *mut MoveByteVector) {
+    *out = MoveByteVector::from_rust_vec(b"<stack trace unavailable>".to_vec());
+}
+
+// --- string_utils stubs ---
+
+#[no_mangle]
+#[export_name = "move_native_string_utils_native_format"]
+unsafe extern "C" fn string_utils_native_format(
+    _type_desc: *const u8,
+    _val: *const u8,
+    _type_tag: bool,
+    _canonicalize: bool,
+    _single_line: bool,
+    _include_int_types: bool,
+    out: *mut MoveByteVector,
+) {
+    *out = MoveByteVector::from_rust_vec(b"<format unavailable>".to_vec());
+}
+
+#[no_mangle]
+#[export_name = "move_native_string_utils_native_format_list"]
+unsafe extern "C" fn string_utils_native_format_list(
+    _fmt: *const MoveByteVector,
+    _val: *const u8,
+    out: *mut MoveByteVector,
+) {
+    *out = MoveByteVector::from_rust_vec(b"<format_list unavailable>".to_vec());
+}
+
+// --- util stubs ---
+
+#[no_mangle]
+#[export_name = "move_native_util_from_bytes"]
+unsafe extern "C" fn util_from_bytes(
+    _type_desc: *const u8,
+    _bytes: *const MoveByteVector,
+    out: *mut u8,
+) {
+    // Zero-initialize output; real deserialization not yet implemented
+    core::ptr::write_bytes(out, 0, 64);
+}
+
+// --- object stubs ---
+
+#[no_mangle]
+#[export_name = "move_native_object_create_user_derived_object_address_impl"]
+unsafe extern "C" fn object_create_user_derived_object_address_impl(
+    _source: *const u8,
+    _derive_from: *const u8,
+    out: *mut u8,
+) {
+    // Return zero address
+    core::ptr::write_bytes(out, 0, 32);
+}
+
+// --- event stubs ---
+
+#[no_mangle]
+#[export_name = "move_native_event_emitted_events"]
+unsafe extern "C" fn event_emitted_events(_type_desc: *const u8, out: *mut MoveByteVector) {
+    // Return empty vector
+    *out = MoveByteVector::from_rust_vec(alloc::vec![]);
+}
+
+#[no_mangle]
+#[export_name = "move_native_event_emitted_events_by_handle"]
+unsafe extern "C" fn event_emitted_events_by_handle(
+    _type_desc: *const u8,
+    _handle: u64,
+    out: *mut MoveByteVector,
+) {
+    *out = MoveByteVector::from_rust_vec(alloc::vec![]);
+}
+
+// --- ristretto255 missing stub ---
+
+#[no_mangle]
+#[export_name = "move_native_ristretto255_random_scalar_internal"]
+unsafe extern "C" fn ristretto255_random_scalar_internal(out: *mut u8) {
+    // Return zero scalar (stub)
+    core::ptr::write_bytes(out, 0, 32);
+}
+
+// --- permissioned_signer stubs ---
+
+#[no_mangle]
+#[export_name = "move_native_permissioned_signer_signer_from_permissioned_handle_impl"]
+unsafe extern "C" fn permissioned_signer_signer_from_permissioned_handle_impl(
+    _master: *const u8,
+    _permissions_storage_addr: *const u8,
+    _permission_addr: *const u8,
+    out: *mut u8,
+) {
+    // Return zero signer (stub)
+    core::ptr::write_bytes(out, 0, 32);
+}
+
+// --- consensus_config stubs (may alias existing) ---
+
+// validator_txn_enabled_internal is already defined above
+
+// --- dispatchable_fungible_asset stubs ---
+// These are intercepted at the translator level (translate.rs),
+// but in case they're referenced as symbols, provide empty stubs.
+
+#[no_mangle]
+#[export_name = "move_native_dispatchable_fungible_asset_dispatchable_withdraw"]
+unsafe extern "C" fn dispatchable_fa_withdraw() {
+    move_rt_abort(0xFF);
+}
+
+#[no_mangle]
+#[export_name = "move_native_dispatchable_fungible_asset_dispatchable_deposit"]
+unsafe extern "C" fn dispatchable_fa_deposit() {
+    move_rt_abort(0xFF);
+}
+
+#[no_mangle]
+#[export_name = "move_native_dispatchable_fungible_asset_dispatchable_derived_balance"]
+unsafe extern "C" fn dispatchable_fa_derived_balance() {
+    move_rt_abort(0xFF);
+}
+
+#[no_mangle]
+#[export_name = "move_native_dispatchable_fungible_asset_dispatchable_derived_supply"]
+unsafe extern "C" fn dispatchable_fa_derived_supply() {
+    move_rt_abort(0xFF);
+}
+
+// --- account_abstraction stub ---
+
+#[no_mangle]
+#[export_name = "move_native_account_abstraction_dispatchable_authenticate"]
+unsafe extern "C" fn account_abstraction_dispatchable_authenticate() {
+    move_rt_abort(0xFF);
 }
 
 #[allow(dead_code)]

@@ -236,8 +236,9 @@ pub fn create_instance_pre(
 
     let engine = Engine::new(&config)?;
     let module = Module::from_blob(&engine, &module_config, blob)?;
+    let heap_base = module.memory_map().heap_base();
     let mut linker: MoveProgramLinker = Linker::new();
-    define_host_functions(&mut linker)?;
+    define_host_functions(&mut linker, heap_base)?;
 
     let instance_pre = linker.instantiate_pre(&module)?;
     Ok(instance_pre)
@@ -280,7 +281,10 @@ pub fn create_instance(
     create_instance_from_pre(&pre)
 }
 
-fn define_host_functions(linker: &mut MoveProgramLinker) -> Result<(), anyhow::Error> {
+fn define_host_functions(
+    linker: &mut MoveProgramLinker,
+    heap_base: u32,
+) -> Result<(), anyhow::Error> {
     // Define the host functions that will be used by the Move program.
     // Note: when using the low-level `run_lowlevel` function, these are not called automatically,
     // but the program loop must handle the `Ecalli` interrupts and call these functions manually
@@ -311,6 +315,8 @@ fn define_host_functions(linker: &mut MoveProgramLinker) -> Result<(), anyhow::E
             Result::<(), ProgramError>::Ok(())
         },
     )?;
+
+    linker.define_typed("get_heap_base", move || heap_base)?;
 
     const ORIGIN_ADDR: &[u8] = &hex_literal::hex!("ab010101010101010101010101010101010101ce");
 

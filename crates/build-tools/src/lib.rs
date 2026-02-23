@@ -31,10 +31,14 @@ impl Lld {
         if gc_sections {
             cmd.arg("--gc-sections");
         }
-        let status = cmd.arg("-r").arg("-o").arg(output).args(sources).status()?;
-        if !status.success() {
-            error!("ld.lld execution error:");
-            anyhow::bail!("lld failed: exit status: {}", status.code().unwrap())
+        let result = cmd.arg("-r").arg("-o").arg(output).args(sources).output()?;
+        if !result.status.success() {
+            let stderr = String::from_utf8_lossy(&result.stderr);
+            error!("ld.lld execution error:\n{stderr}");
+            anyhow::bail!(
+                "lld failed: exit status: {}\n{stderr}",
+                result.status.code().unwrap()
+            )
         }
         Ok(())
     }

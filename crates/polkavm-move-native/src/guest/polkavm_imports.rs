@@ -33,6 +33,12 @@ extern "C" {
     pub(crate) fn origin(buf: *mut u8);
 }
 
+#[polkavm_derive::polkavm_import]
+extern "C" {
+    /// Returns the actual heap base address from the module's memory map.
+    pub(crate) fn get_heap_base() -> u32;
+}
+
 // The call_selector is generated during translation
 extern "C" {
     pub(crate) fn call_selector(buf: *mut u8, size: u64);
