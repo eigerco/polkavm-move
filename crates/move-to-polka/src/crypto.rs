@@ -980,7 +980,7 @@ mod tests {
 
     #[test]
     fn test_secp256k1_generate_test_vector() {
-        use k256::ecdsa::{signature::hazmat::PrehashSigner, SigningKey as K256SigningKey};
+        use k256::ecdsa::SigningKey as K256SigningKey;
         use sha2::Digest;
 
         // Generate a deterministic key from a known seed

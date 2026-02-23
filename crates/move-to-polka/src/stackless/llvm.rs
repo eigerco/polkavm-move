@@ -1477,7 +1477,7 @@ impl Function {
             }
             // Create a single entry block with `unreachable`
             let ctx = LLVMGetModuleContext(LLVMGetGlobalParent(self.0));
-            let bb = LLVMAppendBasicBlockInContext(ctx, self.0, b"stub\0".as_ptr() as *const _);
+            let bb = LLVMAppendBasicBlockInContext(ctx, self.0, c"stub".as_ptr());
             let builder = LLVMCreateBuilderInContext(ctx);
             LLVMPositionBuilderAtEnd(builder, bb);
             LLVMBuildUnreachable(builder);
